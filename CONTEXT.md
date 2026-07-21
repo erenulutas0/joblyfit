@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (gerçek ilanlar akıyor — D-020 izinli ATS API'leri)_
+_Last updated: 2026-07-21 (arayüz elden geçirildi: filtre, ilan linki, tam metin)_
 
 ## Ne İnşa Ediyoruz?
 

@@ -8,6 +8,54 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Arayüz elden geçirildi: filtre, ilan linki, tam metin, okunabilirlik
+
+Kullanıcı üç şey söyledi: filtre yok, tasarım sönük, ilan linki ve tam gereksinimler
+görünmüyor, profil sayfası okunaksız. Hepsi haklıydı.
+
+**En ciddisi: "İlana git" düğmesi hiç yoktu.** Ürünün asıl eylemi kullanıcıyı ilanın
+kendi sayfasına götürmek — D-020'nin bütün gerekçesi buydu — ama arayüzde URL yalnızca
+düz metin olarak duruyordu. Artık hem kartta hem detay sayfasının başvuru panelinde
+belirgin bir bağlantı var (`target="_blank" rel="noopener noreferrer"`), yanında
+"başvuru ilanın kendi sayfasından yapılır, biz aracı değiliz" notuyla.
+
+**İlanın tam metni** detay sayfasına eklendi. Adapter'ın `lists`'ten koruduğu bölüm
+başlıkları (`## Requirements` gibi) artık başlık ve madde listesi olarak render
+ediliyor; uzun metin katlanıp "Tamamını aç" ile açılıyor.
+
+**Filtreler:** serbest arama (başlık + işveren + şehir + şart), şehir, işveren, meslek
+alanı ve durum (tümü / değerlendirilenler / güçlü-iyi). 61 ilan bellekte olduğu için
+filtreleme istemci tarafında ve anında; kalıcılığa geçilince sunucuya taşınmalı.
+
+**Profil sayfası yeniden kuruldu.** 82 alanın düz liste hâlinde dökülmesi okunaksızdı.
+Artık 15 açılır grup var ve yalnızca kullanıcının kaydı olan gruplar açık geliyor;
+üstte seçilenlerin rozet listesi, doğrulanmış oranını gösteren ilerleme çubuğu ve
+alan araması var. CV önerileri için "hepsini onayla" eklendi.
+
+**Görsel dil güçlendirildi.** Bant rengine göre kart şeridi, işveren monogramı,
+karşılanan şartların yeşil etiketleri, başlıkta canlı istatistikler (ilan / eşleşme /
+işveren), sekmelerde sayaç. Renk paleti derinleştirildi ama kural korundu: `unknown`
+hâlâ **mavi/bilgilendirici**, amber/uyarı değil — D-011'in görsel karşılığı.
+
+**Hacim araştırıldı, artmıyor.** ~120 Türk şirketi slug'ı beş ATS platformunda tarandı;
+yalnızca bir pano daha bulundu (Çiçeksepeti, 2 ilan). Türkiye'de Lever/Greenhouse/
+Recruitee kullanan şirket sayısı gerçekten az. **Hacim ve mavi yaka kapsamı için
+Careerjet/Jooble şart** (OPEN-24); publisher kaydı kullanıcıya ait. Bu sınır arayüzde
+açıkça yazılıyor.
+
+**Bulunan hata: sayfa "Yükleniyor…"da dondu.** Açıklama render'ını eklerken Python
+heredoc'unda `
+` kaçışı kayboldu, gerçek satır sonuna dönüşüp regex'i bozdu ve
+**script hiç parse edilmedi**. Konsola hata düşmediği ve API 200 döndüğü için sorun
+backend'de sanılabilirdi. `node --check` ile yakalandı; bu kontrol artık handoff'ta
+zorunlu adım olarak yazılı.
+
+**Doğrulama.** 70 test geçiyor. Arayüz gerçekten gezilerek doğrulandı: filtre 61 → 14
+(güçlü/iyi), "devops" araması 6 ilgili ilan, profil araması "ehliyet" → 3 alan, detay
+sayfasında 2 bölüm başlığı + 12 madde + başvuru bağlantısı.
+
+---
+
 ## 2026-07-21 — Gerçek ilanlar: izinli ATS API'leri (D-020) + paylaşılan sözlük
 
 Kullanıcı kendi CV'sini yükledi ve **hiçbir alan eşleşmedi**; ayrıca LinkedIn'den

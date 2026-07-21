@@ -34,6 +34,43 @@
 
 ---
 
+## 2026-07-21 — Arayüz elden geçirildi: filtreler, ilan linki, tam metin
+
+**Bu session'da yapılanlar:**
+- **İlan linki eklendi** — hem kartta hem detayda "İlana git ↗". Ürünün asıl eylemi
+  buydu ve arayüzde hiç yoktu; URL yalnızca düz metin olarak duruyordu.
+- **İlanın tam metni** detay sayfasına eklendi (bölüm başlıkları + madde listesi).
+- **Filtreler:** arama, şehir, işveren, meslek alanı, durum. İstemci tarafında
+  (59 ilan bellekte; anında tepki için).
+- **Profil sayfası** açılır/kapanır gruplara bölündü (15 grup, yalnızca dolu olanlar
+  açık), arama kutusu + seçilenler özeti + ilerleme çubuğu eklendi.
+- Görsel dil güçlendirildi: bant rengine göre kart şeridi, işveren monogramı,
+  karşılanan şart etiketleri, başlıkta canlı istatistikler.
+- Çiçeksepeti panosu eklendi (61 ilan).
+
+**Yarım kalanlar:**
+- **Hacim düşük ve artmıyor.** Geniş tarama yapıldı; Türkiye'de Lever/Greenhouse/
+  Recruitee kullanan şirket sayısı çok az. Hacim ve mavi yaka kapsamı için
+  Careerjet/Jooble şart (OPEN-24) — publisher kaydını kullanıcı yapacak.
+- Kalıcılık yok, CI yok, Next.js'e taşınmadı.
+- Filtreleme istemci tarafında; kalıcılığa geçince sunucu tarafına taşınmalı.
+
+**Bir sonraki session'ın ilk adımı:**
+- Kullanıcı onayı bekleniyor. Öncelik: Careerjet (hacim) mi, kalıcılık mı?
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **`web/index.html` düzenledikten sonra `node --check` çalıştır.** Sözdizimi hatası
+  olunca script hiç parse edilmiyor, sayfa "Yükleniyor…"da donuyor ve **konsola hata
+  düşmüyor**; API 200 döndüğü için sorun backend'de sanılıyor. Bu session'da tam
+  olarak bu oldu (Python heredoc'unda `
+` kaçışı kaybolup regex'i bozdu).
+- **HTML içine JS yazarken Python heredoc + `str.replace` kullanma** — kaçış
+  karakterleri sessizce bozuluyor. Edit tool birebir yazar.
+- Browser panelinin `screenshot`'ı bu projede sık sık **bayat kare** döndürüyor;
+  doğrulamayı `get_page_text` veya DOM sorgusuyla yap.
+
+---
+
 ## 2026-07-21 — Gerçek ilanlar akıyor (D-020) + paylaşılan sözlük
 
 **Bu session'da yapılanlar:**

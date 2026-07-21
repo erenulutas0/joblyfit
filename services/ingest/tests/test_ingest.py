@@ -36,7 +36,7 @@ def _raw(**kw) -> RawPosting:
         title="Başlık",
         employer="İşveren",
         city="Bursa",
-        occupation_id="account",
+        occupation_id="Muhasebe ve finans",
         description="metin",
     )
     base.update(kw)

@@ -77,10 +77,13 @@ class JobSummary(BaseModel):
     unknown_count: int = 0
     worth_applying: str = ""
     worth_applying_rule: str = ""
+    #: Kartta gösterilecek kısa şart önizlemesi
+    top_requirements: list[str] = []
+    matched_requirements: list[str] = []
 
 
 class JobDetail(JobSummary):
-    description_available: bool = False
+    description: str = Field("", description="İlanın kaynaktaki tam metni")
     why: list[str] = []
     met: list[ExplanationLineOut] = []
     unmet: list[ExplanationLineOut] = []
@@ -103,6 +106,8 @@ class FeedOut(BaseModel):
     )
     profile_is_empty: bool
     ingest: dict
+    #: Arayüzdeki filtre seçenekleri — korpustan türetilir, sabit liste değil.
+    facets: dict = Field(default_factory=dict)
 
 
 class CatalogItemOut(BaseModel):
@@ -198,6 +203,12 @@ def _summary(posting, result, exp) -> JobSummary:
         unknown_count=len(result.unknown),
         worth_applying=exp.worth_applying,
         worth_applying_rule=exp.worth_applying_rule,
+        top_requirements=[
+            o.requirement.label for o in result.outcomes
+            if o.requirement.kind in ("hard", "required")
+            and not o.requirement.is_legal_eligibility
+        ][:5],
+        matched_requirements=[o.requirement.label for o in result.met][:5],
     )
 
 
@@ -355,11 +366,17 @@ def feed() -> FeedOut:
             evaluated.append((_BAND_ORDER[result.band], s))
 
     evaluated.sort(key=lambda t: (t[0], t[1].title))
+    every = [s for _, s in evaluated] + unevaluated
     return FeedOut(
         evaluated=[s for _, s in evaluated],
         unevaluated=unevaluated,
         profile_is_empty=not STORE.profile.facts,
         ingest=STORE.ingest_summary,
+        facets={
+            "cities": sorted({j.city for j in every if j.city}),
+            "employers": sorted({j.employer for j in every if j.employer}),
+            "clusters": sorted({j.occupation_id for j in every if j.occupation_id}),
+        },
     )
 
 
@@ -379,7 +396,7 @@ def job_detail(job_id: str) -> JobDetail:
 
     return JobDetail(
         **base.model_dump(),
-        description_available=bool(posting.job_text),
+        description=posting.job_text,
         why=list(exp.why),
         met=lines(exp.met),
         unmet=lines(exp.unmet),

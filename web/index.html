@@ -5,499 +5,782 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>İşe Uygun</title>
 <style>
+/* ==========================================================================
+   Renk. Tek güçlü aksan (emaye mavisi) + iki anlam rengi.
+   Kritik: `unknown` MAVİ/bilgilendirici, amber/uyarı DEĞİL — D-011'in görsel
+   karşılığı. "Bilmiyoruz" bir kusur değildir, bu yüzden uyarı rengi almaz.
+   ========================================================================== */
 :root{
-  --ink:#14181d; --ink-2:#3d4650; --ink-3:#6b7580;
-  --paper:#faf9f6; --paper-2:#f2f1ec; --paper-3:#e8e6df;
-  --rule:#dedcd4; --rule-strong:#b9b6ac;
-  --accent:#1b5e8f; --accent-ink:#0f3f63;
-  --met:#2c6b4c; --unmet:#a33b32; --unknown:#2f7fa8;
-  --met-bg:#e8f1ea; --unmet-bg:#f7eae8; --unknown-bg:#e6f0f6;
+  --ink:#0f141a; --ink-2:#3a4552; --ink-3:#6d7885; --ink-4:#98a2ae;
+  --paper:#fbfaf7; --paper-2:#f3f1ea; --paper-3:#e9e5db;
+  --rule:#ded9cd; --rule-2:#c5bfaf;
+  --accent:#14567f; --accent-2:#0e4162; --accent-soft:#e1edf5;
+  --match:#1f6b4a; --match-soft:#e3f0e8;
+  --unknown:#2b7ba3; --unknown-soft:#e2eff6;
+  --unmet:#9c3a30; --unmet-soft:#f8e9e6;
   --serif:Georgia,'Times New Roman',Times,serif;
   --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
-  --shadow:0 1px 2px rgba(20,24,29,.06),0 4px 12px rgba(20,24,29,.05);
+  --sh-1:0 1px 2px rgba(15,20,26,.05);
+  --sh-2:0 1px 3px rgba(15,20,26,.07),0 6px 16px -6px rgba(15,20,26,.10);
+  --sh-3:0 2px 6px rgba(15,20,26,.08),0 16px 40px -12px rgba(15,20,26,.16);
 }
-@media (prefers-color-scheme:dark){
-  :root{
-    --ink:#eceae4; --ink-2:#b3b8be; --ink-3:#858d96;
-    --paper:#14181d; --paper-2:#1b2027; --paper-3:#242b33;
-    --rule:#2d353e; --rule-strong:#414a54;
-    --accent:#6bb2dd; --accent-ink:#9ccdf0;
-    --met:#6fc194; --unmet:#e08b80; --unknown:#79bcdd;
-    --met-bg:#17291f; --unmet-bg:#2b1c1a; --unknown-bg:#152730;
-    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25);
-  }
-}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#eef0f2; --ink-2:#b6bec7; --ink-3:#8a94a0; --ink-4:#69737f;
+  --paper:#0f1319; --paper-2:#171c23; --paper-3:#20262f;
+  --rule:#2a313a; --rule-2:#3c444f;
+  --accent:#5fb0e0; --accent-2:#8ccbf2; --accent-soft:#13293a;
+  --match:#5cc08d; --match-soft:#122a1f;
+  --unknown:#6cbadf; --unknown-soft:#112833;
+  --unmet:#df8b80; --unmet-soft:#2b1a17;
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 1px 3px rgba(0,0,0,.5),0 6px 16px -6px rgba(0,0,0,.5);
+  --sh-3:0 2px 6px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
+}}
 :root[data-theme="dark"]{
-  --ink:#eceae4; --ink-2:#b3b8be; --ink-3:#858d96;
-  --paper:#14181d; --paper-2:#1b2027; --paper-3:#242b33;
-  --rule:#2d353e; --rule-strong:#414a54;
-  --accent:#6bb2dd; --accent-ink:#9ccdf0;
-  --met:#6fc194; --unmet:#e08b80; --unknown:#79bcdd;
-  --met-bg:#17291f; --unmet-bg:#2b1c1a; --unknown-bg:#152730;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25);
+  --ink:#eef0f2; --ink-2:#b6bec7; --ink-3:#8a94a0; --ink-4:#69737f;
+  --paper:#0f1319; --paper-2:#171c23; --paper-3:#20262f;
+  --rule:#2a313a; --rule-2:#3c444f;
+  --accent:#5fb0e0; --accent-2:#8ccbf2; --accent-soft:#13293a;
+  --match:#5cc08d; --match-soft:#122a1f;
+  --unknown:#6cbadf; --unknown-soft:#112833;
+  --unmet:#df8b80; --unmet-soft:#2b1a17;
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 1px 3px rgba(0,0,0,.5),0 6px 16px -6px rgba(0,0,0,.5);
+  --sh-3:0 2px 6px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
 }
 :root[data-theme="light"]{
-  --ink:#14181d; --ink-2:#3d4650; --ink-3:#6b7580;
-  --paper:#faf9f6; --paper-2:#f2f1ec; --paper-3:#e8e6df;
-  --rule:#dedcd4; --rule-strong:#b9b6ac;
-  --accent:#1b5e8f; --accent-ink:#0f3f63;
-  --met:#2c6b4c; --unmet:#a33b32; --unknown:#2f7fa8;
-  --met-bg:#e8f1ea; --unmet-bg:#f7eae8; --unknown-bg:#e6f0f6;
-  --shadow:0 1px 2px rgba(20,24,29,.06),0 4px 12px rgba(20,24,29,.05);
+  --ink:#0f141a; --ink-2:#3a4552; --ink-3:#6d7885; --ink-4:#98a2ae;
+  --paper:#fbfaf7; --paper-2:#f3f1ea; --paper-3:#e9e5db;
+  --rule:#ded9cd; --rule-2:#c5bfaf;
+  --accent:#14567f; --accent-2:#0e4162; --accent-soft:#e1edf5;
+  --match:#1f6b4a; --match-soft:#e3f0e8;
+  --unknown:#2b7ba3; --unknown-soft:#e2eff6;
+  --unmet:#9c3a30; --unmet-soft:#f8e9e6;
+  --sh-1:0 1px 2px rgba(15,20,26,.05);
+  --sh-2:0 1px 3px rgba(15,20,26,.07),0 6px 16px -6px rgba(15,20,26,.10);
+  --sh-3:0 2px 6px rgba(15,20,26,.08),0 16px 40px -12px rgba(15,20,26,.16);
 }
+
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--paper); color:var(--ink); font-family:var(--sans);
-  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
-}
-h1,h2,h3{font-family:var(--serif); font-weight:600; text-wrap:balance; margin:0}
-a{color:var(--accent); text-underline-offset:2px}
-button{font:inherit; cursor:pointer}
-:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:15.5px; line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--serif); font-weight:600; margin:0; text-wrap:balance;
+  letter-spacing:-.008em}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;
+  transition-duration:.01ms!important; scroll-behavior:auto!important}}
 
 /* ---------- kabuk ---------- */
-.masthead{border-bottom:2px solid var(--ink); background:var(--paper)}
-.masthead-in{max-width:1180px; margin:0 auto; padding:14px 20px;
-  display:flex; align-items:baseline; gap:16px; flex-wrap:wrap}
-.wordmark{font-family:var(--serif); font-size:22px; letter-spacing:-.01em}
+.masthead{background:var(--paper); border-bottom:1px solid var(--rule);
+  position:relative}
+.masthead::before{content:""; position:absolute; inset:0 0 auto 0; height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--match) 55%,var(--unknown))}
+.mh{max-width:1240px; margin:0 auto; padding:18px 22px 14px;
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+.wordmark{font-family:var(--serif); font-size:25px; letter-spacing:-.02em; line-height:1}
 .wordmark span{color:var(--accent)}
-.tagline{font-size:12.5px; color:var(--ink-3); letter-spacing:.02em}
-.masthead-spacer{flex:1}
-.theme-btn{background:none; border:1px solid var(--rule); color:var(--ink-2);
-  padding:5px 10px; border-radius:4px; font-size:12.5px}
-.theme-btn:hover{border-color:var(--rule-strong)}
+.tagline{font-size:12.5px; color:var(--ink-3); max-width:34ch; line-height:1.4}
+.mh-sp{flex:1}
+.stats{display:flex; gap:8px; flex-wrap:wrap}
+.stat{background:var(--paper-2); border:1px solid var(--rule); border-radius:7px;
+  padding:6px 12px; text-align:center; min-width:64px}
+.stat b{display:block; font-family:var(--serif); font-size:19px; line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.stat i{font-style:normal; font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}
+.stat.is-match b{color:var(--match)}
+.icon-btn{background:none; border:1px solid var(--rule); color:var(--ink-2);
+  padding:7px 12px; border-radius:7px; font-size:12.5px}
+.icon-btn:hover{border-color:var(--rule-2); background:var(--paper-2)}
 
-nav.tabs{border-bottom:1px solid var(--rule); background:var(--paper);
-  position:sticky; top:0; z-index:20}
-.tabs-in{max-width:1180px; margin:0 auto; padding:0 20px; display:flex; gap:2px;
+nav.tabs{background:var(--paper); border-bottom:1px solid var(--rule);
+  position:sticky; top:0; z-index:30}
+.tabs-in{max-width:1240px; margin:0 auto; padding:0 22px; display:flex; gap:4px;
   overflow-x:auto}
-.tab{background:none; border:0; border-bottom:3px solid transparent;
-  padding:11px 14px; color:var(--ink-3); font-size:14.5px; white-space:nowrap}
+.tab{background:none; border:0; border-bottom:2.5px solid transparent;
+  padding:12px 14px; color:var(--ink-3); font-size:14.5px; white-space:nowrap;
+  font-weight:500}
 .tab:hover{color:var(--ink)}
 .tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent);
-  font-weight:600}
-main{max-width:1180px; margin:0 auto; padding:26px 20px 80px}
+  font-weight:650}
+.tab .pip{display:inline-block; margin-left:6px; background:var(--paper-3);
+  color:var(--ink-2); border-radius:9px; padding:1px 7px; font-size:11px;
+  font-variant-numeric:tabular-nums}
+main{max-width:1240px; margin:0 auto; padding:24px 22px 90px}
 
 /* ---------- ortak ---------- */
-.notice{border-left:3px solid var(--accent); background:var(--paper-2);
-  padding:12px 15px; font-size:13.5px; color:var(--ink-2); border-radius:0 4px 4px 0}
+.notice{border-left:3px solid var(--accent); background:var(--accent-soft);
+  padding:13px 16px; font-size:13.5px; color:var(--ink-2);
+  border-radius:0 7px 7px 0; line-height:1.55}
 .notice strong{color:var(--ink)}
-.eyebrow{font-size:11.5px; letter-spacing:.11em; text-transform:uppercase;
-  color:var(--ink-3); font-weight:600}
-.section-head{display:flex; align-items:baseline; gap:12px;
-  border-bottom:2px solid var(--ink); padding-bottom:7px; margin:34px 0 0}
-.section-head h2{font-size:19px}
-.section-head .count{font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.notice.warn{border-left-color:var(--unmet); background:var(--unmet-soft)}
+.eyebrow{font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:700}
+.sec{display:flex; align-items:center; gap:12px; margin:32px 0 14px;
+  padding-bottom:9px; border-bottom:2px solid var(--ink)}
+.sec h2{font-size:20px}
+.sec .count{font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums;
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:20px;
+  padding:2px 10px}
+.sec .sp{flex:1}
 .muted{color:var(--ink-3); font-size:13.5px}
-.btn{background:var(--accent); color:#fff; border:0; padding:9px 16px;
-  border-radius:4px; font-size:14px; font-weight:500}
-.btn:hover{background:var(--accent-ink)}
-@media (prefers-color-scheme:dark){.btn{color:#0d1319}}
-:root[data-theme="dark"] .btn{color:#0d1319}
+.btn{background:var(--accent); color:#fff; border:0; padding:10px 18px;
+  border-radius:7px; font-size:14px; font-weight:600; display:inline-flex;
+  align-items:center; gap:7px; text-decoration:none; box-shadow:var(--sh-1)}
+.btn:hover{background:var(--accent-2)}
+:root[data-theme="dark"] .btn{color:#08111a}
+@media (prefers-color-scheme:dark){.btn{color:#08111a}}
 :root[data-theme="light"] .btn{color:#fff}
-.btn-ghost{background:none; color:var(--accent); border:1px solid var(--rule);
-  padding:7px 13px; border-radius:4px; font-size:13.5px}
-.btn-ghost:hover{border-color:var(--accent)}
-.btn-sm{padding:4px 10px; font-size:12.5px}
-.spinner{display:inline-block; width:13px; height:13px; border:2px solid var(--rule);
-  border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite;
+.btn-2{background:none; color:var(--accent); border:1px solid var(--rule-2);
+  padding:9px 15px; border-radius:7px; font-size:13.5px; font-weight:500;
+  display:inline-flex; align-items:center; gap:6px; text-decoration:none}
+.btn-2:hover{border-color:var(--accent); background:var(--accent-soft)}
+.btn-sm{padding:5px 11px; font-size:12.5px; border-radius:6px}
+.spin{display:inline-block; width:14px; height:14px; border:2px solid var(--rule);
+  border-top-color:var(--accent); border-radius:50%; animation:sp .7s linear infinite;
   vertical-align:-2px}
-@keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;
-  transition-duration:.01ms!important}}
+@keyframes sp{to{transform:rotate(360deg)}}
 
-/* ---------- ilan listesi (pano estetiği) ---------- */
-.listing{border-bottom:1px solid var(--rule); padding:17px 0; display:grid;
-  grid-template-columns:1fr auto; gap:6px 20px; align-items:start; cursor:pointer;
-  background:none; border-left:0; border-right:0; border-top:0; width:100%;
-  text-align:left; color:inherit; font:inherit}
-.listing:hover{background:var(--paper-2)}
-.listing:hover .listing-title{color:var(--accent)}
-.listing-title{font-family:var(--serif); font-size:17.5px; line-height:1.3;
-  margin:0 0 3px}
-.listing-meta{font-size:13px; color:var(--ink-3)}
-.listing-meta b{color:var(--ink-2); font-weight:500}
-.listing-verdict{font-size:13px; color:var(--ink-2); margin-top:7px; max-width:62ch}
-.listing-right{text-align:right; display:flex; flex-direction:column; gap:5px;
-  align-items:flex-end; min-width:132px}
-.band{font-size:12.5px; font-weight:600; padding:3px 9px; border-radius:3px;
-  border:1px solid currentColor; white-space:nowrap}
-.band-strong{color:var(--met); background:var(--met-bg)}
-.band-good{color:var(--met); background:var(--met-bg)}
-.band-cond{color:var(--accent); background:var(--unknown-bg)}
-.band-weak{color:var(--unmet); background:var(--unmet-bg)}
-.band-none{color:var(--ink-3); background:var(--paper-2); border-color:var(--rule)}
-.conf{font-size:11.5px; color:var(--ink-3)}
-.ledger-mini{font-size:11.5px; color:var(--ink-3); font-variant-numeric:tabular-nums;
-  display:flex; gap:9px}
-.ledger-mini i{font-style:normal}
-.lm-met{color:var(--met)} .lm-unmet{color:var(--unmet)} .lm-unk{color:var(--unknown)}
+/* ---------- filtre çubuğu ---------- */
+.filters{background:var(--paper-2); border:1px solid var(--rule); border-radius:10px;
+  padding:14px 16px; margin-bottom:6px; box-shadow:var(--sh-1)}
+.frow{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.frow + .frow{margin-top:11px; padding-top:11px; border-top:1px solid var(--rule)}
+.search{flex:1; min-width:220px; position:relative}
+.search input{width:100%; padding:9px 12px 9px 34px; border:1px solid var(--rule-2);
+  border-radius:7px; background:var(--paper); color:var(--ink); font-size:14px}
+.search::before{content:"⌕"; position:absolute; left:11px; top:50%;
+  transform:translateY(-50%); color:var(--ink-3); font-size:17px}
+select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
+  background:var(--paper); color:var(--ink); font-size:13.5px; max-width:190px}
+.chip{border:1px solid var(--rule-2); background:var(--paper); color:var(--ink-2);
+  border-radius:20px; padding:5px 13px; font-size:12.5px; white-space:nowrap}
+.chip:hover{border-color:var(--accent); color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent);
+  color:#fff; font-weight:600}
+:root[data-theme="dark"] .chip[aria-pressed="true"]{color:#08111a}
+@media (prefers-color-scheme:dark){.chip[aria-pressed="true"]{color:#08111a}}
+:root[data-theme="light"] .chip[aria-pressed="true"]{color:#fff}
+.fl-label{font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:700; margin-right:2px}
+.fcount{font-size:13px; color:var(--ink-3); margin-left:auto;
+  font-variant-numeric:tabular-nums}
 
-/* ---------- defter (üç durum) ---------- */
-.ledger{margin:14px 0 0; border-top:1px solid var(--rule)}
-.ledger-row{display:grid; grid-template-columns:22px 1fr auto; gap:12px;
-  padding:11px 0; border-bottom:1px solid var(--rule); align-items:start}
-.ledger-mark{font-size:14px; line-height:1.5; text-align:center; font-weight:700}
-.m-met{color:var(--met)} .m-unmet{color:var(--unmet)} .m-unk{color:var(--unknown)}
-.ledger-label{font-size:15px; margin:0 0 2px}
-.ledger-ev{font-size:13px; color:var(--ink-3); font-family:var(--mono);
-  line-height:1.5}
-.ledger-row.is-unknown{background:var(--unknown-bg); margin:0 -12px;
-  padding-left:12px; padding-right:12px; border-radius:3px}
+/* ---------- ilan kartı ---------- */
+.card{background:var(--paper); border:1px solid var(--rule); border-radius:10px;
+  padding:16px 18px 14px 21px; margin-bottom:11px; position:relative;
+  box-shadow:var(--sh-1); transition:box-shadow .14s, border-color .14s}
+.card:hover{box-shadow:var(--sh-2); border-color:var(--rule-2)}
+.card::before{content:""; position:absolute; left:0; top:-1px; bottom:-1px; width:4px;
+  border-radius:10px 0 0 10px; background:var(--rule-2)}
+.card.b-strong::before,.card.b-good::before{background:var(--match)}
+.card.b-cond::before{background:var(--accent)}
+.card.b-weak::before{background:var(--unmet)}
+.card.b-none::before{background:var(--rule-2)}
+.card-top{display:flex; gap:14px; align-items:flex-start}
+.mono-badge{width:40px; height:40px; flex:none; border-radius:9px;
+  background:var(--paper-3); color:var(--ink-2); display:grid; place-items:center;
+  font-family:var(--serif); font-size:16px; font-weight:600; letter-spacing:-.02em}
+.card-head{flex:1; min-width:0}
+.card h3{font-size:17.5px; line-height:1.3; margin-bottom:3px}
+.card-meta{font-size:12.5px; color:var(--ink-3); display:flex; gap:7px;
+  flex-wrap:wrap; align-items:center}
+.card-meta b{color:var(--ink-2); font-weight:600}
+.card-meta .dot{color:var(--ink-4)}
+.card-right{flex:none; text-align:right; display:flex; flex-direction:column;
+  align-items:flex-end; gap:5px}
+.band{font-size:12px; font-weight:700; padding:4px 11px; border-radius:20px;
+  white-space:nowrap; letter-spacing:.01em}
+.b-strong .band,.b-good .band{background:var(--match-soft); color:var(--match)}
+.b-cond .band{background:var(--accent-soft); color:var(--accent)}
+.b-weak .band{background:var(--unmet-soft); color:var(--unmet)}
+.b-none .band{background:var(--paper-2); color:var(--ink-3);
+  border:1px solid var(--rule)}
+.conf{font-size:11px; color:var(--ink-3)}
+.verdict{font-size:13.5px; color:var(--ink-2); margin:11px 0 0; line-height:1.5;
+  max-width:78ch}
+.reqchips{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px}
+.rq{font-size:11.5px; padding:3px 9px; border-radius:5px; border:1px solid var(--rule);
+  color:var(--ink-3); background:var(--paper-2)}
+.rq.on{background:var(--match-soft); color:var(--match); border-color:transparent;
+  font-weight:600}
+.card-acts{display:flex; gap:9px; margin-top:13px; padding-top:12px;
+  border-top:1px solid var(--rule); flex-wrap:wrap; align-items:center}
+.card-acts .sp{flex:1}
+.ext{font-size:11.5px; color:var(--ink-4)}
 
-/* ---------- detay ---------- */
-.detail-head{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:4px}
-.detail-head h1{font-size:26px; line-height:1.25; margin:6px 0 8px}
-.verdict-box{background:var(--paper-2); border:1px solid var(--rule);
-  border-radius:5px; padding:16px 18px; margin:20px 0; box-shadow:var(--shadow)}
-.verdict-box .band{font-size:13.5px}
-.verdict-line{font-size:15.5px; margin:11px 0 0; line-height:1.5}
+/* ---------- ilan detayı ---------- */
+.detail{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:30px;
+  align-items:start}
+@media (max-width:940px){.detail{grid-template-columns:1fr}}
+.dhead{border-bottom:2px solid var(--ink); padding-bottom:17px; margin-bottom:22px}
+.dhead h1{font-size:29px; line-height:1.22; margin:8px 0 9px}
+.side{position:sticky; top:64px; display:flex; flex-direction:column; gap:14px}
+@media (max-width:940px){.side{position:static}}
+.panel{background:var(--paper-2); border:1px solid var(--rule); border-radius:10px;
+  padding:17px; box-shadow:var(--sh-1)}
+.panel h4{font-size:14px; margin-bottom:9px}
+.panel .band{display:inline-block; font-size:13px; padding:5px 13px}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:13px;
+  margin-top:11px}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0; color:var(--ink-2); font-weight:500}
+.apply{width:100%; justify-content:center; padding:12px 18px; font-size:15px}
+
+/* defter — üç durum */
+.ledger{border-top:1px solid var(--rule); margin-top:12px}
+.lr{display:grid; grid-template-columns:26px 1fr auto; gap:13px; padding:12px 0;
+  border-bottom:1px solid var(--rule); align-items:start}
+.lm{width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  font-size:12px; font-weight:800; line-height:1}
+.lm.met{background:var(--match-soft); color:var(--match)}
+.lm.unmet{background:var(--unmet-soft); color:var(--unmet)}
+.lm.unk{background:var(--unknown-soft); color:var(--unknown)}
+.lr p{font-size:14.5px; margin:0 0 3px; font-weight:500}
+.lr .ev{font-size:12.5px; color:var(--ink-3); font-family:var(--mono); line-height:1.5}
+.lr.is-unk{background:var(--unknown-soft); margin:0 -13px; padding:12px 13px;
+  border-radius:7px; border-bottom-color:transparent}
+.desc{font-size:14.5px; line-height:1.68; color:var(--ink-2); max-width:74ch}
+.desc p{margin:0 0 10px; white-space:pre-wrap}
+.desc ul{margin:0 0 12px; padding-left:20px}
+.desc li{margin:0 0 5px}
+.desc h4{font-family:var(--serif); font-size:15.5px; color:var(--ink);
+  margin:20px 0 8px; padding-bottom:5px; border-bottom:1px solid var(--rule)}
+.desc h4:first-child{margin-top:0}
+.desc-wrap{position:relative; max-height:340px; overflow:hidden}
+.desc-wrap.open{max-height:none}
+.desc-wrap:not(.open)::after{content:""; position:absolute; inset:auto 0 0 0;
+  height:90px; background:linear-gradient(transparent,var(--paper))}
 .disclaimer{font-size:12.5px; color:var(--ink-3); border-top:1px solid var(--rule);
-  margin-top:24px; padding-top:12px; line-height:1.55}
+  margin-top:26px; padding-top:14px; line-height:1.6}
 
 /* ---------- profil ---------- */
-.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:26px}
-@media (max-width:860px){.grid-2{grid-template-columns:1fr}}
-.occ-group{margin:22px 0 0}
-.occ-group h3{font-size:15px; border-bottom:1px solid var(--rule-strong);
-  padding-bottom:5px; margin-bottom:2px}
-.fact-row{display:flex; align-items:center; gap:10px; padding:9px 0;
-  border-bottom:1px solid var(--rule); flex-wrap:wrap}
-.fact-row .name{flex:1; font-size:14.5px; min-width:170px}
-.fact-row .cat{font-size:11.5px; color:var(--ink-3)}
-.chip{font-size:11.5px; padding:2px 8px; border-radius:10px; white-space:nowrap;
-  border:1px solid currentColor}
-.chip-verified{color:var(--met); background:var(--met-bg)}
-.chip-asserted{color:var(--accent); background:var(--unknown-bg)}
-.chip-needs{color:var(--unknown); background:var(--unknown-bg)}
-input[type=number],input[type=text],select{font:inherit; font-size:14px;
-  padding:5px 8px; border:1px solid var(--rule-strong); border-radius:4px;
-  background:var(--paper); color:var(--ink); width:74px}
-label.occ{display:inline-flex; align-items:center; gap:6px; font-size:14px;
-  padding:6px 11px; border:1px solid var(--rule-strong); border-radius:20px;
+.psum{background:var(--paper-2); border:1px solid var(--rule); border-radius:10px;
+  padding:16px 18px; margin-bottom:16px; box-shadow:var(--sh-1)}
+.psum-top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.psum-top h3{font-size:17px}
+.bar{height:6px; background:var(--paper-3); border-radius:4px; overflow:hidden;
+  margin-top:11px}
+.bar i{display:block; height:100%; background:var(--match); border-radius:4px}
+.sel-chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px}
+.sel{font-size:12px; padding:4px 10px; border-radius:20px; background:var(--match-soft);
+  color:var(--match); font-weight:600; display:inline-flex; align-items:center; gap:6px}
+.sel.pend{background:var(--unknown-soft); color:var(--unknown)}
+.sel button{background:none; border:0; color:inherit; padding:0; font-size:14px;
+  line-height:1; opacity:.65}
+.sel button:hover{opacity:1}
+
+.acc{border:1px solid var(--rule); border-radius:10px; margin-bottom:10px;
+  background:var(--paper); overflow:hidden}
+.acc-head{width:100%; display:flex; align-items:center; gap:11px; padding:13px 16px;
+  background:none; border:0; text-align:left; color:inherit}
+.acc-head:hover{background:var(--paper-2)}
+.acc-head h3{font-size:15.5px; flex:1}
+.acc-head .n{font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums;
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:20px;
+  padding:2px 9px}
+.acc-head .n.has{background:var(--match-soft); color:var(--match); border-color:transparent;
+  font-weight:700}
+.acc-head .caret{color:var(--ink-3); font-size:12px; transition:transform .15s}
+.acc[open] .caret{transform:rotate(90deg)}
+.acc-body{padding:2px 16px 12px; border-top:1px solid var(--rule)}
+.frow2{display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--rule)}
+.frow2:last-child{border-bottom:0}
+.frow2 .nm{font-size:14.5px; line-height:1.35}
+.frow2 .cat{font-size:11.5px; color:var(--ink-3); margin-top:1px}
+.frow2 .ctl{display:flex; gap:7px; align-items:center; flex-wrap:wrap;
+  justify-content:flex-end}
+input[type=number]{width:76px; padding:6px 9px; border:1px solid var(--rule-2);
+  border-radius:6px; background:var(--paper); color:var(--ink); font-size:13.5px}
+.tag{font-size:11px; padding:3px 9px; border-radius:20px; font-weight:600;
+  white-space:nowrap}
+.tag.ok{background:var(--match-soft); color:var(--match)}
+.tag.need{background:var(--unknown-soft); color:var(--unknown)}
+.tag.said{background:var(--paper-2); color:var(--ink-3); border:1px solid var(--rule)}
+label.occ{display:inline-flex; align-items:center; gap:7px; font-size:13.5px;
+  padding:7px 13px; border:1px solid var(--rule-2); border-radius:20px;
   margin:0 7px 7px 0; cursor:pointer}
 label.occ:has(input:checked){border-color:var(--accent); color:var(--accent);
-  background:var(--unknown-bg)}
+  background:var(--accent-soft); font-weight:600}
 
 /* ---------- CV ---------- */
-.drop{border:2px dashed var(--rule-strong); border-radius:7px; padding:34px 22px;
+.drop{border:2px dashed var(--rule-2); border-radius:12px; padding:38px 24px;
   text-align:center; background:var(--paper-2); transition:border-color .15s}
-.drop.over{border-color:var(--accent); background:var(--unknown-bg)}
-.drop h3{font-size:16.5px; margin-bottom:5px}
+.drop.over{border-color:var(--accent); background:var(--accent-soft)}
+.drop h3{font-size:18px; margin-bottom:6px}
 
 /* ---------- tablo ---------- */
-table{border-collapse:collapse; width:100%; font-size:13.5px}
-th,td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--rule);
+.tw{overflow-x:auto; margin-top:14px; border:1px solid var(--rule); border-radius:10px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:760px}
+th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--rule);
   vertical-align:top}
-th{font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
-  color:var(--ink-3); border-bottom:1px solid var(--rule-strong)}
-.table-wrap{overflow-x:auto; margin-top:12px}
-.perm{font-weight:600; white-space:nowrap}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3);
+  background:var(--paper-2); font-weight:700}
+tr:last-child td{border-bottom:0}
+.perm{font-weight:700; white-space:nowrap; font-size:12px}
 .p-rejected{color:var(--unmet)} .p-conditional{color:var(--accent)}
-.p-allowed{color:var(--met)}
+.p-allowed{color:var(--match)}
+
+.empty{text-align:center; padding:48px 20px; color:var(--ink-3)}
+.empty h3{font-size:18px; color:var(--ink); margin-bottom:7px}
 
 /* ---------- dar ekran ---------- */
-@media (max-width:560px){
-  body{font-size:15.5px}
+@media (max-width:620px){
+  body{font-size:15px}
   .tagline{display:none}
-  .listing{grid-template-columns:1fr; gap:10px; padding:15px 0}
-  .listing-title{font-size:16.5px}
-  .listing-right{flex-direction:row; flex-wrap:wrap; align-items:center;
-    text-align:left; min-width:0; gap:8px 12px}
-  .listing-verdict{margin-top:0}
-  .detail-head h1{font-size:21px}
-  /* Eylem düğmesi ikinci sütunun altına iner; 3 sütun 375px'te sıkışıyordu. */
-  .ledger-row{grid-template-columns:20px 1fr; gap:9px}
-  .ledger-row > div:last-child{grid-column:2; margin-top:3px}
-  .fact-row{gap:8px}
-  .fact-row .name{flex-basis:100%; min-width:0}
-  main{padding:20px 16px 64px}
-  .masthead-in,.tabs-in{padding-left:16px; padding-right:16px}
+  .mh{padding:14px 16px 12px; gap:12px}
+  .wordmark{font-size:21px}
+  .stat{min-width:56px; padding:5px 10px}
+  .stat b{font-size:16px}
+  main{padding:18px 15px 70px}
+  .tabs-in,.mh{padding-left:15px; padding-right:15px}
+  .card{padding:14px 15px 12px 18px}
+  .card-top{flex-wrap:wrap}
+  .mono-badge{width:34px; height:34px; font-size:14px}
+  .card-right{text-align:left; align-items:flex-start; width:100%;
+    flex-direction:row; gap:9px; align-items:center}
+  .dhead h1{font-size:23px}
+  .lr{grid-template-columns:26px 1fr; gap:11px}
+  .lr>div:last-child{grid-column:2; margin-top:4px}
+  .frow2{grid-template-columns:1fr}
+  .frow2 .ctl{justify-content:flex-start}
+  select{max-width:100%; flex:1}
 }
 </style>
 </head>
 <body>
 
 <header class="masthead">
-  <div class="masthead-in">
-    <div class="wordmark">İşe <span>Uygun</span></div>
-    <div class="tagline">Sana ne kadar uyduğunu <em>tahmin eder</em> — söz vermez.</div>
-    <div class="masthead-spacer"></div>
-    <button class="theme-btn" id="themeBtn" type="button">Tema</button>
+  <div class="mh">
+    <div>
+      <div class="wordmark">İşe <span>Uygun</span></div>
+      <div class="tagline">Sana ne kadar uyduğunu <em>tahmin eder</em> — söz vermez.</div>
+    </div>
+    <div class="mh-sp"></div>
+    <div class="stats" id="stats"></div>
+    <button class="icon-btn" id="themeBtn" type="button">◐ Tema</button>
   </div>
 </header>
 
 <nav class="tabs"><div class="tabs-in" role="tablist">
-  <button class="tab" role="tab" data-view="feed">İlanlar</button>
-  <button class="tab" role="tab" data-view="profile">Profilim</button>
+  <button class="tab" role="tab" data-view="feed">İlanlar<span class="pip" id="pipFeed">—</span></button>
+  <button class="tab" role="tab" data-view="profile">Profilim<span class="pip" id="pipProf">—</span></button>
   <button class="tab" role="tab" data-view="cv">CV yükle</button>
   <button class="tab" role="tab" data-view="sources">Kaynaklar</button>
 </div></nav>
 
-<main id="app"><p class="muted"><span class="spinner"></span> Yükleniyor…</p></main>
+<main id="app"><p class="muted"><span class="spin"></span> Yükleniyor…</p></main>
 
 <script>
-const API = '/api';
-let VIEW = 'feed', CATALOG = [], PROFILE = null, FEED = null, SOURCES = null;
+const API='/api';
+let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
+const F={q:'', city:'', cluster:'', band:'', employer:''};   // filtre durumu
+let PQ='', OPEN=new Set();                                    // profil arama + açık gruplar
 
-const $ = (s,r=document)=>r.querySelector(s);
-const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fold=s=>String(s??'').toLocaleLowerCase('tr')
+  .replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g')
+  .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');
 
-async function api(path, opts){
-  const r = await fetch(API+path, opts);
-  if(!r.ok){
-    let m = r.statusText;
-    try{ m = (await r.json()).detail || m; }catch(e){}
-    throw new Error(m);
-  }
-  return r.status === 204 ? null : r.json();
+async function api(path,opts){
+  const r=await fetch(API+path,opts);
+  if(!r.ok){let m=r.statusText; try{m=(await r.json()).detail||m}catch(e){} throw new Error(m)}
+  return r.status===204?null:r.json();
 }
 
-/* ---------------- tema ---------------- */
-const root = document.documentElement;
-$('#themeBtn').onclick = () => {
-  const cur = root.getAttribute('data-theme')
-    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+const root=document.documentElement;
+$('#themeBtn').onclick=()=>{
+  const cur=root.getAttribute('data-theme')
+    ||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  root.setAttribute('data-theme',cur==='dark'?'light':'dark');
 };
 
-/* ---------------- yönlendirme ---------------- */
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => go(t.dataset.view));
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>go(t.dataset.view));
 function go(v){
-  VIEW = v;
-  document.querySelectorAll('.tab').forEach(t =>
-    t.setAttribute('aria-selected', String(t.dataset.view === v)));
+  VIEW=v;
+  document.querySelectorAll('.tab').forEach(t=>
+    t.setAttribute('aria-selected',String(t.dataset.view===v)));
   render();
 }
 
-async function refresh(){
-  [PROFILE, FEED] = await Promise.all([api('/profile'), api('/feed')]);
+async function refresh(){ [PROFILE,FEED]=await Promise.all([api('/profile'),api('/feed')]); }
+
+function paintChrome(){
+  if(FEED){
+    const i=FEED.ingest||{};
+    $('#stats').innerHTML=`
+      <div class="stat"><b>${FEED.evaluated.length+FEED.unevaluated.length}</b><i>ilan</i></div>
+      <div class="stat is-match"><b>${FEED.evaluated.length}</b><i>eşleşme</i></div>
+      <div class="stat"><b>${(i.boards||[]).length}</b><i>işveren</i></div>`;
+    $('#pipFeed').textContent=FEED.evaluated.length+FEED.unevaluated.length;
+  }
+  if(PROFILE) $('#pipProf').textContent=PROFILE.facts.length;
 }
 
-/* ---------------- görünümler ---------------- */
-const BAND_CLASS = {strong:'band-strong', good:'band-good', cond:'band-cond', weak:'band-weak'};
+/* ================= FEED ================= */
+const BC={strong:'b-strong',good:'b-good',cond:'b-cond',weak:'b-weak'};
+const mono=s=>esc(String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase());
 
-function listingHTML(j){
-  const band = j.band
-    ? `<span class="band ${BAND_CLASS[j.band]}">${esc(j.band_label)}</span>`
-    : `<span class="band band-none">${j.listing_only ? 'Kamu ilanı' : 'Değerlendirilemedi'}</span>`;
-  const conf = j.confidence_label
-    ? `<span class="conf">Güven: ${esc(j.confidence_label)}</span>` : '';
-  const ledger = (j.met_count || j.unmet_count || j.unknown_count) ? `
-    <span class="ledger-mini">
-      ${j.met_count ? `<i class="lm-met">✓ ${j.met_count}</i>` : ''}
-      ${j.unmet_count ? `<i class="lm-unmet">✕ ${j.unmet_count}</i>` : ''}
-      ${j.unknown_count ? `<i class="lm-unk">? ${j.unknown_count}</i>` : ''}
-    </span>` : '';
-  return `<button class="listing" data-job="${esc(j.job_id)}">
-    <span>
-      <h3 class="listing-title">${esc(j.title)}</h3>
-      <div class="listing-meta"><b>${esc(j.employer)}</b> · ${esc(j.city)}${
-        j.posted_at ? ' · ' + esc(j.posted_at) : ''}</div>
-      <div class="listing-verdict">${esc(j.worth_applying)}</div>
-    </span>
-    <span class="listing-right">${band}${conf}${ledger}</span>
-  </button>`;
+function matches(j){
+  if(F.city && j.city!==F.city) return false;
+  if(F.cluster && j.occupation_id!==F.cluster) return false;
+  if(F.employer && j.employer!==F.employer) return false;
+  if(F.band==='match' && !j.band) return false;
+  if(F.band==='strong' && !['strong','good'].includes(j.band)) return false;
+  if(F.q){
+    const hay=fold(`${j.title} ${j.employer} ${j.city} ${(j.top_requirements||[]).join(' ')}`);
+    if(!fold(F.q).split(/\s+/).filter(Boolean).every(w=>hay.includes(w))) return false;
+  }
+  return true;
+}
+
+function card(j){
+  const cls=j.band?BC[j.band]:'b-none';
+  const bandTxt=j.band?esc(j.band_label)
+    :(j.listing_only?'Kamu ilanı':'Değerlendirilemedi');
+  const met=new Set(j.matched_requirements||[]);
+  const chips=(j.top_requirements||[]).slice(0,5).map(r=>
+    `<span class="rq${met.has(r)?' on':''}">${met.has(r)?'✓ ':''}${esc(r)}</span>`).join('');
+  return `<article class="card ${cls}">
+    <div class="card-top">
+      <div class="mono-badge">${mono(j.employer)}</div>
+      <div class="card-head">
+        <h3>${esc(j.title)}</h3>
+        <div class="card-meta"><b>${esc(j.employer)}</b>
+          ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
+          ${j.posted_at?`<span class="dot">·</span>${esc(j.posted_at)}`:''}
+          ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
+        </div>
+      </div>
+      <div class="card-right">
+        <span class="band">${bandTxt}</span>
+        ${j.confidence_label?`<span class="conf">Güven: ${esc(j.confidence_label)}</span>`:''}
+      </div>
+    </div>
+    ${chips?`<div class="reqchips">${chips}</div>`:''}
+    <p class="verdict">${esc(j.worth_applying)}</p>
+    <div class="card-acts">
+      <button class="btn-2 btn-sm" data-job="${esc(j.job_id)}">Şartları ve detayı gör</button>
+      <a class="btn btn-sm" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">
+        İlana git ↗</a>
+      <span class="sp"></span>
+      <span class="ext">${esc(j.source)}</span>
+    </div>
+  </article>`;
+}
+
+function filterBar(){
+  const fx=FEED.facets||{};
+  const opt=(list,cur)=>list.map(v=>
+    `<option value="${esc(v)}"${v===cur?' selected':''}>${esc(v)}</option>`).join('');
+  const bands=[['','Tümü'],['match','Değerlendirilenler'],['strong','Güçlü / iyi']];
+  return `<div class="filters">
+    <div class="frow">
+      <div class="search"><input id="fq" type="search" placeholder="Pozisyon, şirket veya beceri ara…"
+        value="${esc(F.q)}"></div>
+      <select id="fcity"><option value="">Tüm şehirler</option>${opt(fx.cities||[],F.city)}</select>
+      <select id="femp"><option value="">Tüm işverenler</option>${opt(fx.employers||[],F.employer)}</select>
+    </div>
+    <div class="frow">
+      <span class="fl-label">Alan</span>
+      <button class="chip" data-cluster="" aria-pressed="${F.cluster===''}">Tümü</button>
+      ${(fx.clusters||[]).map(c=>
+        `<button class="chip" data-cluster="${esc(c)}" aria-pressed="${F.cluster===c}">${esc(c)}</button>`).join('')}
+    </div>
+    <div class="frow">
+      <span class="fl-label">Durum</span>
+      ${bands.map(([v,l])=>
+        `<button class="chip" data-band="${v}" aria-pressed="${F.band===v}">${l}</button>`).join('')}
+      <span class="fcount" id="fcount"></span>
+    </div>
+  </div>`;
 }
 
 function viewFeed(){
-  const f = FEED;
-  const empty = f.profile_is_empty ? `
-    <div class="notice" style="margin-bottom:18px">
+  const ev=FEED.evaluated.filter(matches), un=FEED.unevaluated.filter(matches);
+  const i=FEED.ingest||{};
+  const anyFilter=F.q||F.city||F.cluster||F.band||F.employer;
+
+  const emptyNote=FEED.profile_is_empty?`
+    <div class="notice" style="margin:14px 0">
       <strong>Profilin henüz boş.</strong> Bu yüzden ilanların çoğu
       “değerlendirilemedi” görünüyor — bu, ilanların sana uymadığı anlamına
-      <em>gelmez</em>. <a href="#" data-goto="profile">Profilini doldur</a> ya da
-      <a href="#" data-goto="cv">CV yükle</a>.
-    </div>` : '';
+      <em>gelmez</em>. <a href="#" data-goto="cv">CV yükle</a> ya da
+      <a href="#" data-goto="profile">profilini doldur</a>.
+    </div>`:'';
 
-  const ev = f.evaluated.length
-    ? f.evaluated.map(listingHTML).join('')
-    : `<p class="muted" style="padding:16px 0">Değerlendirilebilen ilan yok.</p>`;
+  const evBlock=ev.length?ev.map(card).join(''):`
+    <div class="empty"><h3>Bu filtrelerle eşleşme yok</h3>
+      <p class="muted">${anyFilter?'Filtreleri gevşetmeyi dene.'
+        :'Profiline bilgi ekledikçe burası dolacak.'}</p></div>`;
 
-  const un = f.unevaluated.length ? `
-    <div class="section-head">
-      <h2>Değerlendirilemeyenler</h2>
-      <span class="count">${f.unevaluated.length} ilan</span>
-    </div>
-    <div class="notice" style="margin:14px 0 4px">
+  const unBlock=un.length?`
+    <div class="sec"><h2>Değerlendirilemeyenler</h2>
+      <span class="count">${un.length}</span><span class="sp"></span></div>
+    <div class="notice" style="margin-bottom:14px">
       Bu ilanlarla ilgili elimizde karşılaştıracak bilgi yok. <strong>Sana
       uymadıkları anlamına gelmez</strong> — profilinde o alanlar boş olduğu için
       hesaplama yapılamadı. Ayrı tutuyoruz ki “zayıf eşleşme” diye yanlış
       okunmasınlar.
-    </div>
-    ${f.unevaluated.map(listingHTML).join('')}` : '';
+    </div>${un.map(card).join('')}`:'';
 
-  return `${empty}
-    <div class="section-head">
-      <h2>Sana göre değerlendirilenler</h2>
-      <span class="count">${f.evaluated.length} ilan</span>
-    </div>
-    ${ev}${un}
+  return `${emptyNote}${filterBar()}
+    <div class="sec"><h2>Sana göre değerlendirilenler</h2>
+      <span class="count">${ev.length}</span><span class="sp"></span></div>
+    ${evBlock}${unBlock}
     <p class="disclaimer">
-      <strong>Kaynak:</strong> ${esc(f.ingest.source)} —
-      ${f.ingest.fetched} ilan okundu,
-      ${f.ingest.filtered_out_of_market || 0} tanesi Türkiye dışı olduğu için elendi,
-      ${f.ingest.duplicates_merged} kopya birleştirildi,
-      <b>${f.ingest.canonical}</b> ilan gösteriliyor.
-      ${(f.ingest.boards || []).length ? `Panolar: ${
-        f.ingest.boards.map(b => esc(b.employer) + ' (' + b.count + ')').join(', ')}.` : ''}
-      ${(f.ingest.errors || []).length ? `<br><b style="color:var(--unmet)">
-        Çekilemeyen kaynak:</b> ${f.ingest.errors.map(e => esc(e.board)).join(', ')}.` : ''}
+      <strong>Kaynak:</strong> ${esc(i.source||'')} — ${i.fetched||0} ilan okundu,
+      ${i.filtered_out_of_market||0} tanesi Türkiye dışı olduğu için elendi,
+      ${i.duplicates_merged||0} kopya birleştirildi, <b>${i.canonical||0}</b> gösteriliyor.
+      ${(i.errors||[]).length?`<br><b style="color:var(--unmet)">Çekilemeyen:</b> ${
+        i.errors.map(e=>esc(e.board)).join(', ')}`:''}
       <br><br>
       <strong>Kapsam dar.</strong> Şu an yalnızca izinli ATS API'lerinden
-      (Lever, Greenhouse, Recruitee) çekiliyor; bu da ağırlıklı olarak teknoloji ve
-      kurumsal ilan demek. Mavi yaka kapsamı için Careerjet/Jooble entegrasyonu ya da
-      doğrudan izin gerekiyor. Ayrıca birkaç sentetik test ilanı korpusa dahildir
-      (<span class="ledger-ev">example.invalid</span> adresli olanlar).
+      (Lever, Greenhouse, Recruitee) çekiliyor — bu da ağırlıklı olarak teknoloji ve
+      kurumsal ilan demek. Türkiye'de bu sistemleri kullanan şirket sayısı sınırlı,
+      bu yüzden ilan hacmi düşük. Mavi yaka kapsamı ve hacim için Careerjet/Jooble
+      entegrasyonu gerekiyor. Birkaç sentetik test ilanı da korpusta
+      (<code>example.invalid</code> adresli olanlar).
       <a href="#" data-goto="sources">Kaynak listesi →</a>
     </p>`;
 }
 
-async function viewJob(jobId){
-  const j = await api('/jobs/' + jobId);
-  const rows = (items, mark, cls, extra='') => items.map(l => `
-    <div class="ledger-row ${cls === 'm-unk' ? 'is-unknown' : ''}">
-      <div class="ledger-mark ${cls}">${mark}</div>
-      <div>
-        <p class="ledger-label">${esc(l.text)}</p>
-        ${l.evidence ? `<div class="ledger-ev">${esc(l.evidence)}</div>` : ''}
-      </div>
-      <div>${l.action_label ? `<button class="btn-ghost btn-sm" data-goto="profile">${esc(l.action_label)}</button>` : extra}</div>
-    </div>`).join('');
-
-  const band = j.band
-    ? `<span class="band ${BAND_CLASS[j.band]}">${esc(j.band_label)}</span>
-       <span class="conf" style="margin-left:8px">Güven: ${esc(j.confidence_label)}</span>`
-    : `<span class="band band-none">${j.listing_only ? 'Kamu ilanı — puanlanmaz' : 'Değerlendirilemedi'}</span>`;
-
-  return `
-    <button class="btn-ghost btn-sm" data-goto="feed">← İlanlara dön</button>
-    <div class="detail-head" style="margin-top:16px">
-      <div class="eyebrow">${esc(j.source)}</div>
-      <h1>${esc(j.title)}</h1>
-      <div class="listing-meta"><b>${esc(j.employer)}</b> · ${esc(j.city)}${
-        j.posted_at ? ' · ' + esc(j.posted_at) : ''}</div>
-    </div>
-
-    <div class="verdict-box">
-      <div>${band}</div>
-      <p class="verdict-line">${esc(j.worth_applying)}</p>
-      ${j.verification_notice ? `<div class="notice" style="margin-top:13px">${esc(j.verification_notice)}</div>` : ''}
-      ${j.insufficient_data_note ? `<div class="notice" style="margin-top:13px">${esc(j.insufficient_data_note)}</div>` : ''}
-      ${j.listing_only_note ? `<div class="notice" style="margin-top:13px">${esc(j.listing_only_note)}</div>` : ''}
-    </div>
-
-    ${j.why.length ? `<div class="section-head"><h2>Neden</h2></div>
-      <ul style="font-size:14.5px; color:var(--ink-2)">${
-        j.why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
-
-    ${j.met.length ? `<div class="section-head"><h2>Karşılıyorsun</h2>
-      <span class="count">${j.met.length}</span></div>
-      <div class="ledger">${rows(j.met, '✓', 'm-met')}</div>` : ''}
-
-    ${j.unmet.length ? `<div class="section-head"><h2>Karşılamıyorsun</h2>
-      <span class="count">${j.unmet.length}</span></div>
-      <div class="ledger">${rows(j.unmet, '✕', 'm-unmet')}</div>` : ''}
-
-    ${j.unknown.length ? `<div class="section-head"><h2>Bilinmiyor</h2>
-      <span class="count">${j.unknown.length}</span></div>
-      <p class="muted" style="margin:9px 0 0">Bunlar eksiğin değil —
-      <em>bilmediğimiz</em> şeyler. Eklersen değerlendirme netleşir.</p>
-      <div class="ledger">${rows(j.unknown, '?', 'm-unk')}</div>` : ''}
-
-    ${j.legal_eligibility_notices.length ? `
-      <div class="section-head"><h2>Bilgilendirme</h2></div>
-      ${j.legal_eligibility_notices.map(n =>
-        `<div class="notice" style="margin-top:13px">${esc(n)}</div>`).join('')}` : ''}
-
-    <p class="disclaimer">${esc(j.disclaimer)}<br><br>
-      İlan bağlantısı: <span class="ledger-ev">${esc(j.url)}</span> —
-      <strong>bu örnek bir kayıttır, gerçek bir ilan değildir.</strong></p>`;
+/* ================= İLAN DETAYI ================= */
+// Adapter, ilanın bölüm başlıklarını "## Başlık" olarak koruyor (Lever'ın `lists`
+// alanı). Onları ham bırakmak metni teknik gösteriyordu; başlığa çeviriyoruz.
+const NL = String.fromCharCode(10);
+function descHTML(text){
+  const blocks = String(text||'').split(NL).reduce((acc,line)=>{
+    if(line.trim().startsWith('## ')) acc.push([line]);
+    else if(acc.length) acc[acc.length-1].push(line);
+    else acc.push([line]);
+    return acc;
+  },[]);
+  return blocks.map(lines=>{
+    if(lines[0].trim().startsWith('## ')){
+      const head=esc(lines[0].trim().slice(3).trim());
+      const body=lines.slice(1).map(l=>l.trim()).filter(Boolean);
+      return `<h4>${head}</h4>${body.length
+        ? '<ul>'+body.map(l=>`<li>${esc(l)}</li>`).join('')+'</ul>' : ''}`;
+    }
+    const body=lines.map(l=>l.trim()).filter(Boolean);
+    return body.length ? `<p>${esc(body.join(NL))}</p>` : '';
+  }).join('');
 }
 
-function viewProfile(){
-  const have = new Map(PROFILE.facts.map(f => [f.key, f]));
-  const occs = [...new Set(CATALOG.map(i => i.occupation_id))];
-  const occLabel = id => (CATALOG.find(i => i.occupation_id === id) || {}).occupation_label || id;
+async function viewJob(id){
+  const j=await api('/jobs/'+id);
+  const rows=(items,mark,cls)=>items.map(l=>`
+    <div class="lr ${cls==='unk'?'is-unk':''}">
+      <div class="lm ${cls}">${mark}</div>
+      <div><p>${esc(l.text)}</p>${l.evidence?`<div class="ev">${esc(l.evidence)}</div>`:''}</div>
+      <div>${l.action_label?`<button class="btn-2 btn-sm" data-goto="profile">${esc(l.action_label)}</button>`:''}</div>
+    </div>`).join('');
 
-  const groups = occs.map(occ => {
-    const items = CATALOG.filter(i => i.occupation_id === occ);
-    return `<div class="occ-group"><h3>${esc(occLabel(occ))}</h3>
-      ${items.map(i => {
-        const f = have.get(i.key);
-        let right;
-        if(!f){
-          right = `${i.asks_years ? `<input type="number" min="0" max="50" placeholder="yıl" id="y-${esc(i.key)}">` : ''}
-            <button class="btn-ghost btn-sm" data-add="${esc(i.key)}">Ekle</button>`;
-        }else{
-          const chip = f.verification === 'verified'
-            ? `<span class="chip chip-verified">Doğrulandı</span>`
-            : (i.needs_verification
-                ? `<span class="chip chip-needs">Doğrulama gerekiyor</span>`
-                : `<span class="chip chip-asserted">Beyan edildi</span>`);
-          const vbtn = (i.needs_verification && f.verification !== 'verified')
-            ? `<button class="btn-ghost btn-sm" data-verify="${esc(i.key)}">Doğrula</button>` : '';
-          right = `${f.years != null ? `<span class="muted">${f.years} yıl</span>` : ''}
-            ${chip}${vbtn}
-            <button class="btn-ghost btn-sm" data-del="${esc(i.key)}">Kaldır</button>`;
-        }
-        return `<div class="fact-row">
-          <span class="name">${esc(i.label)}<div class="cat">${esc(i.category_label)}</div></span>
-          ${right}
-        </div>`;
-      }).join('')}</div>`;
+  const bandTxt=j.band?esc(j.band_label)
+    :(j.listing_only?'Kamu ilanı — puanlanmaz':'Değerlendirilemedi');
+  const cls=j.band?BC[j.band]:'b-none';
+
+  return `<button class="btn-2 btn-sm" data-goto="feed">← İlanlara dön</button>
+  <div class="detail" style="margin-top:16px">
+    <div>
+      <div class="dhead">
+        <div class="eyebrow">${esc(j.source)}</div>
+        <h1>${esc(j.title)}</h1>
+        <div class="card-meta"><b>${esc(j.employer)}</b>
+          ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
+          ${j.posted_at?`<span class="dot">·</span>${esc(j.posted_at)}`:''}</div>
+      </div>
+
+      ${j.verification_notice?`<div class="notice" style="margin-bottom:16px">${esc(j.verification_notice)}</div>`:''}
+      ${j.insufficient_data_note?`<div class="notice" style="margin-bottom:16px">${esc(j.insufficient_data_note)}</div>`:''}
+      ${j.listing_only_note?`<div class="notice" style="margin-bottom:16px">${esc(j.listing_only_note)}</div>`:''}
+
+      ${j.met.length?`<div class="sec"><h2>Karşılıyorsun</h2>
+        <span class="count">${j.met.length}</span></div>
+        <div class="ledger">${rows(j.met,'✓','met')}</div>`:''}
+
+      ${j.unmet.length?`<div class="sec"><h2>Karşılamıyorsun</h2>
+        <span class="count">${j.unmet.length}</span></div>
+        <div class="ledger">${rows(j.unmet,'✕','unmet')}</div>`:''}
+
+      ${j.unknown.length?`<div class="sec"><h2>Bilinmiyor</h2>
+        <span class="count">${j.unknown.length}</span></div>
+        <p class="muted" style="margin:0 0 4px">Bunlar eksiğin değil —
+        <em>bilmediğimiz</em> şeyler. Eklersen değerlendirme netleşir.</p>
+        <div class="ledger">${rows(j.unknown,'?','unk')}</div>`:''}
+
+      ${j.legal_eligibility_notices.length?`<div class="sec"><h2>Bilgilendirme</h2></div>
+        ${j.legal_eligibility_notices.map(n=>`<div class="notice">${esc(n)}</div>`).join('')}`:''}
+
+      ${j.description?`<div class="sec"><h2>İlanın tam metni</h2><span class="sp"></span>
+          <button class="btn-2 btn-sm" id="descToggle">Tamamını aç</button></div>
+        <div class="desc-wrap" id="descWrap"><div class="desc">${descHTML(j.description)}</div></div>
+        <p class="muted" style="margin-top:10px">Bu metin kaynaktan olduğu gibi
+        alınmıştır. Şartların tamamı için ilanın kendi sayfasına git.</p>`:`
+        <div class="sec"><h2>İlanın tam metni</h2></div>
+        <p class="muted">Bu ilan için metin alınamadı. Şartları kaynağından kontrol et.</p>`}
+
+      <p class="disclaimer">${esc(j.disclaimer)}</p>
+    </div>
+
+    <aside class="side">
+      <div class="panel ${cls}">
+        <span class="band">${bandTxt}</span>
+        ${j.confidence_label?`<div class="conf" style="margin-top:7px">Güven: ${esc(j.confidence_label)}</div>`:''}
+        <p style="font-size:13.5px; margin:12px 0 0; line-height:1.5; color:var(--ink-2)">
+          ${esc(j.worth_applying)}</p>
+        <dl class="kv">
+          <dt>Karşılanan</dt><dd style="color:var(--match)">${j.met_count}</dd>
+          <dt>Karşılanmayan</dt><dd style="color:var(--unmet)">${j.unmet_count}</dd>
+          <dt>Bilinmeyen</dt><dd style="color:var(--unknown)">${j.unknown_count}</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h4>Başvuru</h4>
+        <p class="muted" style="margin:0 0 12px">Başvuru ilanın kendi sayfasından
+        yapılır. Biz aracı değiliz, başvurunu görmüyoruz.</p>
+        <a class="btn apply" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">
+          İlana git ↗</a>
+        <div class="ev" style="margin-top:11px; word-break:break-all; font-size:11.5px;
+          color:var(--ink-4)">${esc(j.url)}</div>
+      </div>
+    </aside>
+  </div>`;
+}
+
+/* ================= PROFİL ================= */
+function viewProfile(){
+  const have=new Map(PROFILE.facts.map(f=>[f.key,f]));
+  const pend=PROFILE.pending_cv_suggestions||[];
+  const groups=[];
+  CATALOG.forEach(i=>{
+    let g=groups.find(x=>x.id===i.occupation_id);
+    if(!g){g={id:i.occupation_id,label:i.occupation_label,items:[]}; groups.push(g)}
+    g.items.push(i);
+  });
+
+  const q=fold(PQ);
+  const visible=g=>g.items.filter(i=>!q||fold(i.label).includes(q)||fold(g.label).includes(q));
+
+  const selChips=PROFILE.facts.map(f=>{
+    const it=CATALOG.find(c=>c.key===f.key);
+    const needs=it&&it.needs_verification&&f.verification!=='verified';
+    return `<span class="sel${needs?' pend':''}">${esc(it?it.label:f.key)}${
+      f.years!=null?` · ${f.years}y`:''}
+      <button data-del="${esc(f.key)}" title="Kaldır">×</button></span>`;
   }).join('');
 
-  const pending = PROFILE.pending_cv_suggestions.length ? `
-    <div class="section-head"><h2>CV'den öneriler</h2>
-      <span class="count">${PROFILE.pending_cv_suggestions.length}</span></div>
-    <div class="notice" style="margin:14px 0 4px">
-      Bunlar CV'nde bulundu ama <strong>profiline eklenmedi</strong>. Her birini
-      tek tek onaylaman gerekiyor — onaylamadan hiçbiri değerlendirmeye girmez.
-    </div>
-    ${PROFILE.pending_cv_suggestions.map(s => `
-      <div class="fact-row">
-        <span class="name">${esc(s.label)}
-          <div class="cat">CV'de bulunan: “${esc(s.matched_on)}”</div></span>
-        ${s.asks_years ? `<input type="number" min="0" max="50" placeholder="yıl"
-          id="y-${esc(s.key)}" value="${s.years ?? ''}">` : ''}
-        <button class="btn-ghost btn-sm" data-add="${esc(s.key)}">Onayla ve ekle</button>
-      </div>`).join('')}` : '';
+  const filled=PROFILE.facts.filter(f=>f.counts_as_present).length;
+  const pct=PROFILE.facts.length?Math.round(100*filled/PROFILE.facts.length):0;
 
-  return `
-    <div class="section-head"><h2>Mesleğin</h2></div>
-    <p class="muted" style="margin:10px 0">Hangi alanlarda iş arıyorsun?</p>
-    <div>${occs.map(o => `<label class="occ">
-      <input type="checkbox" data-occ="${esc(o)}"
-        ${PROFILE.occupation_ids.includes(o) ? 'checked' : ''}> ${esc(occLabel(o))}
+  const pendBlock=pend.length?`
+    <div class="sec"><h2>CV'den öneriler</h2><span class="count">${pend.length}</span>
+      <span class="sp"></span>
+      <button class="btn-2 btn-sm" data-addall="1">Hepsini onayla</button></div>
+    <div class="notice" style="margin-bottom:12px">
+      Bunlar CV'nde bulundu ama <strong>profiline eklenmedi</strong>. Onaylamadan
+      hiçbiri değerlendirmeye girmez.
+    </div>
+    <div class="acc" open style="display:block">
+      <div class="acc-body" style="border-top:0; padding-top:8px">
+      ${pend.map(s=>`<div class="frow2">
+        <div><div class="nm">${esc(s.label)}</div>
+          <div class="cat">CV'de bulunan: “${esc(s.matched_on)}”</div></div>
+        <div class="ctl">
+          ${s.asks_years?`<input type="number" min="0" max="50" placeholder="yıl"
+            id="y-${esc(s.key)}" value="${s.years??''}">`:''}
+          <button class="btn btn-sm" data-add="${esc(s.key)}">Onayla</button>
+        </div></div>`).join('')}
+      </div>
+    </div>`:'';
+
+  const accs=groups.map(g=>{
+    const items=visible(g);
+    if(!items.length) return '';
+    const n=g.items.filter(i=>have.has(i.key)).length;
+    const open=OPEN.has(g.id)||q||n>0;
+    return `<details class="acc"${open?' open':''} data-grp="${esc(g.id)}">
+      <summary class="acc-head"><span class="caret">▶</span>
+        <h3>${esc(g.label)}</h3>
+        <span class="n${n?' has':''}">${n?`${n} / ${g.items.length}`:g.items.length}</span>
+      </summary>
+      <div class="acc-body">${items.map(i=>{
+        const f=have.get(i.key);
+        let ctl;
+        if(!f){
+          ctl=`${i.asks_years?`<input type="number" min="0" max="50" placeholder="yıl"
+            id="y-${esc(i.key)}">`:''}
+            <button class="btn-2 btn-sm" data-add="${esc(i.key)}">Ekle</button>`;
+        }else{
+          const tag=f.verification==='verified'?'<span class="tag ok">✓ Doğrulandı</span>'
+            :(i.needs_verification?'<span class="tag need">Doğrulama gerekiyor</span>'
+              :'<span class="tag said">Beyan edildi</span>');
+          const vb=(i.needs_verification&&f.verification!=='verified')
+            ?`<button class="btn-2 btn-sm" data-verify="${esc(i.key)}">Doğrula</button>`:'';
+          ctl=`${f.years!=null?`<span class="muted">${f.years} yıl</span>`:''}${tag}${vb}
+            <button class="btn-2 btn-sm" data-del="${esc(i.key)}">Kaldır</button>`;
+        }
+        return `<div class="frow2">
+          <div><div class="nm">${esc(i.label)}</div>
+            <div class="cat">${esc(i.category_label)}</div></div>
+          <div class="ctl">${ctl}</div></div>`;
+      }).join('')}</div>
+    </details>`;
+  }).join('');
+
+  return `<div class="psum">
+      <div class="psum-top"><h3>Profilin</h3>
+        <span class="muted">${PROFILE.facts.length} kayıt · ${filled} tanesi
+        değerlendirmeye giriyor</span></div>
+      ${PROFILE.facts.length?`<div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="sel-chips">${selChips}</div>`
+        :`<p class="muted" style="margin:9px 0 0">Henüz bilgi yok.
+          Aşağıdan ekle ya da <a href="#" data-goto="cv">CV yükle</a>.</p>`}
+    </div>
+
+    ${pendBlock}
+
+    <div class="sec"><h2>Mesleğin</h2></div>
+    <p class="muted" style="margin:0 0 11px">Hangi alanlarda iş arıyorsun?
+      (Bu seçim ilanları filtrelemez; hangi grupların önce açılacağını belirler.)</p>
+    <div>${groups.map(g=>`<label class="occ">
+      <input type="checkbox" data-occ="${esc(g.id)}"
+        ${PROFILE.occupation_ids.includes(g.id)?'checked':''}> ${esc(g.label)}
     </label>`).join('')}</div>
 
-    ${pending}
-
-    <div class="section-head"><h2>Bilgilerin</h2>
-      <span class="count">${PROFILE.facts.length} kayıtlı</span></div>
-    <div class="notice" style="margin:14px 0 0">
+    <div class="sec"><h2>Bilgilerin</h2><span class="sp"></span></div>
+    <div class="filters" style="margin-bottom:12px"><div class="frow">
+      <div class="search"><input id="pq" type="search"
+        placeholder="Beceri, belge veya deneyim ara…" value="${esc(PQ)}"></div>
+    </div></div>
+    <div class="notice" style="margin-bottom:14px">
       Ehliyet, lisans ve zorunlu belgeler <strong>doğrulanmadan</strong>
       “karşılanıyor” sayılmaz. Beyanı yeterli saysaydık, olmayan bir belgeye
       dayanarak sana “güçlü eşleşme” diyebilirdik.
     </div>
-    ${groups}
+    ${accs||'<div class="empty"><h3>Eşleşen alan yok</h3><p class="muted">Aramayı değiştir.</p></div>'}
 
     <p class="disclaimer">
       Fotoğraf, din, etnik köken, medeni hal, sağlık, sendika üyeliği, cinsiyet ve
-      tam doğum tarihi <strong>hiçbir koşulda saklanmaz</strong>. Bu alanlar
-      profilde yer almaz ve CV'den okunursa okuma anında atılır.
-      <br><br>
-      <button class="btn-ghost btn-sm" data-reset="1">Profili sıfırla</button>
+      tam doğum tarihi <strong>hiçbir koşulda saklanmaz</strong>. Bu alanlar profilde
+      yer almaz ve CV'den okunursa okuma anında atılır.<br><br>
+      <button class="btn-2 btn-sm" data-reset="1">Profili sıfırla</button>
     </p>`;
 }
 
+/* ================= CV ================= */
 function viewCV(){
-  return `
-    <div class="section-head"><h2>CV yükle</h2></div>
-    <div class="notice" style="margin:14px 0 18px">
+  return `<div class="sec"><h2>CV yükle</h2></div>
+    <div class="notice" style="margin-bottom:18px">
       CV'nden okunanlar <strong>doğrudan profiline yazılmaz</strong>. Sistem yalnızca
       öneri üretir; her birini sen onaylarsın. Okuma anahtar kelime eşleşmesine
       dayanır — CV'nin tamamı anlaşılmış değildir.
@@ -506,154 +789,189 @@ function viewCV(){
       <h3>PDF'ini buraya sürükle</h3>
       <p class="muted">ya da dosya seç · yalnızca PDF · en fazla 10 MB</p>
       <input type="file" id="cvFile" accept="application/pdf,.pdf" style="display:none">
-      <button class="btn" id="cvPick" type="button" style="margin-top:10px">Dosya seç</button>
+      <button class="btn" id="cvPick" type="button" style="margin-top:12px">Dosya seç</button>
     </div>
     <div id="cvOut" style="margin-top:20px"></div>`;
 }
 
+/* ================= KAYNAKLAR ================= */
 function viewSources(){
-  const perm = p => `<span class="perm p-${p}">${
-    {allowed:'İzinli', conditional:'Şartlı', rejected:'Reddedildi', unknown:'Bilinmiyor'}[p] || p}</span>`;
-  return `
-    <div class="section-head"><h2>Kaynaklar</h2>
-      <span class="count">${SOURCES.length} kayıt</span></div>
-    <div class="notice" style="margin:14px 0 0">
+  const perm=p=>`<span class="perm p-${p}">${
+    {allowed:'İzinli',conditional:'Şartlı',rejected:'Reddedildi',unknown:'Bilinmiyor'}[p]||p}</span>`;
+  return `<div class="sec"><h2>Kaynaklar</h2><span class="count">${SOURCES.length}</span></div>
+    <div class="notice">
       İlanlar yalnızca <strong>izni kaynağın kendi yayınında kanıtlanmış</strong>
       uçlardan çekiliyor. Bunlar şirketlerin kariyer sayfası kurmak için yayınladığı,
-      kimlik doğrulaması istemeyen public API'lerdir ve kullanıcıyı ilanın
+      kimlik doğrulaması istemeyen public API'lerdir; kullanıcıyı ilanın
       <strong>kendi sayfasına</strong> yönlendirmek amaçlanan kullanımdır.
-      <br><br>
+    </div>
+    <div class="notice warn" style="margin-top:11px">
       <strong>LinkedIn ve Indeed çekilmiyor ve çekilmeyecek.</strong> LinkedIn'in
       okuma API'si yok, robots.txt'i otomatik erişimi açıkça yasaklıyor; Indeed'in
       eski publisher API'si kapatıldı. Bunları aşmanın yolu aranmıyor.
     </div>
-    <div class="table-wrap"><table>
+    <div class="tw"><table>
       <thead><tr><th>Kaynak</th><th>İzin</th><th>Risk</th><th>Durum</th>
-        <th>Ağ erişimi</th><th>Not</th></tr></thead>
-      <tbody>${SOURCES.map(s => `<tr>
-        <td><b>${esc(s.name)}</b><div class="cat" style="font-family:var(--mono);
-          font-size:11.5px; color:var(--ink-3)">${esc(s.source_id)}</div></td>
-        <td>${perm(s.scraping_permission)}</td>
-        <td>${esc(s.policy_risk)}</td>
+        <th>Ağ</th><th>Not / kanıt</th></tr></thead>
+      <tbody>${SOURCES.map(s=>`<tr>
+        <td><b>${esc(s.name)}</b><div class="ev" style="font-size:11px">${esc(s.source_id)}</div></td>
+        <td>${perm(s.scraping_permission)}</td><td>${esc(s.policy_risk)}</td>
         <td>${esc(s.status)}</td>
-        <td>${s.may_fetch_network
-          ? '<span class="perm p-allowed">Açık</span>'
-          : '<span class="perm p-rejected">Kapalı</span>'}</td>
-        <td class="muted" style="max-width:34ch">${esc(s.note)}${
-          s.permission_evidence ? `<div style="margin-top:5px; font-size:11.5px">
-            <b>İzin kanıtı:</b> ${esc(s.permission_evidence)}</div>` : ''}</td>
+        <td>${s.may_fetch_network?'<span class="perm p-allowed">Açık</span>'
+          :'<span class="perm p-rejected">Kapalı</span>'}</td>
+        <td class="muted" style="max-width:40ch">${esc(s.note)}${
+          s.permission_evidence?`<div style="margin-top:6px; font-size:11.5px">
+            <b>İzin kanıtı:</b> ${esc(s.permission_evidence)}</div>`:''}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
 }
 
-/* ---------------- render + olaylar ---------------- */
+/* ================= RENDER ================= */
 async function render(){
-  const app = $('#app');
-  app.innerHTML = `<p class="muted"><span class="spinner"></span> Yükleniyor…</p>`;
+  const app=$('#app');
+  const keep=VIEW==='feed'&&FEED;
+  if(!keep) app.innerHTML=`<p class="muted"><span class="spin"></span> Yükleniyor…</p>`;
   try{
-    if(VIEW === 'feed'){ await refresh(); app.innerHTML = viewFeed(); }
-    else if(VIEW === 'profile'){ await refresh(); app.innerHTML = viewProfile(); }
-    else if(VIEW === 'cv'){ app.innerHTML = viewCV(); wireCV(); }
-    else if(VIEW === 'sources'){
-      SOURCES = SOURCES || await api('/sources'); app.innerHTML = viewSources(); }
-    else if(VIEW.startsWith('job:')){ app.innerHTML = await viewJob(VIEW.slice(4)); }
-    window.scrollTo({top:0, behavior:'instant'});
+    if(VIEW==='feed'){ await refresh(); app.innerHTML=viewFeed(); wireFeed(); }
+    else if(VIEW==='profile'){ await refresh(); app.innerHTML=viewProfile(); wireProfile(); }
+    else if(VIEW==='cv'){ app.innerHTML=viewCV(); wireCV(); }
+    else if(VIEW==='sources'){ SOURCES=SOURCES||await api('/sources'); app.innerHTML=viewSources(); }
+    else if(VIEW.startsWith('job:')){ app.innerHTML=await viewJob(VIEW.slice(4)); wireJob(); }
+    paintChrome();
+    if(!VIEW.startsWith('job:')) window.scrollTo({top:0,behavior:'instant'});
   }catch(e){
-    app.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
-      <strong>Hata:</strong> ${esc(e.message)}</div>`;
+    app.innerHTML=`<div class="notice warn"><strong>Hata:</strong> ${esc(e.message)}</div>`;
   }
 }
 
-document.addEventListener('click', async (ev) => {
-  const t = ev.target.closest('[data-job],[data-goto],[data-add],[data-del],[data-verify],[data-reset]');
+// Filtre değişince ağa gitmeden yeniden çiz (59 ilan bellekte).
+function repaintFeed(){
+  const app=$('#app'); app.innerHTML=viewFeed(); wireFeed(); paintChrome();
+}
+
+function wireFeed(){
+  const q=$('#fq');
+  if(q){
+    q.oninput=()=>{F.q=q.value; const p=q.selectionStart; repaintFeed();
+      const n=$('#fq'); if(n){n.focus(); n.setSelectionRange(p,p)}};
+  }
+  const c=$('#fcity'); if(c) c.onchange=()=>{F.city=c.value; repaintFeed()};
+  const e=$('#femp'); if(e) e.onchange=()=>{F.employer=e.value; repaintFeed()};
+  const fc=$('#fcount');
+  if(fc){
+    const n=FEED.evaluated.filter(matches).length+FEED.unevaluated.filter(matches).length;
+    fc.textContent=`${n} ilan gösteriliyor`;
+  }
+}
+
+function wireProfile(){
+  const q=$('#pq');
+  if(q) q.oninput=()=>{PQ=q.value; const p=q.selectionStart;
+    $('#app').innerHTML=viewProfile(); wireProfile();
+    const n=$('#pq'); if(n){n.focus(); n.setSelectionRange(p,p)}};
+  document.querySelectorAll('details.acc[data-grp]').forEach(d=>{
+    d.ontoggle=()=>{ d.open?OPEN.add(d.dataset.grp):OPEN.delete(d.dataset.grp) };
+  });
+}
+
+function wireJob(){
+  const b=$('#descToggle'), w=$('#descWrap');
+  if(b&&w) b.onclick=()=>{ w.classList.toggle('open');
+    b.textContent=w.classList.contains('open')?'Kısalt':'Tamamını aç' };
+}
+
+document.addEventListener('click',async ev=>{
+  const chip=ev.target.closest('[data-cluster],[data-band]');
+  if(chip){
+    if(chip.dataset.cluster!==undefined) F.cluster=chip.dataset.cluster;
+    if(chip.dataset.band!==undefined) F.band=chip.dataset.band;
+    return repaintFeed();
+  }
+  const t=ev.target.closest('[data-job],[data-goto],[data-add],[data-addall],[data-del],[data-verify],[data-reset]');
   if(!t) return;
   ev.preventDefault();
   try{
-    if(t.dataset.job){ VIEW = 'job:' + t.dataset.job; return render(); }
+    if(t.dataset.job){ VIEW='job:'+t.dataset.job; return render(); }
     if(t.dataset.goto){ return go(t.dataset.goto); }
     if(t.dataset.add){
-      const y = $('#y-' + CSS.escape(t.dataset.add));
-      await api('/profile/facts', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({key:t.dataset.add, years: y && y.value ? Number(y.value) : null})});
+      const y=$('#y-'+CSS.escape(t.dataset.add));
+      await api('/profile/facts',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({key:t.dataset.add,years:y&&y.value?Number(y.value):null})});
+      return render();
+    }
+    if(t.dataset.addall){
+      for(const s of PROFILE.pending_cv_suggestions){
+        await api('/profile/facts',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({key:s.key,years:s.years??null})});
+      }
       return render();
     }
     if(t.dataset.del){
-      await api('/profile/facts/' + encodeURIComponent(t.dataset.del), {method:'DELETE'});
+      await api('/profile/facts/'+encodeURIComponent(t.dataset.del),{method:'DELETE'});
       return render();
     }
     if(t.dataset.verify){
-      await api('/profile/facts/' + encodeURIComponent(t.dataset.verify) + '/verify', {method:'POST'});
+      await api('/profile/facts/'+encodeURIComponent(t.dataset.verify)+'/verify',{method:'POST'});
       return render();
     }
     if(t.dataset.reset){
-      await api('/profile/reset', {method:'POST'});
+      await api('/profile/reset',{method:'POST'});
       return render();
     }
-  }catch(e){ alert('Hata: ' + e.message); }
+  }catch(e){ alert('Hata: '+e.message); }
 });
 
-document.addEventListener('change', async (ev) => {
-  const occ = ev.target.dataset && ev.target.dataset.occ;
+document.addEventListener('change',async ev=>{
+  const occ=ev.target.dataset&&ev.target.dataset.occ;
   if(!occ) return;
-  const ids = [...document.querySelectorAll('[data-occ]')]
-    .filter(c => c.checked).map(c => c.dataset.occ);
-  await api('/profile/occupations', {method:'PUT',
-    headers:{'Content-Type':'application/json'}, body: JSON.stringify({occupation_ids: ids})});
-  PROFILE = await api('/profile');
+  const ids=[...document.querySelectorAll('[data-occ]')].filter(c=>c.checked).map(c=>c.dataset.occ);
+  ids.forEach(i=>OPEN.add(i));
+  await api('/profile/occupations',{method:'PUT',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({occupation_ids:ids})});
+  PROFILE=await api('/profile');
 });
 
 function wireCV(){
-  const drop = $('#drop'), input = $('#cvFile'), out = $('#cvOut');
-  $('#cvPick').onclick = () => input.click();
-  input.onchange = () => input.files[0] && send(input.files[0]);
-  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => {
-    ev.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {
-    ev.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', ev => {
-    const f = ev.dataTransfer.files[0]; if(f) send(f); });
+  const drop=$('#drop'),input=$('#cvFile'),out=$('#cvOut');
+  $('#cvPick').onclick=()=>input.click();
+  input.onchange=()=>input.files[0]&&send(input.files[0]);
+  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{
+    ev.preventDefault(); drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{
+    ev.preventDefault(); drop.classList.remove('over')}));
+  drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0]; if(f) send(f)});
 
   async function send(file){
     if(!file.name.toLowerCase().endsWith('.pdf')){
-      out.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
-        Yalnızca PDF kabul ediliyor.</div>`; return;
+      out.innerHTML=`<div class="notice warn">Yalnızca PDF kabul ediliyor.</div>`; return;
     }
-    out.innerHTML = `<p class="muted"><span class="spinner"></span> Okunuyor…</p>`;
-    const fd = new FormData(); fd.append('file', file);
+    out.innerHTML=`<p class="muted"><span class="spin"></span> Okunuyor…</p>`;
+    const fd=new FormData(); fd.append('file',file);
     try{
-      const r = await api('/profile/cv', {method:'POST', body: fd});
-      const disc = r.discarded_sensitive.length ? `
+      const r=await api('/profile/cv',{method:'POST',body:fd});
+      const disc=r.discarded_sensitive.length?`
         <div class="notice" style="margin-top:14px">
           <strong>Atılan alanlar:</strong> ${r.discarded_sensitive.map(esc).join(', ')}.
-          Bu alanlar tespit edildi ve <strong>saklanmadı</strong>; içerikleri hiçbir
-          yere yazılmadı (yalnızca hangi türde oldukları raporlanıyor).
-        </div>` : '';
-      out.innerHTML = `
-        <div class="verdict-box">
-          <div class="eyebrow">${r.page_count} sayfa · ${r.char_count} karakter okundu</div>
-          <p class="verdict-line">${esc(r.note)}</p>
-          ${disc}
-          ${r.suggestions.length ? `<p style="margin-top:15px">
-            <button class="btn" data-goto="profile">Önerileri incele ve onayla →</button></p>`
-            : `<p style="margin-top:15px">
-            <button class="btn-ghost btn-sm" data-goto="profile">Elle doldur →</button></p>`}
-        </div>`;
+          Tespit edildi ve <strong>saklanmadı</strong>; içerikleri hiçbir yere yazılmadı.
+        </div>`:'';
+      out.innerHTML=`<div class="panel">
+        <div class="eyebrow">${r.page_count} sayfa · ${r.char_count} karakter okundu</div>
+        <p style="font-size:15px; margin:10px 0 0">${esc(r.note)}</p>
+        ${disc}
+        <p style="margin-top:16px">
+          <button class="btn" data-goto="profile">${r.suggestions.length
+            ?'Önerileri incele ve onayla →':'Elle doldur →'}</button></p>
+      </div>`;
     }catch(e){
-      out.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
-        <strong>Okunamadı:</strong> ${esc(e.message)}</div>`;
+      out.innerHTML=`<div class="notice warn"><strong>Okunamadı:</strong> ${esc(e.message)}</div>`;
     }
   }
 }
 
-/* ---------------- başlat ---------------- */
-(async () => {
-  try{
-    CATALOG = await api('/catalog');
-    go('feed');
-  }catch(e){
-    $('#app').innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
-      <strong>Sunucuya bağlanılamadı:</strong> ${esc(e.message)}</div>`;
-  }
+(async()=>{
+  try{ CATALOG=await api('/catalog'); go('feed'); }
+  catch(e){ $('#app').innerHTML=`<div class="notice warn">
+    <strong>Sunucuya bağlanılamadı:</strong> ${esc(e.message)}</div>`; }
 })();
 </script>
 </body>

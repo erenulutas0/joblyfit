@@ -156,6 +156,7 @@ BOARDS: tuple[tuple[str, str, str, str], ...] = (
     ("src-ats-lever",      "lever",      "dreamgames", "Dream Games"),
     ("src-ats-lever",      "lever",      "iyzico",     "iyzico"),
     ("src-ats-lever",      "lever",      "commencis",  "Commencis"),
+    ("src-ats-lever",      "lever",      "ciceksepeti","Çiçeksepeti"),
     ("src-ats-recruitee",  "recruitee",  "macellan",   "Macellan"),
 )
 
