@@ -177,59 +177,65 @@
 
 ## Non-Functional Requirements
 
+> NFR'ler de `[MVP]` / `[V1]` etiketi taşır: `[MVP]` işaretli olanlar MVP çıkışında
+> sağlanmak zorundadır; `[V1]` işaretliler tasarımın yönünü belirler ama MVP kapısı
+> değildir.
+
 > Sayısal hedefler stack ve pazar seçiminden bağımsız, ürün beklentisi seviyesinde
 > verilmiştir; implementation öncesinde revize edilebilir. ❓ OPEN işaretli değerler
 > kullanıcı onayı bekler.
 
 ### NFR-1xx — Kalite & Doğruluk
 
-- **NFR-101 (Freshness):** Aktif bir source'taki yeni ilan, source'un crawl frekansı
+- **NFR-101 `[MVP]` (Freshness):** Aktif bir source'taki yeni ilan, source'un crawl frekansı
   içinde (hedef: ≤24 saat) platformda görünmeli.
-- **NFR-102 (Expiration):** Expired olduğu tespit edilebilen ilan, tespitten sonra
+- **NFR-102 `[MVP]` (Expiration):** Expired olduğu tespit edilebilen ilan, tespitten sonra
   ≤24 saat içinde feed'lerden kalkmalı.
-- **NFR-103 (Duplicate):** Kullanıcı feed'inde aynı gerçek ilanın birden çok kopyası
+- **NFR-103 `[MVP]` (Duplicate):** Kullanıcı feed'inde aynı gerçek ilanın birden çok kopyası
   görünmemeli (hedef duplicate leakage: [METRICS.md](METRICS.md)).
-- **NFR-104 (Extraction kalitesi):** Requirement extraction ve CV parsing kalitesi golden
+- **NFR-104 `[MVP]` (Extraction kalitesi):** Requirement extraction ve CV parsing kalitesi golden
   set ile sürekli ölçülmeli; hedefler METRICS.md'de.
 
 ### NFR-2xx — Performans & Ölçek
 
-- **NFR-201:** Job Feed ilk yükleme, olağan koşullarda birkaç saniye içinde gelmeli
+- **NFR-201 `[MVP]`:** Job Feed ilk yükleme, olağan koşullarda birkaç saniye içinde gelmeli
   (mobile network dahil düşünülür).
-- **NFR-202:** Profil değişikliği sonrası feed'in yeniden hesaplanması dakikalar
+- **NFR-202 `[MVP]`:** Profil değişikliği sonrası feed'in yeniden hesaplanması dakikalar
   mertebesinde tamamlanmalı (real-time şart değil).
-- **NFR-203:** Mimari, source sayısının 5'ten yüzlere, ilan hacminin milyonlara
+- **NFR-203 `[V1]`:** Mimari, source sayısının 5'ten yüzlere, ilan hacminin milyonlara
   büyümesine yeniden tasarım gerektirmeden izin vermeli (yatay ölçeklenebilir pipeline).
+  **Bu bir tasarım hedefidir; MVP implementation'ı basit kalabilir** — 2-3 source ölçeğinde
+  erken altyapı yatırımı yapılmaz (D-008).
 
 ### NFR-3xx — Güvenilirlik
 
-- **NFR-301:** Tek source arızası (Source Isolation) veya matching alt sisteminin
+- **NFR-301 `[MVP]`:** Tek source arızası (Source Isolation) veya matching alt sisteminin
   arızası, mevcut feed'in sunulmasını engellememeli (son hesaplanan feed servis edilir —
   graceful degradation).
-- **NFR-302:** Ingestion pipeline'ı retry + backoff + failure queue ile geçici hataları
+- **NFR-302 `[MVP]`:** Ingestion pipeline'ı retry + backoff + failure queue ile geçici hataları
   kendisi absorbe etmeli ([SCRAPING_SYSTEM.md](../architecture/SCRAPING_SYSTEM.md)).
 
 ### NFR-4xx — Güvenlik & Privacy
 
-- **NFR-401:** PII, [PRIVACY_SECURITY_COMPLIANCE.md](../security/PRIVACY_SECURITY_COMPLIANCE.md)
+- **NFR-401 `[MVP]`:** PII, [PRIVACY_SECURITY_COMPLIANCE.md](../security/PRIVACY_SECURITY_COMPLIANCE.md)
   içindeki data lifecycle ve minimization kurallarına göre işlenmeli.
-- **NFR-402:** CV dosyaları ve Career Profile verisi at-rest ve in-transit encrypted
+- **NFR-402 `[MVP]`:** CV dosyaları ve Career Profile verisi at-rest ve in-transit encrypted
   saklanmalı; erişim least-privilege olmalı.
-- **NFR-403:** Sensitive attribute izolasyonu (D-006) veri katmanında da uygulanmalı:
+- **NFR-403 `[MVP]`:** Sensitive attribute izolasyonu (D-006) veri katmanında da uygulanmalı:
   matching'e giden veri yolunda bu alanlar bulunmamalı.
 
 ### NFR-5xx — Erişilebilirlik & Kullanılabilirlik
 
-- **NFR-501:** Core flow'lar (onboarding, profil, feed, başvuru işaretleme) mobile
+- **NFR-501 `[MVP]`:** Core flow'lar (onboarding, profil, feed, başvuru işaretleme) mobile
   ekranda eksiksiz tamamlanabilmeli.
-- **NFR-502:** CV'siz onboarding ≤5 dakikada tamamlanabilmeli (P2 Hasan kriteri).
-- **NFR-503:** Explanation'lar teknik jargonsuz, hedef pazarın dilinde ve sade yazılmalı.
-- **NFR-504:** Arayüz erişilebilirlik standartlarını (ör. WCAG düzeyi — ❓ OPEN-14: hedef
+- **NFR-502 `[MVP]`:** CV'siz onboarding ≤5 dakikada tamamlanabilmeli (P2 Hasan kriteri).
+- **NFR-503 `[MVP]`:** Explanation'lar teknik jargonsuz, hedef pazarın dilinde ve sade yazılmalı.
+- **NFR-504 `[V1]`:** Arayüz erişilebilirlik standartlarını (ör. WCAG düzeyi — ❓ OPEN-14: hedef
   düzey) gözetmeli.
 
 ### NFR-6xx — Observability & İşletim
 
-- **NFR-601:** Scraper health, data quality ve matching quality metrikleri sürekli
+- **NFR-601 `[MVP]`:** Scraper health, data quality ve matching quality metrikleri sürekli
   toplanmalı ([OBSERVABILITY.md](../quality/OBSERVABILITY.md)).
-- **NFR-602:** Kritik arıza senaryoları ([ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
+- **NFR-602 `[MVP]`:** Kritik arıza senaryoları ([ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
   → Failure Scenarios) alert'lere ve [RUNBOOK.md](../operations/RUNBOOK.md) prosedürlerine bağlı olmalı.

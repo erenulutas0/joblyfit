@@ -78,7 +78,7 @@ limitation** açıklaması gösterilir
 | F-16 | Duplicate and expired job handling | Must | FR-206, FR-207 | Ingestion tarafında zorunlu |
 | F-23 | User data export and deletion | Must | FR-602, FR-603 | Yasal gereklilik, ertelenemez |
 | F-24 | Source transparency | Must | FR-601 | İlanda source + freshness gösterimi |
-| F-25 | Report incorrect or expired job | Should | FR-506 | Basit rapor formu → minimal MRQ (D-014) |
+| F-25 | Report incorrect or expired job | Must | FR-506 | Basit rapor formu; işleme minimal MRQ ile (D-014) |
 | F-26 | Public sector listing-only mode | Must | FR-410 | **Yeni** — Match Score üretilmez, kaynağa yönlendirilir (D-015) |
 
 **MVP'den çıkarılanlar (audit sonrası):** F-19 (Profile completeness score) → V1'e taşındı;
@@ -92,9 +92,10 @@ detaylı gerekçe aşağıda "MVP'den V1'e Taşınanlar".
 
 > **MoSCoW ↔ Scope kuralı:** Bir feature MVP listesinde ise karşılığı olan FR'ler
 > **Must** olmak zorundadır; Should seviyesindeki bir FR'ye dayanan feature MVP'de
-> yer alamaz. Tek istisna F-25 (Should): raporlama akışı MVP'de basit formla karşılanır,
-> tam MRQ ürünleşmesi V1'dedir. Bu kural [REQUIREMENTS.md](REQUIREMENTS.md) ile birlikte
-> denetlenir.
+> yer alamaz. **İstisna yoktur** — kural [REQUIREMENTS.md](REQUIREMENTS.md) ile birlikte
+> otomatik denetlenebilir biçimde tutulur. F-25 için not: MVP'de zorunlu olan basit
+> rapor formu ve sonucun kullanıcıya bildirilmesidir (FR-506 MUST); tam MRQ ürünleşmesi
+> V1 kapsamındadır ve FR-211'in minimal mod tanımıyla sınırlanmıştır.
 
 ### V1 Scope
 
