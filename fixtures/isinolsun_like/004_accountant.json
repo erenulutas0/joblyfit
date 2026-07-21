@@ -1,0 +1,39 @@
+{
+  "source_posting_ref": "0ioj-D4",
+  "url": "https://example.invalid/is-ilani/on-muhasebe-bereket-D4",
+  "title": "Ön Muhasebe Görevlisi",
+  "employer": "Bereket Gıda Sanayi ve Ticaret Ltd. Şti.",
+  "city": "İzmir",
+  "district": "Konak",
+  "arrangement": "Hibrit",
+  "occupation_id": "account",
+  "posted_at": "2026-07-20",
+  "description": "Cari hesap takibi, fatura kayıt, banka mutabakat. Haftada iki gün uzaktan.",
+  "raw_requirements": [
+    {
+      "key": "exp_acc",
+      "label": "Ön muhasebe deneyimi",
+      "kind": "required",
+      "category": "experience",
+      "min_years": 2
+    },
+    {
+      "key": "acc_software",
+      "label": "Muhasebe programı kullanımı",
+      "kind": "required",
+      "category": "skill"
+    },
+    {
+      "key": "smmm",
+      "label": "SMMM ruhsatı",
+      "kind": "preferred",
+      "category": "license"
+    },
+    {
+      "key": "efatura",
+      "label": "E-fatura / e-defter deneyimi",
+      "kind": "preferred",
+      "category": "skill"
+    }
+  ]
+}

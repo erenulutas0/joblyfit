@@ -1,0 +1,43 @@
+{
+  "source_posting_ref": "0ioj-A1",
+  "url": "https://example.invalid/is-ilani/agir-vasita-soforu-kuzey-hat-A1",
+  "title": "Ağır Vasıta Şoförü (Bölgesel Rota)",
+  "employer": "Kuzey Hat Lojistik A.Ş.",
+  "city": "Kocaeli",
+  "district": "Körfez",
+  "arrangement": "İş yerinde",
+  "occupation_id": "driver",
+  "posted_at": "2026-07-19",
+  "description": "Marmara bölgesi içi düzenli sevkiyat, bölgesel rota, gece konaklaması yok, araç bakım takibi ve sevk evrakı kontrolü.",
+  "raw_requirements": [
+    {
+      "key": "license_ce",
+      "label": "C+E sınıfı ehliyet",
+      "kind": "hard",
+      "category": "license",
+      "span": "C+E sınıfı ehliyete sahip"
+    },
+    {
+      "key": "exp_heavy",
+      "label": "Ağır vasıta deneyimi",
+      "kind": "required",
+      "category": "experience",
+      "min_years": 3,
+      "span": "en az 3 yıl"
+    },
+    {
+      "key": "src1",
+      "label": "SRC-1 mesleki yeterlilik belgesi",
+      "kind": "hard",
+      "category": "license",
+      "span": "SRC belgesi"
+    },
+    {
+      "key": "psiko",
+      "label": "Psikoteknik belgesi",
+      "kind": "required",
+      "category": "legally_required_certificate",
+      "span": "psikoteknik"
+    }
+  ]
+}

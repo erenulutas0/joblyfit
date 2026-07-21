@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (T-003 tamamlandı)_
+_Last updated: 2026-07-21 (D-001 kapandı; core + ingest fixture üzerinde çalışıyor)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -21,17 +21,26 @@ Detay: [PRODUCT.md](docs/product/PRODUCT.md), [PRD.md](docs/product/PRD.md).
 
 ## Şu Anki Faz
 
-**Faz 1 — Doğrulama & Hazırlık.** (Faz 0 documentation 2026-07-20'de tamamlandı;
-2026-07-21'de 12 reviewer'lı audit yapıldı ve bulgular dokümanlara işlendi.)
+**Faz 2 — MVP Implementation (fixture veriyle).** Faz 1 doğrulama işleri paralel
+devam ediyor. (Faz 0 documentation 2026-07-20'de tamamlandı; 2026-07-21'de 12
+reviewer'lı audit yapıldı ve bulgular dokümanlara işlendi.)
 
-Implementation code yok, technology stack seçilmedi (D-001). Build'e geçiş
-[ROADMAP.md](docs/product/ROADMAP.md) → M1 validation gate'ine bağlıdır.
+**D-001 kapandı** (2026-07-21, [ADR-001](docs/adr/ADR-001-technology-stack.md)):
+Python (ingest + matching + API) + TypeScript/Next.js (web) + PostgreSQL/pgvector.
+
+**D-018 ile M1 gate'i kısmen revize edildi.** Implementation başladı; gate iki şey
+için **aynen duruyor**: (1) gerçek source'a crawl başlatmak, (2) beta'ya gerçek
+kullanıcı almak. Kod bu ikisini engelleyecek şekilde yazıldı —
+`registry.assert_fetchable()` izinsiz kaynakta exception atar.
 
 ## Aktif Hedef
 
-**M1 validation gate'ini kapatmak** (D-010): yedi validation çalışması (T-021…T-027)
-ve mevcut Faz 1 task'ları tamamlanıp **go / revise / stop** kararı verilene kadar
-implementation başlamaz.
+**Çalışan bir çekirdek** — fixture veriyle uçtan uca: ingest → normalize → dedupe →
+match → explanation. Domain katmanı ve ingestion pipeline çalışıyor (44 test).
+Sıradaki: kalıcı şema (PostgreSQL), API katmanı (FastAPI → OpenAPI), web arayüzü.
+
+**M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
+koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.
 
 **T-003 tamamlandı ve kullanıcı tarafından kabul edildi (2026-07-21).** Commit `fb3bf17`
 **T-003 final baseline'ıdır** — bu task üzerinde yeni audit, enum/cross-reference kontrolü
@@ -112,7 +121,8 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-14 | Hedef erişilebilirlik düzeyi (ör. WCAG seviyesi) | later | [REQUIREMENTS.md](docs/product/REQUIREMENTS.md) | T-007 | Open |
 | OPEN-15 | Public sector sınav puanı/kadro mekaniği ne zaman modellenecek? | later | [PRD.md](docs/product/PRD.md) | — (V1 değerlendirmesi) | Ertelendi (D-015: MVP'de listing-only) |
 | OPEN-16 | Business model / gelir yolu (A-5) | later | [PRD.md](docs/product/PRD.md) | — | Open |
-| OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | Open — M1 sonrası |
+| OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | **Kapandı (D-001 / ADR-001, 2026-07-21)** — Python + TypeScript hibrit |
+| OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı; bant üzerinden sıralanamıyor |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
 değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın

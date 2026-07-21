@@ -1,0 +1,28 @@
+{
+  "source_posting_ref": "kamu-E5",
+  "url": "https://example.invalid/ilan/sozlesmeli-sofor-E5",
+  "title": "Sözleşmeli Şoför Alımı",
+  "employer": "Bir kamu kurumu",
+  "city": "Ankara",
+  "district": "Çankaya",
+  "arrangement": "İş yerinde",
+  "occupation_id": "driver",
+  "posted_at": "2026-07-15",
+  "is_public_sector": true,
+  "description": "Sözleşmeli personel statüsünde şoför alımı. Başvuru şartları ve sınav takvimi resmî ilan metnindedir.",
+  "raw_requirements": [
+    {
+      "key": "license_d",
+      "label": "D sınıfı ehliyet",
+      "kind": "hard",
+      "category": "license"
+    },
+    {
+      "key": "exam_score",
+      "label": "KPSS puan barajı",
+      "kind": "hard",
+      "category": "other",
+      "confidence": 0.4
+    }
+  ]
+}

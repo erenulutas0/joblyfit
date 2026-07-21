@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>İşe Uygun — Prototip</title>
+<style>
+/* ============================================================
+   TOKENS
+   Tek doygun renk grubu = şart durumları. Gövde monokroma yakın.
+   unknown bilerek MAVİ (bilgi/davet), amber DEĞİL (uyarı olurdu).
+   ============================================================ */
+:root{
+  --paper:#F4F6F6; --surface:#FFFFFF; --surface-2:#FAFBFB;
+  --ink:#14191D; --ink-2:#3B4750; --muted:#66757C;
+  --line:#DFE5E5; --line-strong:#C6D0D0;
+  --brand:#0F3D3E; --brand-2:#155152; --brand-soft:#E6EFEE;
+  --met:#0E7A4F; --met-bg:#E4F3EB; --met-line:#B6DEC9;
+  --unmet:#AF3A2E; --unmet-bg:#FAEAE7; --unmet-line:#EFC4BD;
+  --unknown:#2563A8; --unknown-bg:#E7F0FA; --unknown-line:#BCD3EC;
+  --shadow:0 1px 2px rgba(20,25,29,.05), 0 8px 24px -12px rgba(20,25,29,.18);
+  --shadow-lg:0 2px 4px rgba(20,25,29,.06), 0 24px 48px -20px rgba(20,25,29,.28);
+  --r:10px; --r-lg:16px;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --maxw:1120px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0D1212; --surface:#151D1D; --surface-2:#111818;
+    --ink:#E9EFEE; --ink-2:#C3CFCE; --muted:#8B9C9B;
+    --line:#253030; --line-strong:#33403F;
+    --brand:#7CBDB6; --brand-2:#93CCC5; --brand-soft:#16302F;
+    --met:#5FC496; --met-bg:#11291F; --met-line:#22563C;
+    --unmet:#EF8F81; --unmet-bg:#2C1714; --unmet-line:#5C2A22;
+    --unknown:#7FB4EC; --unknown-bg:#131F2E; --unknown-line:#24405F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    --shadow-lg:0 2px 4px rgba(0,0,0,.5), 0 24px 48px -20px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1212; --surface:#151D1D; --surface-2:#111818;
+  --ink:#E9EFEE; --ink-2:#C3CFCE; --muted:#8B9C9B;
+  --line:#253030; --line-strong:#33403F;
+  --brand:#7CBDB6; --brand-2:#93CCC5; --brand-soft:#16302F;
+  --met:#5FC496; --met-bg:#11291F; --met-line:#22563C;
+  --unmet:#EF8F81; --unmet-bg:#2C1714; --unmet-line:#5C2A22;
+  --unknown:#7FB4EC; --unknown-bg:#131F2E; --unknown-line:#24405F;
+}
+:root[data-theme="light"]{
+  --paper:#F4F6F6; --surface:#FFFFFF; --surface-2:#FAFBFB;
+  --ink:#14191D; --ink-2:#3B4750; --muted:#66757C;
+  --line:#DFE5E5; --line-strong:#C6D0D0;
+  --brand:#0F3D3E; --brand-2:#155152; --brand-soft:#E6EFEE;
+  --met:#0E7A4F; --met-bg:#E4F3EB; --met-line:#B6DEC9;
+  --unmet:#AF3A2E; --unmet-bg:#FAEAE7; --unmet-line:#EFC4BD;
+  --unknown:#2563A8; --unknown-bg:#E7F0FA; --unknown-line:#BCD3EC;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font:400 17px/1.55 var(--sans);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h1,h2,h3,h4{margin:0; text-wrap:balance; line-height:1.2; font-weight:650; letter-spacing:-.011em}
+p{margin:0}
+button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
+a{color:inherit}
+input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--brand); outline-offset:2px; border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{animation:none !important; transition:none !important}}
+
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 20px}
+.mono{font-family:var(--mono); font-size:.78em; letter-spacing:.01em}
+.muted{color:var(--muted)}
+.stack{display:flex; flex-direction:column}
+.row{display:flex; align-items:center}
+.gap-4{gap:4px}.gap-6{gap:6px}.gap-8{gap:8px}.gap-10{gap:10px}.gap-12{gap:12px}
+.gap-16{gap:16px}.gap-20{gap:20px}.gap-24{gap:24px}.gap-32{gap:32px}
+.wrapf{flex-wrap:wrap}.grow{flex:1}.center{justify-content:center}.between{justify-content:space-between}
+.hide{display:none !important}
+.eyebrow{
+  font-family:var(--mono); font-size:12px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted);
+}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:12px 18px; border-radius:var(--r); font-weight:600; font-size:16px;
+  border:1px solid transparent; transition:background .15s, border-color .15s, transform .06s;
+  text-decoration:none; white-space:nowrap;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--brand); color:#fff}
+:root[data-theme="dark"] .btn-primary,
+@media (prefers-color-scheme: dark){.btn-primary{color:#0D1212}}
+.btn-primary{color:var(--surface)}
+@media (prefers-color-scheme: dark){.btn-primary{color:#0B1010}}
+:root[data-theme="dark"] .btn-primary{color:#0B1010}
+:root[data-theme="light"] .btn-primary{color:#fff}
+.btn-primary:hover{background:var(--brand-2)}
+.btn-ghost{border-color:var(--line-strong); background:var(--surface)}
+.btn-ghost:hover{border-color:var(--brand); color:var(--brand)}
+.btn-quiet{padding:8px 12px; font-size:15px; color:var(--muted)}
+.btn-quiet:hover{color:var(--ink); background:var(--surface-2)}
+.btn-sm{padding:8px 14px; font-size:15px}
+.btn-block{width:100%}
+.btn[aria-pressed="true"]{background:var(--brand-soft); border-color:var(--brand); color:var(--brand)}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg)}
+.pad{padding:20px}
+.pad-lg{padding:28px}
+
+/* ---------- status system (the product's core) ---------- */
+.pill{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  border-radius:999px; font-size:13px; font-weight:600; border:1px solid;
+  white-space:nowrap;
+}
+.pill-met{color:var(--met); background:var(--met-bg); border-color:var(--met-line)}
+.pill-unmet{color:var(--unmet); background:var(--unmet-bg); border-color:var(--unmet-line)}
+.pill-unknown{color:var(--unknown); background:var(--unknown-bg); border-color:var(--unknown-line)}
+.pill-plain{color:var(--muted); background:var(--surface-2); border-color:var(--line)}
+.pill-brand{color:var(--brand); background:var(--brand-soft); border-color:var(--brand)}
+
+.mark{
+  width:22px; height:22px; border-radius:6px; display:grid; place-items:center;
+  font-size:13px; font-weight:800; flex:none; border:1px solid;
+}
+.mark-met{color:var(--met); background:var(--met-bg); border-color:var(--met-line)}
+.mark-unmet{color:var(--unmet); background:var(--unmet-bg); border-color:var(--unmet-line)}
+.mark-unknown{color:var(--unknown); background:var(--unknown-bg); border-color:var(--unknown-line); border-style:dashed}
+
+/* requirement ledger */
+.ledger{display:grid; gap:14px}
+@media(min-width:900px){ .ledger{grid-template-columns:repeat(3,1fr); align-items:start} }
+.led-col{border:1px solid var(--line); border-radius:var(--r); background:var(--surface-2); overflow:hidden}
+.led-head{padding:12px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
+.led-body{padding:6px 14px 14px}
+.led-item{display:flex; gap:10px; padding:10px 0; border-bottom:1px dashed var(--line)}
+.led-item:last-child{border-bottom:0}
+.led-item .t{font-size:15.5px; line-height:1.4}
+.led-item .why{font-size:13.5px; color:var(--muted); margin-top:3px}
+.col-unknown{border-style:dashed; border-color:var(--unknown-line); background:var(--unknown-bg)}
+:root[data-theme="dark"] .col-unknown, @media(prefers-color-scheme:dark){.col-unknown{background:var(--unknown-bg)}}
+.link-act{
+  color:var(--unknown); font-weight:600; font-size:13.5px; background:none;
+  border:0; padding:0; text-decoration:underline; text-underline-offset:3px; cursor:pointer;
+}
+
+/* ---------- app chrome ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40; background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--line);
+}
+.topbar .inner{display:flex; align-items:center; gap:16px; height:62px}
+.brandmark{display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; font-size:17px}
+.brandmark .glyph{
+  width:26px; height:26px; border-radius:7px; background:var(--brand);
+  display:grid; place-items:center; color:var(--surface); font-family:var(--mono);
+  font-size:13px; font-weight:700; flex:none;
+}
+:root[data-theme="dark"] .brandmark .glyph{color:#0B1010}
+@media(prefers-color-scheme:dark){.brandmark .glyph{color:#0B1010}}
+:root[data-theme="light"] .brandmark .glyph{color:#fff}
+.navlinks{display:none; gap:2px; margin-left:8px}
+@media(min-width:880px){ .navlinks{display:flex} }
+.navlink{padding:8px 12px; border-radius:8px; font-size:15.5px; font-weight:550; color:var(--muted)}
+.navlink:hover{background:var(--surface-2); color:var(--ink)}
+.navlink.on{color:var(--brand); background:var(--brand-soft)}
+
+.tabbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:50; display:grid;
+  grid-template-columns:repeat(4,1fr); background:var(--surface);
+  border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+}
+@media(min-width:880px){ .tabbar{display:none} }
+.tab{display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px 8px; font-size:11.5px; color:var(--muted); font-weight:550}
+.tab.on{color:var(--brand)}
+.tab .ic{font-size:18px; line-height:1}
+body.has-tabbar{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+@media(min-width:880px){ body.has-tabbar{padding-bottom:0} }
+
+/* ---------- landing ---------- */
+.hero{padding:64px 0 40px}
+@media(min-width:880px){ .hero{padding:92px 0 56px} }
+.hero h1{
+  font-family:var(--serif); font-weight:600; letter-spacing:-.02em;
+  font-size:clamp(34px,6.2vw,60px); line-height:1.06; max-width:16ch;
+}
+.hero .lede{font-size:clamp(17px,2.2vw,21px); color:var(--ink-2); max-width:56ch; margin-top:20px}
+.hero-actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:28px}
+.hero-note{margin-top:14px; font-size:14px; color:var(--muted)}
+.section{padding:56px 0; border-top:1px solid var(--line)}
+.section h2{font-family:var(--serif); font-weight:600; font-size:clamp(24px,3.4vw,32px)}
+.grid3{display:grid; gap:16px; margin-top:26px}
+@media(min-width:760px){ .grid3{grid-template-columns:repeat(3,1fr)} }
+.step-n{font-family:var(--mono); font-size:12px; color:var(--brand); font-weight:700}
+.occ-chip{
+  display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border-radius:999px;
+  border:1px solid var(--line-strong); background:var(--surface); font-size:15px; font-weight:550;
+}
+.occ-chip .cl{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.footer{border-top:1px solid var(--line); padding:32px 0 44px; color:var(--muted); font-size:14px}
+
+/* ---------- forms ---------- */
+.field{display:flex; flex-direction:column; gap:7px}
+.label{font-size:14px; font-weight:600; color:var(--ink-2)}
+.hint{font-size:13px; color:var(--muted)}
+.input, .select{
+  width:100%; padding:12px 13px; border-radius:var(--r); border:1px solid var(--line-strong);
+  background:var(--surface); font-size:16px;
+}
+.input:focus,.select:focus{border-color:var(--brand); outline:none; box-shadow:0 0 0 3px var(--brand-soft)}
+.acc{border:1px solid var(--line); border-radius:var(--r); background:var(--surface); overflow:hidden}
+.acc + .acc{margin-top:10px}
+.acc-head{width:100%; display:flex; align-items:center; gap:12px; padding:16px; text-align:left}
+.acc-head:hover{background:var(--surface-2)}
+.acc-body{padding:0 16px 18px; display:flex; flex-direction:column; gap:16px}
+.chev{margin-left:auto; color:var(--muted); transition:transform .18s}
+.acc.open .chev{transform:rotate(90deg)}
+.choice{
+  display:flex; gap:14px; padding:18px; border:1px solid var(--line-strong); border-radius:var(--r-lg);
+  background:var(--surface); text-align:left; width:100%; transition:border-color .15s, box-shadow .15s;
+}
+.choice:hover{border-color:var(--brand); box-shadow:var(--shadow)}
+.choice .ic{
+  width:40px; height:40px; border-radius:11px; background:var(--brand-soft); color:var(--brand);
+  display:grid; place-items:center; font-size:19px; flex:none;
+}
+.seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:999px; overflow:hidden; background:var(--surface)}
+.seg button{padding:9px 15px; font-size:14.5px; font-weight:550; color:var(--muted)}
+.seg button.on{background:var(--brand); color:#fff}
+:root[data-theme="dark"] .seg button.on{color:#0B1010}
+@media(prefers-color-scheme:dark){.seg button.on{color:#0B1010}}
+:root[data-theme="light"] .seg button.on{color:#fff}
+.switch{
+  width:44px; height:26px; border-radius:999px; background:var(--line-strong); position:relative;
+  transition:background .18s; flex:none;
+}
+.switch::after{content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .18s; box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch[aria-checked="true"]{background:var(--brand)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+
+/* ---------- job card ---------- */
+.jobcard{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg);
+  padding:18px; display:flex; flex-direction:column; gap:12px; width:100%; text-align:left;
+  transition:border-color .15s, box-shadow .15s;
+}
+.jobcard:hover{border-color:var(--line-strong); box-shadow:var(--shadow)}
+.jobcard h3{font-size:18.5px; font-weight:650; line-height:1.3}
+.metaline{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:14.5px; color:var(--ink-2)}
+.srcline{
+  display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; padding-top:11px;
+  border-top:1px dashed var(--line); font-family:var(--mono); font-size:12px; color:var(--muted);
+}
+.band{display:inline-flex; align-items:center; gap:7px; font-weight:650; font-size:14.5px}
+.band .bars{display:inline-flex; gap:2px; align-items:flex-end; height:14px}
+.band .bars i{width:4px; border-radius:1px; background:var(--line-strong); display:block}
+.band .bars i.f{background:var(--brand)}
+.band .bars i:nth-child(1){height:6px}.band .bars i:nth-child(2){height:10px}.band .bars i:nth-child(3){height:14px}
+
+.notice{
+  display:flex; gap:11px; padding:13px 15px; border-radius:var(--r); font-size:14.5px;
+  border:1px solid; line-height:1.45;
+}
+.notice-unknown{background:var(--unknown-bg); border-color:var(--unknown-line); color:var(--unknown)}
+.notice-unmet{background:var(--unmet-bg); border-color:var(--unmet-line); color:var(--unmet)}
+.notice-plain{background:var(--surface-2); border-color:var(--line); color:var(--ink-2)}
+.notice-brand{background:var(--brand-soft); border-color:var(--brand); color:var(--brand)}
+.notice b{font-weight:700}
+
+.filters{display:flex; gap:9px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch}
+.filters::-webkit-scrollbar{height:0}
+.chip{
+  padding:8px 14px; border-radius:999px; border:1px solid var(--line-strong); background:var(--surface);
+  font-size:14.5px; font-weight:550; white-space:nowrap; color:var(--ink-2);
+}
+.chip.on{background:var(--brand); border-color:var(--brand); color:#fff}
+:root[data-theme="dark"] .chip.on{color:#0B1010}
+@media(prefers-color-scheme:dark){.chip.on{color:#0B1010}}
+:root[data-theme="light"] .chip.on{color:#fff}
+
+.empty{text-align:center; padding:56px 24px; display:flex; flex-direction:column; align-items:center; gap:14px}
+.empty .glyphbox{width:52px; height:52px; border-radius:14px; background:var(--surface-2); border:1px solid var(--line); display:grid; place-items:center; font-size:22px}
+.skel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 37%,var(--surface-2) 63%); background-size:400% 100%; animation:sh 1.3s infinite; border-radius:6px}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+
+.toast{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:82px; z-index:200;
+  background:var(--ink); color:var(--paper); padding:12px 18px; border-radius:999px;
+  font-size:14.5px; font-weight:550; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none;
+  transition:opacity .2s, transform .2s; max-width:calc(100vw - 40px); text-align:center;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-6px)}
+@media(min-width:880px){ .toast{bottom:28px} }
+
+.sheet-bg{position:fixed; inset:0; background:rgba(10,14,14,.5); z-index:120; display:grid; place-items:end center; padding:0}
+@media(min-width:720px){ .sheet-bg{place-items:center} }
+.sheet{
+  background:var(--surface); width:100%; max-width:560px; border-radius:20px 20px 0 0;
+  padding:24px; max-height:88vh; overflow:auto; box-shadow:var(--shadow-lg);
+}
+@media(min-width:720px){ .sheet{border-radius:var(--r-lg)} }
+
+.crumb{display:flex; align-items:center; gap:8px; font-size:14.5px; color:var(--muted); padding:16px 0 4px}
+.prog{height:4px; background:var(--line); border-radius:999px; overflow:hidden}
+.prog i{display:block; height:100%; background:var(--brand); transition:width .3s}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:15px}
+.kv dt{font-family:var(--mono); font-size:12px; color:var(--muted); padding-top:3px}
+.kv dd{margin:0}
+.devnote{
+  position:fixed; right:14px; bottom:78px; z-index:60;
+}
+@media(min-width:880px){ .devnote{bottom:18px} }
+.devbtn{
+  width:42px; height:42px; border-radius:50%; background:var(--surface); border:1px solid var(--line-strong);
+  box-shadow:var(--shadow); display:grid; place-items:center; font-size:17px;
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="devnote"><button class="devbtn" id="devBtn" title="Prototip menüsü" aria-label="Prototip menüsü">⚙</button></div>
+
+<script>
+/* ============================================================
+   1. SAMPLE DATA — tamamı kurgusaldır.
+   İşveren adları, ilanlar ve kişiler gerçek değildir.
+   ============================================================ */
+const CLUSTERS = {
+  log:  {name:"Lojistik & Operasyon", occs:["Şoför","Depo Görevlisi"]},
+  off:  {name:"Ofis & Ticaret",       occs:["Muhasebe","Satış Temsilcisi"]},
+  hea:  {name:"Sağlık",               occs:["Hemşire","Sağlık Teknikeri"]},
+};
+const ALL_OCCS = [
+  {id:"driver",   label:"Şoför",              cluster:"log", tier:"first"},
+  {id:"warehouse",label:"Depo Görevlisi",     cluster:"log", tier:"first"},
+  {id:"account",  label:"Muhasebe",           cluster:"off", tier:"first"},
+  {id:"sales",    label:"Satış Temsilcisi",   cluster:"off", tier:"first"},
+  {id:"nurse",    label:"Hemşire",            cluster:"hea", tier:"first"},
+  {id:"htech",    label:"Sağlık Teknikeri",   cluster:"hea", tier:"first"},
+  {id:"teacher",  label:"Öğretmen",           cluster:"-",   tier:"limited"},
+  {id:"chef",     label:"Aşçı",               cluster:"-",   tier:"limited"},
+  {id:"designer", label:"Grafik Tasarımcı",   cluster:"-",   tier:"limited"},
+  {id:"dev",      label:"Yazılım Geliştirici",cluster:"-",   tier:"limited"},
+  {id:"security", label:"Güvenlik Görevlisi", cluster:"-",   tier:"limited"},
+];
+
+const JOBS = [
+  {
+    id:"j1", occ:"driver", title:"Ağır Vasıta Şoförü (Bölgesel Rota)",
+    employer:"Kuzey Hat Lojistik A.Ş.", city:"Kocaeli", district:"Körfez",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Gündüz ağırlıklı",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"2 gün önce", checked:"bugün",
+    band:"strong", confidence:"med",
+    why:["Ehliyet sınıfın ilanın istediğiyle örtüşüyor","6 yıllık bölgesel rota deneyimin var","İlanın konumu tercih ettiğin bölgede"],
+    met:[
+      {t:"C+E sınıfı ehliyet", why:"Profilinde doğrulanmış olarak kayıtlı"},
+      {t:"En az 3 yıl ağır vasıta deneyimi", why:"Profilinde 6 yıl görünüyor"},
+      {t:"Bölgesel rota tecrübesi", why:"Son iş kaydınla eşleşiyor"}
+    ],
+    unmet:[],
+    unknown:[
+      {t:"SRC-1 mesleki yeterlilik belgesi", why:"Profilinde bu belgeye dair bilgi yok", field:"SRC belgesi"},
+      {t:"Psikoteknik belgesi", why:"Profilinde bu belgeye dair bilgi yok", field:"Psikoteknik"}
+    ],
+    desc:"Kocaeli merkezli depomuzdan Marmara bölgesi içi düzenli sevkiyat yapacak, bölgesel rotalarda görev alacak ağır vasıta şoförü aranmaktadır. Haftalık program önceden paylaşılır; gece konaklaması bulunmamaktadır. Araç bakım takibi ve sevk evrakı kontrolü görev tanımına dahildir."
+  },
+  {
+    id:"j2", occ:"warehouse", title:"Depo Görevlisi",
+    employer:"Anadolu Dağıtım Hizmetleri", city:"İstanbul", district:"Esenyurt",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Vardiyalı (3 vardiya)",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"5 saat önce", checked:"bugün",
+    band:"strong", confidence:"high",
+    why:["Depo ve stok sistemi deneyimin ilanla örtüşüyor","Konum tercih ettiğin ilçeye yakın"],
+    met:[
+      {t:"Depo/stok sistemi deneyimi", why:"Profilinde 4 yıl görünüyor"},
+      {t:"Vardiyalı çalışabilme", why:"Tercihlerinde vardiyalı çalışmaya uygun işaretledin"}
+    ],
+    unmet:[],
+    unknown:[{t:"Forklift operatör belgesi", why:"Profilinde bu belgeye dair bilgi yok", field:"Forklift belgesi"}],
+    desc:"Esenyurt lojistik merkezimizde mal kabul, yerleştirme, sayım ve sevkiyat hazırlığı süreçlerinde görev alacak takım arkadaşları arıyoruz. Barkod ve el terminali kullanımı işbaşı eğitimiyle öğretilir."
+  },
+  {
+    id:"j3", occ:"account", title:"Ön Muhasebe Görevlisi",
+    employer:"Bereket Gıda Sanayi Ltd. Şti.", city:"İzmir", district:"Konak",
+    arrangement:"Hibrit", type:"Tam zamanlı", shift:"Gündüz",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"1 gün önce", checked:"bugün",
+    band:"good", confidence:"med",
+    why:["Ön muhasebe deneyimin ve kullandığın program ilanla örtüşüyor"],
+    met:[
+      {t:"Ön muhasebe deneyimi (en az 2 yıl)", why:"Profilinde 5 yıl görünüyor"},
+      {t:"Muhasebe programı kullanımı", why:"Profilinde kayıtlı"}
+    ],
+    unmet:[{t:"SMMM ruhsatı (tercih sebebi)", why:"Profilinde bu ruhsat bulunmuyor — ilanda zorunlu değil, tercih sebebi olarak belirtilmiş"}],
+    unknown:[{t:"E-fatura / e-defter deneyimi", why:"Profilinde bu konuda bilgi yok", field:"E-fatura deneyimi"}],
+    desc:"Gıda üretimi alanında faaliyet gösteren firmamızın İzmir ofisinde cari hesap takibi, fatura kayıt ve banka mutabakat süreçlerinde görev alacak ön muhasebe görevlisi aranmaktadır. Haftada iki gün uzaktan çalışma imkânı bulunmaktadır."
+  },
+  {
+    id:"j4", occ:"sales", title:"Saha Satış Temsilcisi",
+    employer:"Delta Teknik Malzeme", city:"Ankara", district:"Ostim",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Gündüz",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"3 gün önce", checked:"dün",
+    band:"good", confidence:"med",
+    why:["Sektör deneyimin ve ehliyetin ilanın beklentisiyle örtüşüyor"],
+    met:[
+      {t:"B sınıfı ehliyet", why:"Profilinde doğrulanmış olarak kayıtlı"},
+      {t:"Saha satış deneyimi", why:"Profilinde 3 yıl görünüyor"}
+    ],
+    unmet:[{t:"Yapı malzemeleri sektörü deneyimi", why:"Profilindeki sektör deneyimi farklı bir alanda görünüyor"}],
+    unknown:[{t:"CRM programı kullanımı", why:"Profilinde bu konuda bilgi yok", field:"CRM deneyimi"}],
+    desc:"Ankara ve çevre illerde bayi ziyaretleri gerçekleştirecek, mevcut müşteri portföyünü geliştirecek saha satış temsilcisi aranmaktadır. Şirket aracı tahsis edilir."
+  },
+  {
+    id:"j5", occ:"nurse", title:"Hemşire — Yoğun Bakım", requiresVerify:true,
+    employer:"Özel Meram Tıp Merkezi", city:"Konya", district:"Selçuklu",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Vardiyalı (gece dahil)",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"1 gün önce", checked:"bugün",
+    band:"cond", confidence:"low",
+    why:["Yoğun bakım deneyimin ilanla örtüşüyor","Belge doğrulaması tamamlanmadığı için değerlendirme kesinleşmedi"],
+    met:[{t:"Yoğun bakım departman deneyimi", why:"Profilinde 5 yıl görünüyor"}],
+    unmet:[],
+    unknown:[
+      {t:"Hemşirelik tescil belgesi", why:"Profilinde kayıtlı ama doğrulanmadı — bu ilan için zorunlu bir belge", field:"Hemşirelik tescil belgesi", verify:true},
+      {t:"Gece vardiyası uygunluğu", why:"Tercihlerinde bu konuda bilgi yok", field:"Vardiya uygunluğu"}
+    ],
+    desc:"Yoğun bakım ünitemizde görev alacak, hasta takibi ve bakım süreçlerinde deneyimli hemşire aranmaktadır. Vardiya planı aylık olarak önceden paylaşılır."
+  },
+  {
+    id:"j6", occ:"htech", title:"Sağlık Teknikeri (Radyoloji)", requiresVerify:true,
+    employer:"Ege Görüntüleme Merkezi", city:"İzmir", district:"Bornova",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Gündüz",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"4 gün önce", checked:"dün",
+    band:"cond", confidence:"low",
+    why:["Cihaz deneyimin ilanla örtüşüyor","Yetki belgesi doğrulanmadığı için değerlendirme kesinleşmedi"],
+    met:[{t:"Görüntüleme cihazı deneyimi", why:"Profilinde kayıtlı"}],
+    unmet:[],
+    unknown:[{t:"Radyoloji teknikeri yetki belgesi", why:"Profilinde bu belgeye dair bilgi yok — bu ilan için zorunlu", field:"Radyoloji yetki belgesi", verify:true}],
+    desc:"Görüntüleme merkezimizde MR ve BT cihazlarında çekim yapacak sağlık teknikeri aranmaktadır."
+  },
+  {
+    id:"j7", occ:"driver", title:"Sözleşmeli Şoför Alımı", publicSector:true,
+    employer:"Bir kamu kurumu", city:"Ankara", district:"Çankaya",
+    arrangement:"İş yerinde", type:"Sözleşmeli", shift:"Gündüz",
+    salary:"Mevzuata göre", source:"Kamu İlan", posted:"6 gün önce", checked:"bugün",
+    desc:"Kamu kurumunda sözleşmeli personel statüsünde şoför alımı yapılacaktır. Başvuru şartları, sınav takvimi ve puan barajı resmî ilan metninde yer almaktadır."
+  },
+  {
+    id:"j8", occ:"warehouse", title:"Forklift Operatörü", expired:true,
+    employer:"Marmara Depoculuk", city:"Kocaeli", district:"Gebze",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Vardiyalı",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"22 gün önce", checked:"bugün",
+    band:"good", confidence:"med",
+    why:["Depo deneyimin ilanla örtüşüyor"],
+    met:[{t:"Depo deneyimi", why:"Profilinde 4 yıl görünüyor"}],
+    unmet:[], unknown:[{t:"Forklift operatör belgesi", why:"Profilinde bilgi yok", field:"Forklift belgesi"}],
+    desc:"Gebze deposunda forklift operatörü aranmaktadır."
+  },
+  {
+    id:"j9", occ:"account", title:"Muhasebe Uzmanı", dupCount:2,
+    employer:"Aksu Tekstil A.Ş.", city:"Bursa", district:"Nilüfer",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Gündüz",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"2 gün önce", checked:"bugün",
+    alsoOn:["İŞKUR e-Şube"],
+    band:"good", confidence:"med",
+    why:["Muhasebe deneyimin ilanın beklediği seviyeyle örtüşüyor"],
+    met:[{t:"Muhasebe deneyimi (en az 4 yıl)", why:"Profilinde 5 yıl görünüyor"}],
+    unmet:[{t:"Bağımsız denetim tecrübesi", why:"Profilinde bu alanda kayıt bulunmuyor"}],
+    unknown:[{t:"İngilizce seviyesi", why:"Profilinde dil bilgisi kayıtlı değil", field:"Dil bilgisi"}],
+    desc:"Tekstil sektöründe faaliyet gösteren firmamızda genel muhasebe süreçlerini yürütecek muhasebe uzmanı aranmaktadır."
+  },
+  {
+    id:"j10", occ:"nurse", title:"Hemşire — Poliklinik", requiresVerify:true,
+    employer:"Yeni Ufuk Sağlık Grubu", city:"İstanbul", district:"Kadıköy",
+    arrangement:"İş yerinde", type:"Tam zamanlı", shift:"Gündüz",
+    salary:"Belirtilmemiş", source:"İşin Olsun", posted:"3 gün önce", checked:"bugün",
+    band:"cond", confidence:"low",
+    why:["Poliklinik deneyimin var","Belge doğrulaması bekleniyor"],
+    met:[{t:"Poliklinik deneyimi", why:"Profilinde kayıtlı"}],
+    unmet:[],
+    unknown:[{t:"Hemşirelik tescil belgesi", why:"Profilinde kayıtlı ama doğrulanmadı — bu ilan için zorunlu", field:"Hemşirelik tescil belgesi", verify:true}],
+    desc:"Kadıköy polikliniğimizde hasta kabul ve muayene destek süreçlerinde görev alacak hemşire aranmaktadır."
+  }
+];
+
+const BANDS = {
+  strong:{label:"Güçlü eşleşme", bars:3},
+  good:{label:"İyi eşleşme", bars:2},
+  cond:{label:"Şartlı eşleşme", bars:1},
+};
+const CONF = {high:"Yüksek", med:"Orta", low:"Düşük"};
+
+/* ============================================================
+   2. STATE
+   ============================================================ */
+const S = {
+  screen:"landing",
+  jobId:null,
+  onboardPath:null,
+  occs:["driver"],
+  saved:new Set(),
+  applied:new Set(),
+  dismissed:new Set(),
+  verified:new Set(),
+  resolved:new Set(),
+  cvFile:null, cvStage:null,
+  filters:{q:"", arr:"all", city:"all"},
+  savedTab:"saved",
+  digest:true,
+  demo:null,
+  acc:{exp:true, skill:false, edu:false, lic:false, lang:false, pref:false},
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const go = (screen, jobId) => { S.screen=screen; if(jobId!==undefined) S.jobId=jobId; window.scrollTo(0,0); render(); };
+let toastT;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2400);
+}
+function jobById(id){ return JOBS.find(j=>j.id===id); }
+function isVerified(field){ return S.verified.has(field); }
+
+function visibleJobs(){
+  return JOBS.filter(j=>{
+    if(S.dismissed.has(j.id)) return false;
+    if(j.expired) return false;
+    if(!S.occs.includes(j.occ)) return false;
+    const f=S.filters;
+    if(f.arr!=="all" && j.arrangement!==f.arr) return false;
+    if(f.city!=="all" && j.city!==f.city) return false;
+    if(f.q){
+      const hay=(j.title+" "+j.employer+" "+j.city+" "+j.district).toLocaleLowerCase("tr");
+      if(!hay.includes(f.q.toLocaleLowerCase("tr"))) return false;
+    }
+    return true;
+  });
+}
+/* unknown listesi: doğrulanan/çözülen alanlar düşer */
+function liveUnknown(j){
+  if(!j.unknown) return [];
+  return j.unknown.filter(u=>{
+    if(u.verify) return !isVerified(u.field);
+    return !S.resolved.has(u.field);
+  });
+}
+function liveMetExtra(j){
+  if(!j.unknown) return [];
+  return j.unknown.filter(u=> u.verify ? isVerified(u.field) : S.resolved.has(u.field));
+}
+
+/* ============================================================
+   3. COMPONENTS
+   ============================================================ */
+function bandEl(j){
+  if(j.publicSector) return `<span class="pill pill-plain">Kamu ilanı · puan üretilmez</span>`;
+  const b=BANDS[j.band]||BANDS.good;
+  const bars=[1,2,3].map(n=>`<i class="${n<=b.bars?'f':''}"></i>`).join("");
+  return `<span class="band"><span class="bars">${bars}</span>${b.label}</span>`;
+}
+function confEl(j){
+  if(j.publicSector) return "";
+  return `<span class="pill pill-plain">Güven: ${CONF[j.confidence]}</span>`;
+}
+function jobCard(j){
+  const unk=liveUnknown(j);
+  const needVerify=(j.unknown||[]).some(u=>u.verify && !isVerified(u.field));
+  return `
+  <button class="jobcard" data-open="${j.id}">
+    <div class="stack gap-6">
+      <div class="row between gap-12" style="align-items:flex-start">
+        <h3>${esc(j.title)}</h3>
+        ${S.saved.has(j.id)?'<span class="pill pill-brand">Kayıtlı</span>':''}
+      </div>
+      <div class="metaline">
+        <span>${esc(j.employer)}</span>
+        <span class="muted">${esc(j.district)}, ${esc(j.city)}</span>
+        <span class="muted">${esc(j.arrangement)}</span>
+      </div>
+    </div>
+    <div class="row gap-10 wrapf">${bandEl(j)}${confEl(j)}</div>
+    ${needVerify?`<div class="notice notice-unknown"><span>🔒</span><span><b>Belge doğrulaması gerekiyor.</b> Bu ilanın zorunlu belgesi profilinde doğrulanmadığı için eşleşme kesinleşmedi.</span></div>`:""}
+    ${(!needVerify&&unk.length)?`<div class="notice notice-unknown"><span>?</span><span><b>${unk.length} şart değerlendirilemedi</b> — profilinde bu bilgi yok.</span></div>`:""}
+    ${j.publicSector?`<div class="notice notice-plain"><span>ℹ</span><span>Kamu ilanı. Şartlar ve sınav bilgisi resmî kaynakta — burada uygunluk değerlendirmesi yapılmaz.</span></div>`:""}
+    <div class="srcline">
+      <span>Kaynak: ${esc(j.source)}</span><span>·</span>
+      <span>${esc(j.posted)}</span><span>·</span>
+      <span>son kontrol ${esc(j.checked)}</span>
+      ${j.dupCount?`<span>·</span><span>${j.dupCount} kaynakta yayında</span>`:""}
+    </div>
+  </button>`;
+}
+function ledger(j){
+  const unk=liveUnknown(j);
+  const extra=liveMetExtra(j);
+  const met=[...(j.met||[]), ...extra.map(u=>({t:u.t, why:u.verify?"Belgeni doğruladın":"Profiline ekledin"}))];
+  const unmet=j.unmet||[];
+  const col=(kind,title,items,icon,extraHtml)=>`
+    <div class="led-col ${kind==='unknown'?'col-unknown':''}">
+      <div class="led-head">
+        <span class="mark mark-${kind}">${icon}</span>
+        <strong style="font-size:15px">${title}</strong>
+        <span class="pill pill-${kind}" style="margin-left:auto">${items.length}</span>
+      </div>
+      <div class="led-body">
+        ${items.length?items.map(i=>`
+          <div class="led-item">
+            <span class="mark mark-${kind}" aria-hidden="true">${icon}</span>
+            <div>
+              <div class="t">${esc(i.t)}</div>
+              <div class="why">${esc(i.why)}</div>
+              ${kind==='unknown'?`<button class="link-act" data-fix="${esc(i.field)}" data-verify="${i.verify?1:0}">${i.verify?'Belgeyi doğrula':'Profilime ekle'}</button>`:""}
+            </div>
+          </div>`).join(""):`<div class="led-item"><div class="why" style="margin:0">Bu grupta madde yok.</div></div>`}
+        ${extraHtml||""}
+      </div>
+    </div>`;
+  return `<div class="ledger">
+    ${col("met","Karşılanıyor",met,"✓")}
+    ${col("unmet","Karşılanmıyor",unmet,"✕")}
+    ${col("unknown","Değerlendirilemedi",unk,"?")}
+  </div>`;
+}
+
+/* ============================================================
+   4. SCREENS
+   ============================================================ */
+function screenLanding(){
+  return `
+  <header class="topbar"><div class="wrap inner">
+    <div class="brandmark"><span class="glyph">İU</span> İşe Uygun</div>
+    <div class="grow"></div>
+    <button class="btn btn-quiet" data-nav="onboard">Giriş</button>
+    <button class="btn btn-primary btn-sm" data-nav="onboard">Başla</button>
+  </div></header>
+
+  <section class="wrap hero">
+    <span class="eyebrow">Türkiye · her meslek için</span>
+    <h1 style="margin-top:16px">Sana uyan işi, <span style="color:var(--brand)">neden</span> uyduğunu bilerek bul.</h1>
+    <p class="lede">Dağınık ilanları tek yerde toplar, mesleğinin gerçek şartlarına göre sıralar ve her öneri için hangi şartı karşıladığını — karşılamadığını — açıkça söyler.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary" data-nav="onboard">Profilini oluştur</button>
+      <button class="btn btn-ghost" data-nav="onboard">CV'ni yükle</button>
+    </div>
+    <p class="hero-note">Kayıt olmadan örnek bir eşleşme görebilirsin. CV zorunlu değil.</p>
+  </section>
+
+  <section class="wrap section">
+    <span class="eyebrow">Nasıl çalışır</span>
+    <h2 style="margin-top:12px">Üç adım, karmaşık form yok</h2>
+    <div class="grid3">
+      ${[
+        ["Mesleğini seç","Şoförden hemşireye, muhasebeciden depo görevlisine. Mesleğin ne isterse onu sorarız — herkese aynı formu doldurtmayız."],
+        ["Profilini tamamla","CV yükle ya da birkaç soruyu yanıtla. İkisi de eşit yol; CV'si olmayan geride kalmaz."],
+        ["Gerekçeli öneriler al","Her ilan için neyi karşıladığın, neyi karşılamadığın ve neyin bilinmediği ayrı ayrı yazılır."]
+      ].map(([t,d],i)=>`
+        <div class="card pad">
+          <div class="step-n">ADIM ${i+1}</div>
+          <h3 style="margin-top:10px; font-size:18px">${t}</h3>
+          <p class="muted" style="margin-top:8px; font-size:15.5px">${d}</p>
+        </div>`).join("")}
+    </div>
+  </section>
+
+  <section class="wrap section">
+    <span class="eyebrow">Ayrıştırıcı olan şey</span>
+    <h2 style="margin-top:12px">"Bilmiyorum" diyebilen bir eşleştirme</h2>
+    <p class="muted" style="margin-top:12px; max-width:62ch; font-size:16.5px">
+      Çoğu sistem profilinde yazmayan şeyi "sende yok" sayar. Biz saymıyoruz. Profilinde bilgi yoksa
+      bunu <b style="color:var(--unknown)">değerlendirilemedi</b> diye gösteririz — eksiklik gibi değil.
+    </p>
+    <div class="card pad-lg" style="margin-top:22px">
+      <div class="row between gap-12 wrapf" style="margin-bottom:16px">
+        <div>
+          <h3 style="font-size:18px">Ağır Vasıta Şoförü (Bölgesel Rota)</h3>
+          <div class="metaline" style="margin-top:6px"><span>Kuzey Hat Lojistik A.Ş.</span><span class="muted">Körfez, Kocaeli</span></div>
+        </div>
+        <div class="row gap-10">${bandEl(JOBS[0])}${confEl(JOBS[0])}</div>
+      </div>
+      ${ledger(JOBS[0])}
+      <p class="muted" style="margin-top:16px; font-size:14px">
+        Eşleşme bilgisi bir tahmindir; işe alınacağın anlamına gelmez. Başvuru ilanın kendi sayfasından yapılır.
+      </p>
+    </div>
+  </section>
+
+  <section class="wrap section">
+    <span class="eyebrow">Kapsam</span>
+    <h2 style="margin-top:12px">Şu an derin desteklenen meslekler</h2>
+    <p class="muted" style="margin-top:10px; max-width:60ch">Diğer meslekler de arama yapabilir; onlarda değerlendirme daha genel olur ve bunu sana açıkça söyleriz.</p>
+    <div class="row gap-10 wrapf" style="margin-top:20px">
+      ${ALL_OCCS.filter(o=>o.tier==="first").map(o=>`
+        <span class="occ-chip">${o.label}<span class="cl">${CLUSTERS[o.cluster].name}</span></span>`).join("")}
+    </div>
+  </section>
+
+  <section class="wrap section">
+    <div class="grid3">
+      ${[
+        ["Kaynağı hep görürsün","Her ilanda hangi kaynaktan geldiği, ne zaman yayınlandığı ve en son ne zaman kontrol edildiği yazar."],
+        ["Başvuru ilanın sahibinde","Başvurunu biz almayız. Seni ilanın orijinal sayfasına yönlendiririz."],
+        ["Gereksiz veri istemeyiz","Fotoğraf, medeni durum, doğum tarihi gibi bilgiler eşleştirmede kullanılmaz — istenmez ve saklanmaz."]
+      ].map(([t,d])=>`
+        <div class="card pad"><h3 style="font-size:17px">${t}</h3><p class="muted" style="margin-top:8px; font-size:15px">${d}</p></div>`).join("")}
+    </div>
+  </section>
+
+  <section class="wrap section" style="text-align:center">
+    <h2 style="font-family:var(--serif)">Erken erişime katıl</h2>
+    <p class="muted" style="margin:12px auto 0; max-width:48ch">Ürün geliştirme aşamasında. Meslek grubunu bırak, hazır olduğunda ilk sana haber verelim.</p>
+    <div class="row center gap-10 wrapf" style="margin-top:22px">
+      <button class="btn btn-primary" data-nav="onboard">Hemen deneyin</button>
+    </div>
+  </section>
+
+  <footer class="footer"><div class="wrap row between gap-16 wrapf">
+    <span>İşe Uygun — tasarım prototipi. Bütün ilanlar ve şirketler kurgusaldır.</span>
+    <button class="btn btn-quiet" id="themeBtn">Tema değiştir</button>
+  </div></footer>`;
+}
+
+function screenOnboard(){
+  return `${appbar("")}
+  <main class="wrap" style="max-width:640px; padding-top:30px">
+    <span class="eyebrow">Başlangıç</span>
+    <h1 style="font-size:28px; margin-top:12px">Nasıl başlamak istersin?</h1>
+    <p class="muted" style="margin-top:10px">İkisi de aynı sonucu verir. CV'n yoksa hiçbir şey kaçırmazsın.</p>
+    <div class="stack gap-12" style="margin-top:26px">
+      <button class="choice" data-path="cv">
+        <span class="ic">📄</span>
+        <span class="stack gap-4">
+          <strong style="font-size:17px">CV'mi yükleyeyim</strong>
+          <span class="muted" style="font-size:15px">Bilgileri biz çıkaralım, sen kontrol et. PDF, Türkçe.</span>
+        </span>
+      </button>
+      <button class="choice" data-path="manual">
+        <span class="ic">✎</span>
+        <span class="stack gap-4">
+          <strong style="font-size:17px">Birkaç soruyla oluşturayım</strong>
+          <span class="muted" style="font-size:15px">Yaklaşık 5 dakika. Telefondan rahatça yapılır.</span>
+        </span>
+      </button>
+      <button class="choice" data-path="later">
+        <span class="ic">→</span>
+        <span class="stack gap-4">
+          <strong style="font-size:17px">Önce ilanlara bakayım</strong>
+          <span class="muted" style="font-size:15px">Profilini sonra tamamlarsın. Eşleşmeler daha genel olur.</span>
+        </span>
+      </button>
+    </div>
+    <div class="notice notice-plain" style="margin-top:22px">
+      <span>🔒</span><span>Kimlik bilgisi, fotoğraf veya doğum tarihi istemiyoruz. Bunlar eşleştirmede kullanılmaz.</span>
+    </div>
+  </main>`;
+}
+
+function screenOccupation(){
+  const sel=S.occs;
+  const groups=Object.entries(CLUSTERS).map(([k,c])=>{
+    const items=ALL_OCCS.filter(o=>o.cluster===k);
+    return `<div class="stack gap-10">
+      <span class="eyebrow">${c.name}</span>
+      <div class="row gap-10 wrapf">
+        ${items.map(o=>`<button class="occ-chip" data-occ="${o.id}" aria-pressed="${sel.includes(o.id)}"
+          style="${sel.includes(o.id)?'border-color:var(--brand); background:var(--brand-soft); color:var(--brand)':''}">
+          ${sel.includes(o.id)?'✓ ':''}${o.label}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+  const limited=ALL_OCCS.filter(o=>o.tier==="limited");
+  return `${appbar("")}
+  <main class="wrap" style="max-width:680px; padding-top:26px">
+    <div class="prog" style="margin-bottom:22px"><i style="width:33%"></i></div>
+    <span class="eyebrow">Adım 1 / 3</span>
+    <h1 style="font-size:27px; margin-top:12px">Hangi işi arıyorsun?</h1>
+    <p class="muted" style="margin-top:10px">Birden fazla seçebilirsin. Seçtiğin mesleğe göre sana özel sorular sorulur.</p>
+    <input class="input" id="occSearch" placeholder="Meslek ara — örn. şoför, hemşire" style="margin-top:20px" value="">
+    <div class="stack gap-24" style="margin-top:24px">${groups}</div>
+    <div class="card pad" style="margin-top:26px; background:var(--surface-2)">
+      <div class="row gap-8" style="align-items:flex-start">
+        <span class="mark mark-unknown">?</span>
+        <div>
+          <strong style="font-size:15.5px">Mesleğini bulamadın mı?</strong>
+          <p class="muted" style="font-size:14.5px; margin-top:6px">Bu meslekler de aranabilir, ama değerlendirme daha genel olur ve bunu ilan kartında yazarız.</p>
+          <div class="row gap-8 wrapf" style="margin-top:12px">
+            ${limited.map(o=>`<button class="occ-chip" data-occ="${o.id}" style="font-size:14px; padding:7px 12px">${o.label}</button>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row gap-10" style="margin-top:26px">
+      <button class="btn btn-primary grow" data-next="occ">Devam et (${sel.length} seçili)</button>
+    </div>
+  </main>`;
+}
+
+const B_EXP=`
+  <div class="field"><span class="label">Görev / unvan</span>
+    <input class="input" placeholder="Örn. Ağır vasıta şoförü"></div>
+  <div class="field"><span class="label">Ne kadar süredir?</span>
+    <select class="select"><option>1 yıldan az</option><option>1-3 yıl</option><option selected>3-6 yıl</option><option>6 yıldan fazla</option></select></div>`;
+const B_SKILL=`
+  <div class="field"><span class="label">Neleri yapabiliyorsun?</span>
+    <div class="row gap-8 wrapf">
+      <span class="occ-chip">✓ Bölgesel rota</span><span class="occ-chip">✓ Sevk evrakı</span>
+      <span class="occ-chip">+ Uzun yol</span><span class="occ-chip">+ Soğuk zincir</span>
+    </div><span class="hint">Dokunarak ekleyip çıkarabilirsin.</span></div>`;
+const B_EDU=`
+  <div class="field"><span class="label">En son bitirdiğin okul</span>
+    <select class="select"><option>İlköğretim</option><option selected>Lise</option><option>Ön lisans</option><option>Lisans</option></select></div>`;
+const B_LIC=`
+  <div class="field"><span class="label">Ehliyet sınıfı</span>
+    <div class="row gap-8 wrapf"><span class="occ-chip">B</span>
+      <span class="occ-chip" style="border-color:var(--brand); background:var(--brand-soft); color:var(--brand)">✓ C+E</span>
+      <span class="occ-chip">D</span></div></div>
+  <div class="field"><span class="label">Mesleki belgeler</span>
+    <div class="row gap-8 wrapf"><span class="occ-chip">+ SRC-1</span><span class="occ-chip">+ Psikoteknik</span><span class="occ-chip">+ Tehlikeli madde</span></div>
+    <span class="hint">Belge eklersen bu belgeyi isteyen ilanlarda değerlendirme kesinleşir.</span></div>`;
+const B_LANG=`
+  <div class="field"><span class="label">Bildiğin diller</span>
+    <input class="input" placeholder="Örn. İngilizce — orta"></div>`;
+const B_PREF=`
+  <div class="field"><span class="label">Şehir</span><input class="input" value="Kocaeli"></div>
+  <div class="field"><span class="label">Çalışma şekli</span>
+    <div class="seg"><button class="on">İş yerinde</button><button>Hibrit</button><button>Uzaktan</button></div></div>
+  <div class="field"><span class="label">Vardiya</span>
+    <div class="row gap-8 wrapf"><span class="occ-chip">Gündüz</span><span class="occ-chip">Gece</span><span class="occ-chip">Hafta sonu</span></div>
+    <span class="hint">Yapamadığın vardiyayı işaretlemezsen bunu tahmin etmeyiz — boş bırakabilirsin.</span></div>
+  <div class="field"><span class="label">Ücret beklentisi</span><input class="input" placeholder="İsteğe bağlı"></div>`;
+
+function screenManual(){
+  const sec=(key,title,sub,body)=>`
+    <div class="acc ${S.acc[key]?'open':''}">
+      <button class="acc-head" data-acc="${key}">
+        <span class="mark ${S.acc[key]?'mark-met':'mark-unknown'}">${S.acc[key]?'✓':'·'}</span>
+        <span class="stack gap-4"><strong style="font-size:16px">${title}</strong><span class="muted" style="font-size:14px">${sub}</span></span>
+        <span class="chev">›</span>
+      </button>
+      ${S.acc[key]?`<div class="acc-body">${body}</div>`:""}
+    </div>`;
+  return `${appbar("")}
+  <main class="wrap" style="max-width:680px; padding-top:26px">
+    <div class="prog" style="margin-bottom:22px"><i style="width:66%"></i></div>
+    <span class="eyebrow">Adım 2 / 3</span>
+    <h1 style="font-size:27px; margin-top:12px">Profilini oluştur</h1>
+    <p class="muted" style="margin-top:10px">Hepsini şimdi doldurmak zorunda değilsin. Boş bıraktıkların "değerlendirilemedi" olarak görünür — eksik sayılmaz.</p>
+
+    <div style="margin-top:24px">
+      ${sec("exp","Deneyim","Son işin yeter",B_EXP)}
+      ${sec("skill","Yetkinlikler","Yaptığın işler",B_SKILL)}
+      ${sec("edu","Eğitim","Mezuniyet durumun",B_EDU)}
+      ${sec("lic","Belgeler ve ehliyet","Eşleşmeyi en çok etkileyen bölüm",B_LIC)}
+      ${sec("lang","Diller","İsteğe bağlı",B_LANG)}
+      ${sec("pref","Tercihler","Konum, çalışma şekli, vardiya, ücret",B_PREF)}
+    </div>
+
+    <div class="row gap-10" style="margin-top:24px">
+      <button class="btn btn-ghost" data-next="feed">Sonra tamamla</button>
+      <button class="btn btn-primary grow" data-next="feed">Kaydet ve ilanları gör</button>
+    </div>
+  </main>`;
+}
+
+function screenCVUpload(){
+  const f=S.cvFile;
+  if(S.cvStage==="reading"){
+    return `${appbar("")}
+    <main class="wrap" style="max-width:640px; padding-top:26px">
+      <div class="prog" style="margin-bottom:22px"><i style="width:50%"></i></div>
+      <span class="eyebrow">Adım 2 / 3</span>
+      <h1 style="font-size:27px; margin-top:12px">CV'n okunuyor</h1>
+      <div class="card pad-lg" style="margin-top:22px">
+        <div class="row gap-12" style="align-items:center">
+          <span class="mark mark-met" style="width:34px;height:34px;font-size:16px">📄</span>
+          <div class="stack gap-4 grow" style="min-width:0">
+            <strong style="font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(f.name)}</strong>
+            <span class="muted mono">${f.sizeText}</span>
+          </div>
+        </div>
+        <div class="prog" style="margin-top:18px"><i id="cvbar" style="width:8%"></i></div>
+        <p class="muted" style="margin-top:12px; font-size:14.5px">Metin çıkarılıyor, alanlar eşleştiriliyor…</p>
+        <div class="notice notice-plain" style="margin-top:16px"><span>🔒</span>
+          <span>Dosyan tarayıcıdan çıkmıyor. Bu prototipte sunucuya hiçbir şey gönderilmez.</span></div>
+      </div>
+    </main>`;
+  }
+  return `${appbar("")}
+  <main class="wrap" style="max-width:640px; padding-top:26px">
+    <div class="prog" style="margin-bottom:22px"><i style="width:50%"></i></div>
+    <span class="eyebrow">Adım 2 / 3</span>
+    <h1 style="font-size:27px; margin-top:12px">CV'ni yükle</h1>
+    <p class="muted" style="margin-top:10px">Bilgileri biz çıkaralım, sen kontrol et. Hiçbir alan sen onaylamadan kullanılmaz.</p>
+
+    <label id="drop" style="display:block; margin-top:22px; cursor:pointer">
+      <input type="file" id="cvInput" accept=".pdf,application/pdf" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden">
+      <div class="card" style="border-style:dashed; border-width:2px; border-color:var(--line-strong); padding:38px 22px; text-align:center; transition:border-color .15s, background .15s">
+        <div style="font-size:34px; line-height:1">📄</div>
+        <strong style="display:block; margin-top:14px; font-size:17.5px">Dosyanı buraya sürükle</strong>
+        <span class="muted" style="display:block; margin-top:6px; font-size:15px">ya da <u>bilgisayarından seç</u></span>
+        <span class="mono muted" style="display:block; margin-top:14px">PDF · en fazla 10 MB</span>
+      </div>
+    </label>
+
+    ${f&&!f.ok?`<div class="notice notice-unmet" style="margin-top:14px"><span>✕</span>
+      <span><b>${esc(f.name)}</b> — ${esc(f.err)}<br>
+      Bu dosyayı okuyamıyoruz. Dilersen profilini birkaç soruyla oluşturabilirsin; hiçbir şey kaybetmezsin.</span></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:12px" data-nav="manual">Bunun yerine soruları yanıtlayayım</button>`:""}
+
+    <div class="notice notice-plain" style="margin-top:16px"><span>ℹ</span>
+      <span>Şimdilik yalnızca <b>PDF</b> ve <b>Türkçe</b> CV okuyabiliyoruz. Taranmış (fotoğraf) CV'ler henüz desteklenmiyor.</span></div>
+    <div class="notice notice-plain" style="margin-top:10px"><span>🗑</span>
+      <span>Fotoğraf, doğum tarihi, medeni durum gibi bilgiler CV'nde olsa bile <b>alınmaz ve saklanmaz.</b></span></div>
+
+    <div class="row gap-10" style="margin-top:22px">
+      <button class="btn btn-ghost grow" data-nav="manual">CV'siz devam et</button>
+    </div>
+    <p class="muted" style="margin-top:12px; font-size:13.5px; text-align:center">CV yüklemek zorunlu değil — iki yol da aynı sonucu verir.</p>
+  </main>`;
+}
+
+function screenCVReview(){
+  const rows=[
+    {f:"Ad", v:"—", st:"skip", note:"Eşleştirmede kullanılmaz"},
+    {f:"Görev", v:"Ağır vasıta şoförü", st:"ok"},
+    {f:"Deneyim", v:"6 yıl", st:"ok"},
+    {f:"Ehliyet sınıfı", v:"C+E", st:"gate"},
+    {f:"SRC belgesi", v:"CV'de bulunamadı", st:"unknown"},
+    {f:"Şehir", v:"Kocaeli", st:"ok"},
+    {f:"Doğum tarihi", v:"Tespit edildi, kullanılmadı", st:"discard"},
+  ];
+  const st=(r)=>{
+    if(r.st==="ok") return `<span class="pill pill-met">✓ Onayla</span>`;
+    if(r.st==="gate") return isVerified("C+E ehliyet")
+      ? `<span class="pill pill-met">✓ Doğrulandı</span>`
+      : `<button class="pill pill-unknown" data-verify-field="C+E ehliyet">🔒 Doğrulama gerekli</button>`;
+    if(r.st==="unknown") return `<span class="pill pill-unknown">? Bilinmiyor</span>`;
+    if(r.st==="discard") return `<span class="pill pill-plain">Silindi</span>`;
+    return `<span class="pill pill-plain">—</span>`;
+  };
+  return `${appbar("")}
+  <main class="wrap" style="max-width:720px; padding-top:26px">
+    <div class="prog" style="margin-bottom:22px"><i style="width:66%"></i></div>
+    <span class="eyebrow">Adım 2 / 3</span>
+    <h1 style="font-size:27px; margin-top:12px">CV'nden çıkardıklarımızı kontrol et</h1>
+    <p class="muted" style="margin-top:10px">Hiçbir bilgi sen onaylamadan kullanılmaz. Yanlış çıkardıysak düzelt.</p>
+    ${S.cvFile&&S.cvFile.ok?`<div class="row gap-10" style="margin-top:14px; align-items:center">
+      <span class="pill pill-plain">📄 ${esc(S.cvFile.name)} · ${esc(S.cvFile.sizeText)}</span>
+      <button class="btn btn-quiet btn-sm" data-nav="cvupload">Başka dosya</button></div>
+      <div class="notice notice-plain" style="margin-top:12px"><span>⚠</span>
+      <span><b>Prototip notu:</b> dosyan gerçekten okundu ama <b>içeriği çözümlenmedi</b> — aşağıdaki alanlar örnek çıktıdır.
+      Gerçek çözümleme için sunucu tarafı gerekiyor ve bu prototipte yok.</span></div>`:""}
+
+    <div class="card" style="margin-top:22px; overflow:hidden">
+      ${rows.map((r,i)=>`
+        <div class="row between gap-12 wrapf" style="padding:15px 18px; ${i?'border-top:1px solid var(--line)':''}">
+          <div class="stack gap-4" style="min-width:180px">
+            <span class="mono muted">${esc(r.f)}</span>
+            <strong style="font-size:16px; font-weight:550">${esc(r.v)}</strong>
+            ${r.note?`<span class="muted" style="font-size:13px">${esc(r.note)}</span>`:""}
+          </div>
+          <div class="row gap-8">
+            ${st(r)}
+            ${(r.st==="ok"||r.st==="unknown")?`<button class="btn btn-quiet btn-sm">Düzelt</button>`:""}
+          </div>
+        </div>`).join("")}
+    </div>
+
+    <div class="notice notice-unknown" style="margin-top:18px">
+      <span>🔒</span>
+      <span><b>Ehliyet ve mesleki belgeler için doğrulama isteriz.</b> Bu belgeler bazı ilanlarda zorunlu olduğu için,
+      sen onaylamadan "karşılanıyor" diye göstermeyiz. Yanlış yönlendirmemek için.</span>
+    </div>
+    <div class="notice notice-plain" style="margin-top:12px">
+      <span>🗑</span>
+      <span>CV'nde doğum tarihi bulundu ve <b>kaydedilmeden silindi.</b> Fotoğraf, medeni durum ve benzeri bilgiler eşleştirmede kullanılmaz.</span>
+    </div>
+
+    <div class="row gap-10" style="margin-top:24px">
+      <button class="btn btn-primary grow" data-next="feed">Onayla ve devam et</button>
+    </div>
+  </main>`;
+}
+
+function screenFeed(){
+  if(S.demo==="loading") return `${appbar("feed")}<main class="wrap" style="max-width:760px; padding-top:22px">
+    ${[1,2,3].map(()=>`<div class="card pad" style="margin-bottom:14px"><div class="skel" style="height:20px; width:65%"></div>
+    <div class="skel" style="height:14px; width:45%; margin-top:12px"></div>
+    <div class="skel" style="height:34px; width:100%; margin-top:16px"></div></div>`).join("")}</main>${tabbar("feed")}`;
+
+  const jobs=visibleJobs();
+  const cities=[...new Set(JOBS.map(j=>j.city))];
+  let body;
+  if(S.demo==="error"){
+    body=`<div class="empty"><div class="glyphbox">⚠</div>
+      <h3>Bir kaynağa şu an ulaşılamıyor</h3>
+      <p class="muted" style="max-width:44ch">İşin Olsun kaynağından yeni ilanlar geçici olarak alınamıyor. Aşağıdakiler en son alınan ilanlar — güncel olmayabilir.</p>
+      <button class="btn btn-ghost btn-sm" data-demo="">Tekrar dene</button></div>`;
+  } else if(S.demo==="offline"){
+    body=`<div class="empty"><div class="glyphbox">⛰</div>
+      <h3>İnternet bağlantısı yok</h3>
+      <p class="muted" style="max-width:42ch">Daha önce yüklenen ilanları görebilirsin. Bağlantı gelince liste kendiliğinden yenilenir.</p>
+      <button class="btn btn-ghost btn-sm" data-demo="">Yeniden bağlan</button></div>`;
+  } else if(S.demo==="profile"){
+    body=`<div class="empty"><div class="glyphbox">✎</div>
+      <h3>Profilin çok kısa</h3>
+      <p class="muted" style="max-width:46ch">Şu an sadece mesleğini biliyoruz. Birkaç bilgi daha eklersen eşleşmeler belirginleşir ve "değerlendirilemedi" satırları azalır.</p>
+      <button class="btn btn-primary btn-sm" data-nav="manual">Profili tamamla</button></div>`;
+  } else if(!jobs.length){
+    body=`<div class="empty"><div class="glyphbox">◎</div>
+      <h3>Şu an uygun ilan bulunamadı</h3>
+      <p class="muted" style="max-width:44ch">Filtreleri gevşetmeyi ya da başka bir meslek eklemeyi deneyebilirsin. Yeni ilan çıktığında haftalık özette görürsün.</p>
+      <div class="row gap-10 wrapf center"><button class="btn btn-ghost btn-sm" data-clear="1">Filtreleri temizle</button>
+      <button class="btn btn-ghost btn-sm" data-nav="occupation">Meslek ekle</button></div></div>`;
+  } else {
+    body=`<div class="stack gap-14">${jobs.map(jobCard).join("")}</div>`;
+  }
+  const hasLimited=S.occs.some(o=>(ALL_OCCS.find(x=>x.id===o)||{}).tier==="limited");
+  return `${appbar("feed")}
+  <main class="wrap" style="max-width:760px; padding-top:20px">
+    <div class="row between gap-12 wrapf" style="margin-bottom:16px">
+      <div><h1 style="font-size:24px">Sana uygun ilanlar</h1>
+      <p class="muted" style="font-size:14.5px; margin-top:4px">${jobs.length} ilan · en uygun olandan başlayarak</p></div>
+    </div>
+    <input class="input" id="feedSearch" placeholder="İlan veya şirket ara" value="${esc(S.filters.q)}">
+    <div class="filters" style="margin-top:12px">
+      <button class="chip ${S.filters.arr==='all'?'on':''}" data-f="arr" data-v="all">Tüm çalışma şekilleri</button>
+      <button class="chip ${S.filters.arr==='İş yerinde'?'on':''}" data-f="arr" data-v="İş yerinde">İş yerinde</button>
+      <button class="chip ${S.filters.arr==='Hibrit'?'on':''}" data-f="arr" data-v="Hibrit">Hibrit</button>
+      <button class="chip ${S.filters.city==='all'?'on':''}" data-f="city" data-v="all">Tüm şehirler</button>
+      ${cities.map(c=>`<button class="chip ${S.filters.city===c?'on':''}" data-f="city" data-v="${esc(c)}">${esc(c)}</button>`).join("")}
+    </div>
+    ${hasLimited?`<div class="notice notice-plain" style="margin-top:16px"><span>ℹ</span>
+      <span>Seçtiğin mesleklerden bazıları için <b>ayrıntılı eşleştirme henüz hazır değil.</b> O ilanlarda değerlendirme daha genel olur.</span></div>`:""}
+    <div style="margin-top:18px">${body}</div>
+  </main>${tabbar("feed")}`;
+}
+
+function screenJob(){
+  const j=jobById(S.jobId); if(!j) return screenFeed();
+  const unk=liveUnknown(j);
+  const needVerify=(j.unknown||[]).some(u=>u.verify && !isVerified(u.field));
+  const expired=j.expired||S.demo==="expired";
+
+  return `${appbar("feed")}
+  <main class="wrap" style="max-width:820px; padding-top:14px">
+    <div class="crumb"><button class="btn btn-quiet" data-nav="feed">‹ İlanlara dön</button></div>
+
+    ${expired?`<div class="notice notice-unmet" style="margin-bottom:16px"><span>⌛</span>
+      <span><b>Bu ilan artık yayında değil.</b> Kaynakta kaldırılmış. Benzer ilanları görmek için listeye dönebilirsin.</span></div>`:""}
+
+    <div class="card pad-lg">
+      <div class="stack gap-12">
+        <h1 style="font-size:clamp(22px,3.4vw,29px)">${esc(j.title)}</h1>
+        <div class="metaline" style="font-size:16px">
+          <strong style="font-weight:600">${esc(j.employer)}</strong>
+          <span class="muted">${esc(j.district)}, ${esc(j.city)}</span>
+        </div>
+        <div class="row gap-8 wrapf">
+          <span class="pill pill-plain">${esc(j.arrangement)}</span>
+          <span class="pill pill-plain">${esc(j.type)}</span>
+          <span class="pill pill-plain">${esc(j.shift)}</span>
+          <span class="pill pill-plain">Ücret: ${esc(j.salary)}</span>
+        </div>
+        <div class="srcline" style="border-top:0; padding-top:2px">
+          <span>Kaynak: ${esc(j.source)}</span><span>·</span><span>${esc(j.posted)} yayınlandı</span>
+          <span>·</span><span>son kontrol ${esc(j.checked)}</span>
+          ${j.alsoOn?`<span>·</span><span>ayrıca: ${j.alsoOn.map(esc).join(", ")}</span>`:""}
+        </div>
+      </div>
+
+      <div class="row gap-10 wrapf" style="margin-top:20px">
+        <button class="btn btn-primary" data-apply="${j.id}">İlana git ve başvur ↗</button>
+        <button class="btn btn-ghost" data-save="${j.id}" aria-pressed="${S.saved.has(j.id)}">${S.saved.has(j.id)?'✓ Kayıtlı':'Kaydet'}</button>
+        <button class="btn btn-ghost" data-dismiss="${j.id}">İlgilenmiyorum</button>
+      </div>
+      <p class="muted" style="margin-top:10px; font-size:13.5px">Başvuru ${esc(j.source)} üzerinden tamamlanır. Başvurunu biz almıyoruz.</p>
+    </div>
+
+    ${j.publicSector?`
+      <div class="card pad-lg" style="margin-top:16px">
+        <span class="eyebrow">Kamu ilanı</span>
+        <h2 style="font-size:19px; margin-top:10px">Bu ilan için uygunluk değerlendirmesi yapılmıyor</h2>
+        <p class="muted" style="margin-top:10px; max-width:60ch">
+          Kamu alımlarında sınav puanı, kadro ve mevzuat şartları belirleyicidir. Bunları tam olarak
+          modellemediğimiz için sana "uygunsun" ya da bir eşleşme derecesi göstermiyoruz —
+          yanlış yönlendirmemek için. Şartların tamamı resmî ilan metnindedir.
+        </p>
+        <button class="btn btn-ghost btn-sm" style="margin-top:16px" data-apply="${j.id}">Resmî ilana git ↗</button>
+      </div>`:`
+      <div class="card pad-lg" style="margin-top:16px">
+        <div class="row between gap-12 wrapf" style="margin-bottom:6px">
+          <span class="eyebrow">Neden önerildi</span>
+          <div class="row gap-10">${bandEl(j)}${confEl(j)}</div>
+        </div>
+        <ul class="stack gap-8" style="margin:14px 0 0; padding-left:18px; font-size:16px; color:var(--ink-2)">
+          ${j.why.map(w=>`<li>${esc(w)}</li>`).join("")}
+        </ul>
+
+        ${needVerify?`<div class="notice notice-unknown" style="margin-top:18px">
+          <span>🔒</span><span><b>Bu ilanda zorunlu bir belge var ve profilinde doğrulanmadı.</b>
+          Doğrulamadan bu şartı "karşılanıyor" olarak göstermiyoruz. Belgeni doğrularsan eşleşme kesinleşir.</span></div>`:""}
+
+        <div style="margin-top:20px">${ledger(j)}</div>
+
+        ${unk.length?`<div class="notice notice-unknown" style="margin-top:18px">
+          <span>?</span><span><b>${unk.length} şart değerlendirilemedi.</b>
+          Bunlar sende yok demek değil — profilinde bu bilgi yok demek. Eklersen eşleşme netleşir.</span></div>`:""}
+
+        <div class="row between gap-12 wrapf" style="margin-top:20px; padding-top:18px; border-top:1px dashed var(--line)">
+          <p class="muted" style="font-size:13.5px; max-width:54ch">
+            Eşleşme derecesi ve güven bilgisi bir <b>tahmindir</b>; işe alınacağın anlamına gelmez ve
+            işverenin kararını yansıtmaz. Şartların tamamını ilanın kendi sayfasından kontrol et.
+          </p>
+          <span class="pill pill-plain">Güven: ${CONF[j.confidence]}</span>
+        </div>
+      </div>`}
+
+    <div class="card pad-lg" style="margin-top:16px">
+      <span class="eyebrow">İlan metni</span>
+      <p style="margin-top:12px; font-size:16.5px; line-height:1.65; color:var(--ink-2)">${esc(j.desc)}</p>
+      <p class="muted" style="margin-top:16px; font-size:13.5px">Metin ${esc(j.source)} kaynağından alınmıştır; tamamı için orijinal ilana bakın.</p>
+    </div>
+    <div style="height:24px"></div>
+  </main>${tabbar("feed")}`;
+}
+
+function screenSaved(){
+  const tab=S.savedTab;
+  const list = tab==="saved" ? [...S.saved].map(jobById)
+             : tab==="applied" ? [...S.applied].map(jobById)
+             : [...S.dismissed].map(jobById);
+  const labels={saved:"Kaydedilenler", applied:"Başvurduklarım", dismissed:"İlgilenmediklerim"};
+  return `${appbar("saved")}
+  <main class="wrap" style="max-width:760px; padding-top:20px">
+    <h1 style="font-size:24px">Takip listem</h1>
+    <div class="row gap-8 wrapf" style="margin:16px 0 20px">
+      ${Object.entries(labels).map(([k,v])=>`<button class="chip ${tab===k?'on':''}" data-tab="${k}">${v}</button>`).join("")}
+    </div>
+    ${list.length?`<div class="stack gap-14">${list.map(j=>`
+      <div class="card pad">
+        <div class="row between gap-12 wrapf" style="align-items:flex-start">
+          <div class="stack gap-6" style="min-width:0">
+            <strong style="font-size:17.5px">${esc(j.title)}</strong>
+            <div class="metaline"><span>${esc(j.employer)}</span><span class="muted">${esc(j.city)}</span></div>
+          </div>
+          ${tab==="applied"?`<span class="pill pill-brand">Başvuruldu</span>`:""}
+          ${j.expired?`<span class="pill pill-unmet">Süresi doldu</span>`:""}
+        </div>
+        ${j.dupCount?`<div class="notice notice-plain" style="margin-top:12px"><span>⧉</span>
+          <span>Bu ilan <b>${j.dupCount} kaynakta</b> yayında. Tek kayıt olarak gösteriliyor.</span></div>`:""}
+        ${tab==="applied"?`<div class="row gap-8 wrapf" style="margin-top:14px">
+          <span class="muted" style="font-size:14px">Durum:</span>
+          <div class="seg"><button class="on">Başvuruldu</button><button>Görüşme</button><button>Sonuçlandı</button></div>
+        </div><p class="muted" style="font-size:13px; margin-top:8px">Durumu sen işaretlersin — başvurunu ilanın sahibi yönetir, biz takip edemeyiz.</p>`:""}
+        <div class="srcline"><span>Kaynak: ${esc(j.source)}</span><span>·</span><span>${esc(j.posted)}</span></div>
+        <div class="row gap-8 wrapf" style="margin-top:12px">
+          <button class="btn btn-ghost btn-sm" data-open="${j.id}">İlanı aç</button>
+          ${tab==="saved"?`<button class="btn btn-quiet btn-sm" data-applied="${j.id}">Başvurdum olarak işaretle</button>`:""}
+          ${tab==="dismissed"?`<button class="btn btn-quiet btn-sm" data-undismiss="${j.id}">Geri al</button>`:""}
+        </div>
+      </div>`).join("")}</div>`
+    :`<div class="empty"><div class="glyphbox">☰</div><h3>Burada henüz bir şey yok</h3>
+      <p class="muted" style="max-width:40ch">İlanlara göz atıp beğendiklerini kaydedebilirsin.</p>
+      <button class="btn btn-ghost btn-sm" data-nav="feed">İlanlara git</button></div>`}
+  </main>${tabbar("saved")}`;
+}
+
+function screenProfile(){
+  const occNames=S.occs.map(o=>(ALL_OCCS.find(x=>x.id===o)||{}).label).filter(Boolean);
+  const row=(k,v,act)=>`<div class="row between gap-12 wrapf" style="padding:14px 0; border-bottom:1px solid var(--line)">
+    <div class="stack gap-4"><span class="mono muted">${k}</span><span style="font-size:16px">${v}</span></div>
+    ${act||""}</div>`;
+  return `${appbar("profile")}
+  <main class="wrap" style="max-width:720px; padding-top:20px">
+    <h1 style="font-size:24px">Profil ve tercihler</h1>
+
+    <div class="card pad" style="margin-top:18px">
+      <span class="eyebrow">Kariyer profili</span>
+      <div style="margin-top:8px">
+        ${row("Meslekler", occNames.join(", ")||"—", `<button class="btn btn-quiet btn-sm" data-nav="occupation">Düzenle</button>`)}
+        ${row("Deneyim","Ağır vasıta şoförü · 6 yıl",`<button class="btn btn-quiet btn-sm" data-nav="manual">Düzenle</button>`)}
+        ${row("Şehir","Kocaeli",`<button class="btn btn-quiet btn-sm" data-nav="manual">Düzenle</button>`)}
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <span class="eyebrow">Belgeler</span>
+      <p class="muted" style="font-size:14px; margin-top:8px">Doğrulanan belgeler eşleşmede "karşılanıyor" sayılır. Doğrulanmayanlar "değerlendirilemedi" olarak görünür.</p>
+      <div style="margin-top:8px">
+        ${row("C+E ehliyet", isVerified("C+E ehliyet")?"Doğrulandı":"Doğrulanmadı",
+          isVerified("C+E ehliyet")?`<span class="pill pill-met">✓ Doğrulandı</span>`:`<button class="pill pill-unknown" data-verify-field="C+E ehliyet">Doğrula</button>`)}
+        ${row("SRC-1 belgesi", S.resolved.has("SRC belgesi")?"Eklendi":"Bilgi yok",
+          S.resolved.has("SRC belgesi")?`<span class="pill pill-met">✓ Eklendi</span>`:`<button class="pill pill-unknown" data-fix="SRC belgesi" data-verify="0">Ekle</button>`)}
+        ${row("Hemşirelik tescil belgesi", isVerified("Hemşirelik tescil belgesi")?"Doğrulandı":"Doğrulanmadı",
+          isVerified("Hemşirelik tescil belgesi")?`<span class="pill pill-met">✓ Doğrulandı</span>`:`<button class="pill pill-unknown" data-verify-field="Hemşirelik tescil belgesi">Doğrula</button>`)}
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <span class="eyebrow">Bildirimler</span>
+      <div class="row between gap-12" style="margin-top:14px">
+        <div class="stack gap-4" style="max-width:44ch">
+          <strong style="font-size:16px">Haftalık ilan özeti</strong>
+          <span class="muted" style="font-size:14px">Sana uyan yeni ilanlar haftada bir e-postayla gelir. Anlık bildirim göndermiyoruz.</span>
+        </div>
+        <button class="switch" role="switch" aria-checked="${S.digest}" id="digestSw" aria-label="Haftalık özet"></button>
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <span class="eyebrow">Verilerim</span>
+      <p class="muted" style="font-size:14px; margin-top:8px">Fotoğraf, doğum tarihi, medeni durum gibi bilgiler eşleştirmede kullanılmaz ve saklanmaz.</p>
+      <div class="row gap-10 wrapf" style="margin-top:14px">
+        <button class="btn btn-ghost btn-sm" data-act="export">Verilerimi indir</button>
+        <button class="btn btn-ghost btn-sm" data-act="delete" style="border-color:var(--unmet-line); color:var(--unmet)">Hesabımı ve verilerimi sil</button>
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:14px">
+      <span class="eyebrow">Görünüm</span>
+      <div class="row gap-10 wrapf" style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" id="themeBtn2">Tema değiştir</button>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+  </main>${tabbar("profile")}`;
+}
+
+/* chrome helpers */
+function appbar(active){
+  const L=[["feed","İlanlar"],["saved","Takip listem"],["profile","Profil"]];
+  return `<header class="topbar"><div class="wrap inner">
+    <button class="brandmark" data-nav="landing"><span class="glyph">İU</span> İşe Uygun</button>
+    <nav class="navlinks">${L.map(([k,v])=>`<button class="navlink ${active===k?'on':''}" data-nav="${k}">${v}</button>`).join("")}</nav>
+    <div class="grow"></div>
+    <button class="btn btn-quiet" id="themeBtn3" aria-label="Tema">◐</button>
+  </div></header>`;
+}
+function tabbar(active){
+  const T=[["feed","◎","İlanlar"],["saved","☰","Listem"],["profile","◐","Profil"],["landing","⌂","Tanıtım"]];
+  return `<nav class="tabbar">${T.map(([k,i,l])=>`
+    <button class="tab ${active===k?'on':''}" data-nav="${k}"><span class="ic">${i}</span>${l}</button>`).join("")}</nav>`;
+}
+
+/* ============================================================
+   5. RENDER + EVENTS
+   ============================================================ */
+function render(){
+  const M={landing:screenLanding, onboard:screenOnboard, occupation:screenOccupation,
+    manual:screenManual, cvupload:screenCVUpload, cvreview:screenCVReview,
+    feed:screenFeed, job:screenJob, saved:screenSaved, profile:screenProfile};
+  $("#app").innerHTML=(M[S.screen]||screenLanding)();
+  document.body.classList.toggle("has-tabbar", ["feed","job","saved","profile"].includes(S.screen));
+}
+
+function openSheet(html){
+  const d=document.createElement("div"); d.className="sheet-bg"; d.id="sheet";
+  d.innerHTML=`<div class="sheet">${html}</div>`;
+  d.addEventListener("click",e=>{ if(e.target===d) d.remove(); });
+  document.body.appendChild(d);
+}
+const closeSheet=()=>{ const s=$("#sheet"); if(s) s.remove(); };
+
+document.addEventListener("click", e=>{
+  const t=e.target.closest("[data-nav],[data-open],[data-path],[data-occ],[data-next],[data-acc],[data-f],[data-tab],[data-save],[data-dismiss],[data-undismiss],[data-applied],[data-apply],[data-fix],[data-verify-field],[data-demo],[data-clear],[data-act],#themeBtn,#themeBtn2,#themeBtn3,#digestSw,#devBtn,[data-close]");
+  if(!t) return;
+
+  if(t.id==="devBtn"){
+    openSheet(`<h3 style="font-size:19px">Prototip menüsü</h3>
+      <p class="muted" style="margin-top:8px; font-size:14.5px">Tasarımı test etmek için durumları buradan tetikleyebilirsin.</p>
+      <div class="stack gap-8" style="margin-top:18px">
+        ${[["","Normal görünüm"],["loading","Yükleniyor"],["empty","Sonuç yok"],["profile","Profil eksik"],
+           ["error","Kaynağa ulaşılamıyor"],["offline","İnternet yok"],["expired","İlan süresi dolmuş (detayda)"]]
+          .map(([k,v])=>`<button class="btn btn-ghost btn-block" data-demo="${k}">${v}</button>`).join("")}
+      </div>
+      <button class="btn btn-quiet btn-block" style="margin-top:14px" data-close="1">Kapat</button>`);
+    return;
+  }
+  if(t.dataset.close!==undefined){ closeSheet(); return; }
+
+  if(t.id==="themeBtn"||t.id==="themeBtn2"||t.id==="themeBtn3"){
+    const cur=document.documentElement.getAttribute("data-theme");
+    const sysDark=window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const next=cur ? (cur==="dark"?"light":"dark") : (sysDark?"light":"dark");
+    document.documentElement.setAttribute("data-theme", next); return;
+  }
+  if(t.id==="digestSw"){ S.digest=!S.digest; render(); toast(S.digest?"Haftalık özet açık":"Haftalık özet kapalı"); return; }
+
+  const d=t.dataset;
+  if(d.nav){ if(d.nav==="landing"){S.demo=null;} go(d.nav); return; }
+  if(d.open){ go("job", d.open); return; }
+  if(d.demo!==undefined){ S.demo=d.demo||null; closeSheet(); if(S.screen==="landing"||S.screen==="onboard") S.screen="feed";
+    if(S.demo==="empty"){ S.filters.q="zzzz"; } else if(S.filters.q==="zzzz"){ S.filters.q=""; }
+    if(S.demo==="expired"){ S.jobId="j8"; S.screen="job"; } render(); return; }
+  if(d.clear!==undefined){ S.filters={q:"",arr:"all",city:"all"}; S.demo=null; render(); return; }
+
+  if(d.path){
+    if(d.path==="cv"){ go("occupation"); S.onboardPath="cv"; }
+    else if(d.path==="manual"){ S.onboardPath="manual"; go("occupation"); }
+    else { S.onboardPath="later"; S.demo="profile"; go("feed"); }
+    return;
+  }
+  if(d.occ){
+    const i=S.occs.indexOf(d.occ);
+    if(i>-1){ if(S.occs.length>1) S.occs.splice(i,1); else { toast("En az bir meslek seçili olmalı"); return; } }
+    else S.occs.push(d.occ);
+    render(); return;
+  }
+  if(d.next==="occ"){ go(S.onboardPath==="cv" ? "cvupload" : "manual"); return; }
+  if(d.next==="feed"){ S.demo=null; go("feed"); toast("Profilin kaydedildi"); return; }
+  if(d.acc){ S.acc[d.acc]=!S.acc[d.acc]; render(); return; }
+  if(d.f){ S.filters[d.f]=d.v; S.demo=null; render(); return; }
+  if(d.tab){ S.savedTab=d.tab; render(); return; }
+
+  if(d.save){ S.saved.has(d.save)?S.saved.delete(d.save):S.saved.add(d.save);
+    toast(S.saved.has(d.save)?"İlan kaydedildi":"Kayıttan çıkarıldı"); render(); return; }
+  if(d.dismiss){ S.dismissed.add(d.dismiss); S.saved.delete(d.dismiss);
+    openSheet(`<h3 style="font-size:19px">Neden ilgilenmiyorsun?</h3>
+      <p class="muted" style="margin-top:8px; font-size:14.5px">İsteğe bağlı. Söylersen benzer ilanları daha az gösteririz.</p>
+      <div class="stack gap-8" style="margin-top:16px">
+        ${["Konum uzak","Ücret beklentimin altında","Mesleğime uygun değil","Vardiya uymuyor","Bu şirketle ilgilenmiyorum"]
+          .map(r=>`<button class="btn btn-ghost btn-block" data-close="1">${r}</button>`).join("")}
+      </div>
+      <button class="btn btn-quiet btn-block" style="margin-top:12px" data-close="1">Sebep belirtmeden geç</button>`);
+    S.screen="feed"; render(); return; }
+  if(d.undismiss){ S.dismissed.delete(d.undismiss); render(); toast("Geri alındı"); return; }
+  if(d.applied){ S.applied.add(d.applied); S.saved.delete(d.applied); S.savedTab="applied"; render(); toast("Başvurduklarına eklendi"); return; }
+
+  if(d.apply){
+    const j=jobById(d.apply);
+    openSheet(`<h3 style="font-size:19px">${esc(j.source)} sayfasına gidiyorsun</h3>
+      <p class="muted" style="margin-top:10px; font-size:15px">
+        Başvuru ilanın kendi sayfasında tamamlanır. Başvurunu biz almıyoruz ve aracılık etmiyoruz.
+        Şartların tamamını orada görebilirsin.</p>
+      <div class="notice notice-plain" style="margin-top:16px"><span>ℹ</span>
+        <span class="mono">${esc(j.source)} · ${esc(j.posted)} · son kontrol ${esc(j.checked)}</span></div>
+      <div class="row gap-10" style="margin-top:18px">
+        <button class="btn btn-ghost grow" data-close="1">Vazgeç</button>
+        <button class="btn btn-primary grow" data-applied="${j.id}" data-close="1">İlana git ↗</button>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:13px">Prototipte dış bağlantı açılmaz.</p>`);
+    return;
+  }
+
+  if(d.verifyField || (d.fix && d.verify==="1")){
+    const field=d.verifyField||d.fix;
+    openSheet(`<h3 style="font-size:19px">${esc(field)} doğrulama</h3>
+      <p class="muted" style="margin-top:10px; font-size:15px">
+        Bu belge bazı ilanlarda zorunlu. Sen onaylamadan "karşılanıyor" olarak göstermiyoruz —
+        böylece uygun olmadığın bir ilana boşuna başvurmuş olmuyorsun.</p>
+      <div class="field" style="margin-top:18px">
+        <span class="label">Belge numarası veya geçerlilik tarihi</span>
+        <input class="input" placeholder="Örn. 2029'a kadar geçerli">
+        <span class="hint">Prototipte gerçek doğrulama yapılmaz.</span>
+      </div>
+      <div class="row gap-10" style="margin-top:18px">
+        <button class="btn btn-ghost grow" data-close="1">Sonra</button>
+        <button class="btn btn-primary grow" data-do-verify="${esc(field)}">Belgem var, onaylıyorum</button>
+      </div>`);
+    return;
+  }
+  if(d.fix){ S.resolved.add(d.fix); render(); toast(`"${d.fix}" profiline eklendi`); return; }
+
+  if(d.act==="export"){
+    openSheet(`<h3 style="font-size:19px">Verilerini indir</h3>
+      <p class="muted" style="margin-top:10px; font-size:15px">Profilin, tercihlerin, kaydettiğin ve başvurduğun ilanlar makine okunabilir bir dosya olarak hazırlanır.</p>
+      <button class="btn btn-primary btn-block" style="margin-top:18px" data-close="1">Hazırla</button>`); return; }
+  if(d.act==="delete"){
+    openSheet(`<h3 style="font-size:19px">Hesabını ve verilerini sil</h3>
+      <p class="muted" style="margin-top:10px; font-size:15px">
+        Profilin, tercihlerin, eşleşme geçmişin ve listelerin kalıcı olarak silinir. Silmeden önce
+        verilerini indirmek isteyebilirsin.</p>
+      <div class="notice notice-unmet" style="margin-top:16px"><span>⚠</span><span>Bu işlem geri alınamaz.</span></div>
+      <div class="row gap-10" style="margin-top:18px">
+        <button class="btn btn-ghost grow" data-close="1">Vazgeç</button>
+        <button class="btn btn-ghost grow" style="border-color:var(--unmet); color:var(--unmet)" data-close="1">Silme talebi oluştur</button>
+      </div>`); return; }
+});
+
+/* verify confirm (inside sheet) */
+document.addEventListener("click", e=>{
+  const b=e.target.closest("[data-do-verify]"); if(!b) return;
+  S.verified.add(b.dataset.doVerify); closeSheet(); render();
+  toast(`${b.dataset.doVerify} doğrulandı — eşleşmen güncellendi`);
+});
+
+/* ---- CV dosya seçimi: dosya GERÇEKTEN okunur (ad/boyut/tür), tarayıcıdan çıkmaz ---- */
+function humanSize(b){
+  if(b<1024) return b+" B";
+  if(b<1024*1024) return (b/1024).toFixed(0)+" KB";
+  return (b/1024/1024).toFixed(1)+" MB";
+}
+function handleCV(file){
+  if(!file) return;
+  const isPdf = file.type==="application/pdf" || /\.pdf$/i.test(file.name);
+  const tooBig = file.size > 10*1024*1024;
+  if(!isPdf){
+    S.cvFile={name:file.name, ok:false, err:"PDF değil. Şimdilik yalnızca PDF okuyabiliyoruz."};
+    render(); return;
+  }
+  if(tooBig){
+    S.cvFile={name:file.name, ok:false, err:"Dosya 10 MB'tan büyük ("+humanSize(file.size)+")."};
+    render(); return;
+  }
+  // gerçek okuma: dosya tarayıcıda FileReader ile açılır, hiçbir yere gönderilmez
+  const fr=new FileReader();
+  fr.onload=()=>{
+    S.cvFile={name:file.name, ok:true, sizeText:humanSize(file.size), bytes:fr.result.byteLength};
+    S.cvStage="reading"; render();
+    let p=8; const bar=()=>{ const el=$("#cvbar"); if(!el) return;
+      p=Math.min(100,p+Math.random()*22); el.style.width=p+"%";
+      if(p<100) setTimeout(bar,180); else setTimeout(()=>{ S.cvStage=null; go("cvreview"); },420); };
+    setTimeout(bar,220);
+  };
+  fr.onerror=()=>{ S.cvFile={name:file.name, ok:false, err:"Dosya okunamadı."}; render(); };
+  fr.readAsArrayBuffer(file);
+}
+document.addEventListener("change", e=>{
+  if(e.target.id==="cvInput") handleCV(e.target.files && e.target.files[0]);
+});
+["dragenter","dragover"].forEach(ev=>document.addEventListener(ev, e=>{
+  const d=e.target.closest("#drop"); if(!d) return;
+  e.preventDefault(); d.querySelector(".card").style.borderColor="var(--brand)";
+  d.querySelector(".card").style.background="var(--brand-soft)";
+}));
+["dragleave","drop"].forEach(ev=>document.addEventListener(ev, e=>{
+  const d=e.target.closest("#drop"); if(!d) return;
+  e.preventDefault(); const c=d.querySelector(".card");
+  if(c){ c.style.borderColor="var(--line-strong)"; c.style.background=""; }
+  if(ev==="drop") handleCV(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+}));
+
+/* live search */
+document.addEventListener("input", e=>{
+  if(e.target.id==="feedSearch"){ S.filters.q=e.target.value; S.demo=null;
+    const v=e.target.value; render();
+    const el=$("#feedSearch"); if(el){ el.focus(); el.setSelectionRange(v.length,v.length); } }
+  if(e.target.id==="occSearch"){ /* prototipte liste zaten kısa */ }
+});
+
+render();
+</script>
+</body>
+</html>

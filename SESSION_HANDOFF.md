@@ -34,6 +34,57 @@
 
 ---
 
+## 2026-07-21 — Stack kararı + çalışan çekirdek (core + ingest)
+
+**Bu session'da yapılanlar:**
+- **D-001 kapandı** → [ADR-001](docs/adr/ADR-001-technology-stack.md). T-012 Done,
+  OPEN-17 kapandı.
+- **D-018** (M1 gate kısmi revizyon) ve **D-019** (değerlendirilemeyen ilana bant
+  üretilmez) DECISIONS.md'ye işlendi. ✔
+- `services/core` (domain + matching + explanation) ve `services/ingest`
+  (registry + pipeline) yazıldı; **44 test geçiyor**.
+- Detay: [PROGRESS.md](PROGRESS.md) → 2026-07-21 "Stack kararı + çalışan çekirdek".
+
+**Yarım kalanlar (dosya/konum ile):**
+- **Kalıcılık yok.** `db/001_init.sql` yazılmadı; her şey bellekte çalışıyor.
+- **API katmanı yok.** `services/api` (FastAPI) ve OpenAPI → TS tip üretimi yok.
+- **Web arayüzü yok.** [prototype/index.html](prototype/index.html) hâlâ statik mockup;
+  gerçek core'a bağlı değil.
+- **CI yok.** Testler yalnızca elle koşuyor; lint yapılandırması yok.
+- Fixture korpusu 8 ilan — meslek çeşitliliği dar (driver, warehouse, nurse, account,
+  sales). D-008 cluster'larını tam kapsamıyor.
+
+**Bir sonraki session'ın ilk adımı:**
+- Kullanıcı onayı bekleniyor. Onaylanırsa sıra: `db/001_init.sql` (DATA_MODEL.md'yi
+  yansıtan şema) → `services/api` (FastAPI, feed + ilan detayı) → OpenAPI'den TS tipi
+  üretimi → Next.js arayüzü.
+
+**Bu session'da alınan kararlar / yeni assumption'lar:**
+- D-001 (stack), D-018 (gate revizyonu), D-019 (bant üretilmeyen durum) — üçü de
+  DECISIONS.md'ye işlendi ✔
+- `CONTENT_SIMILARITY_THRESHOLD = 0.75` ve `KIND_WEIGHT` **kalibrasyon hedefidir**,
+  evrensel doğru değil. Gerçek korpusla (T-021) ölçülmeden savunulamaz.
+
+**Yeni open question'lar:**
+- **OPEN-22** — "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve
+  gösterilir? D-019 bu dördüncü durumu yarattı; bant üzerinden sıralanamıyor.
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **`registry.assert_fetchable()` bir engel değil, mimarinin parçasıdır.** Gerçek
+  kaynağa bağlanmak için bu fonksiyonu gevşetmek D-002 ihlalidir. Kayıtlı hiçbir
+  gerçek kaynak `allowed` değil ve bu durum `test_no_real_source_is_allowed` ile
+  denetleniyor.
+- **Türkçe metin normalizasyonunda `unicodedata.normalize("NFKD", ...)` KULLANMA.**
+  Türkçe harfleri parçalayıp kelime sınırını bozuyor; bu session'da tam olarak bu bug
+  duplicate anahtarını sessizce çalışmaz hale getirmişti. `pipeline.fold()` kullan.
+- Fixture'lar sentetiktir ve `example.invalid` alan adını kullanır. Gerçek ilan gibi
+  sunulmamalı, gerçek URL'e çevrilmemeli.
+- `services/core` ve `services/ingest` editable install edilmedi; testler
+  `pyproject.toml` içindeki `pythonpath` ayarıyla çalışıyor. Elle koşarken
+  `PYTHONPATH="services/core/src;services/ingest/src"` gerekiyor (Windows ayracı `;`).
+
+---
+
 ## 2026-07-21 — T-022A interview hazırlığı + OPEN-19 izin taslakları
 
 **Bu session'da yapılanlar:**

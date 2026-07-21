@@ -322,22 +322,26 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
 - **Dependency:** T-008, T-009, T-010, T-011
 - **Acceptance Criteria:** Stack ADR'si docs/adr/ altında yazıldı; DECISIONS.md
   güncellendi; kullanıcı onayı alındı.
-- **Status:** Todo
+- **Status:** **Done (2026-07-21)** — [ADR-001](docs/adr/ADR-001-technology-stack.md);
+  D-001 kapandı, OPEN-17 kapandı. Kullanıcı onayı: Python veri + TS arayüz, tek
+  container runtime.
 
 ---
 
 ## Faz 2 — MVP Implementation
 
 > Aşağıdaki task'lar bilinçli olarak kabadır; T-012 kapandıktan sonra alt task'lara
-> bölünecektir. **Faz 2'ye giriş şartı: M1 validation gate'inin `go` kararıyla
-> kapanması** (D-010).
+> bölünecektir. **Faz 2'ye giriş şartı D-018 ile revize edildi:** implementation
+> fixture veriyle başlar; gerçek source'a bağlanma ve gerçek kullanıcı alma
+> M1 gate'ine bağlı kalır.
 
 #### T-013 — Repository iskeleti ve CI kurulumu
 - **Objective:** Kod repository yapısı, CI pipeline, lint/test iskeleti.
 - **Dependency:** T-011, T-012
 - **Acceptance Criteria:** Boş servis iskeletleri CI'da build oluyor; DEFINITION_OF_DONE
   implementation bölümü uygulanabilir durumda.
-- **Status:** Todo
+- **Status:** **In Progress** — `services/core` ve `services/ingest` paketleri kuruldu,
+  44 test geçiyor. **Eksik:** CI pipeline, lint yapılandırması, `services/api`, `web/`.
 
 #### T-014 — Source Registry + ilk Source Adapter (1 kaynak)
 - **Objective:** Source Registry'nin çalışır hali ve tek bir compliant source için uçtan
@@ -347,7 +351,11 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   depolanıyor; provenance kaydediliyor; rate limit ve robots uyumu loglardan doğrulanabiliyor;
   **access-change detection** (login wall/CAPTCHA imzası) çalışıyor ve tetiklendiğinde
   crawl duruyor.
-- **Status:** Todo
+- **Status:** **In Progress (yalnızca fixture)** — Source Registry çalışıyor
+  (`services/ingest/src/isuygun_ingest/registry.py`); izin kapısı kod düzeyinde
+  zorlayıcı. Pipeline fetch → normalize → dedupe uçtan uca koşuyor.
+  **Bloke kalan kısım:** gerçek source adapter, rate limit, access-change detection —
+  bunlar ancak OPEN-19/OPEN-09 kapanınca yazılır (D-018).
 
 #### T-016 — Career Profile + CV upload/parsing (MVP kapsamı)
 - **Objective:** Manuel profil editörü + CV upload (PDF/Türkçe) + parsing + kullanıcı
@@ -370,7 +378,11 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   revizyon kuralı); her önerinin explanation'ı FR-404 ve FR-411 şartlarını sağlıyor;
   `unknown` durumu explanation'da ayrı bölümde görünüyor; iki katmanlı sensitive
   attribute testi geçiyor; semantic katkının üst sınırı invariant testiyle doğrulanıyor.
-- **Status:** Todo
+- **Status:** **In Progress** — `services/core` çalışıyor: üç durumlu değerlendirme,
+  bant/confidence üretimi, explanation kural tablosu; 17 invariant testi (semantic üst
+  sınırı, sensitive attribute, `unknown` ayrımı dahil). D-019 bu task sırasında ortaya
+  çıktı. **Eksik:** golden set ve metrik ölçümü (T-006b'ye bağlı), semantic reranking'in
+  gerçek embedding'le çalışması.
 
 #### T-015 — İkinci/üçüncü source + cross-source dedupe ve expiration
 - **Objective:** 2-3 source'a çıkılması, cross-source duplicate detection ve expiration
@@ -380,7 +392,10 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   Posting'e bağlanıyor; **agency-kopyası senaryosu (değiştirilmiş başlık + gizli işveren)
   fixture testiyle doğrulanıyor**; expired ilanlar feed'den düşüyor; yield/coverage
   anomali izlemesi çalışıyor.
-- **Status:** Todo
+- **Status:** **Kısmen karşılandı** — agency-kopyası senaryosu fixture testiyle
+  doğrulandı (`test_agency_copy_is_merged`, `test_reworded_copy_is_still_merged`;
+  fixture `007_orig.json` / `008_agency_copy.json`). **Eksik:** ikinci/üçüncü source
+  (izne bağlı, D-018), expiration, yield/coverage anomali izlemesi.
 
 #### T-018 — Personalized Job Feed + arama + feedback
 - **Objective:** Feed & Search Service: sıralı feed, keyword+location araması, feedback

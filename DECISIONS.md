@@ -18,10 +18,14 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 
 ## D-001 — Technology stack seçimi ertelendi
 
-- **Status:** Confirmed (kullanıcının açık talebi)
-- **Date:** 2026-07-20
+- **Status:** **Kapandı (2026-07-21)** — stack seçildi: [ADR-001](docs/adr/ADR-001-technology-stack.md)
+- **Date:** 2026-07-20 · *kapandı: 2026-07-21*
 - **Decision:** Faz 0 boyunca programming language, framework, database, cloud provider
   seçilmez; bütün tasarım technology-independent yazılır.
+- **Kapanış:** Seçilen stack — veri/işleme katmanı **Python** (ingestion, extraction,
+  matching, FastAPI), arayüz **TypeScript/Next.js**, veri **PostgreSQL + pgvector**,
+  çalışma ortamı **Docker Compose**. Gerekçe, alternatifler ve şema kayması riskinin
+  nasıl kapatıldığı: [ADR-001](docs/adr/ADR-001-technology-stack.md).
 - **Reason:** Ürün ve mimari netleşmeden yapılacak stack seçimi tasarımı kısıtlar;
   kullanıcı da bunu açıkça istedi.
 - **Alternatives:** Baştan stack seçmek (hız kazandırır ama erken bağımlılık yaratır).
@@ -343,3 +347,56 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 - **Consequence:** **%10 değeri bir calibration target'tır, kesin veya evrensel bir değer
   değildir**; golden set ölçümüyle yeniden değerlendirilir. Sınırın testi TEST_STRATEGY'ye
   invariant olarak eklenmiştir.
+
+## D-018 — M1 validation gate kısmen revize edildi
+
+- **Status:** Confirmed (2026-07-21 onayı) — **D-010'u kısmen revize eder**
+- **Date:** 2026-07-21
+- **Decision:** Implementation, M1 validation gate'inin tamamı kapanmadan başlar; ancak
+  gate iki şey için **aynen korunur**:
+  1. **Gerçek source'a bağlanmak** — hiçbir kaynağa crawl başlatılmaz (D-002 + T-003
+     sonucu: `allowed` kaynak yok; OPEN-09/OPEN-19 açık).
+  2. **Gerçek kullanıcı almak** — beta'ya kullanıcı alınmaz; T-021/T-022B/T-023/T-024
+     tamamlanmadan gerçek kullanıcı verisi işlenmez.
+
+  Bu ikisi dışındaki her şey (şema, ingestion pipeline, matching engine, explanation,
+  arayüz) **fixture/sentetik veriyle** şimdi inşa edilir.
+- **Reason:** Ürünün nasıl hissettirdiğini görmek ve mimari kararların gerçekten
+  uygulanabilir olduğunu kanıtlamak için çalışan bir çekirdek gerekiyordu. Fixture'la
+  inşa etmek, doğrulanmamış talep varsayımlarına yatırım yapmadan bunu sağlar.
+- **Alternatives:** Tam revizyon (implementation önce, validation sonra — R-20
+  gerçekleşirse geri dönüş maliyeti yüksek); gate'i olduğu gibi korumak (en güvenli, en
+  yavaş; kullanıcı ilerleme görmek istedi).
+- **Consequence:** T-013…T-018 fixture veriyle yürütülebilir hale gelir. **T-014'ün
+  gerçek source'a bağlanan kısmı ve T-020'nin gerçek kullanıcı verisi işleyen kısmı
+  bloke kalır.** Yazılan kodun bir bölümü, T-021/T-022B sonucu ürünü yanlışlarsa
+  değişebilir — bu risk bilinçli kabul edilmiştir (R-20).
+- **Denetlenebilirlik:** Bu kararın ihlal edilmediği şununla doğrulanır: Source
+  Registry'de `scraping_permission: allowed` kayıt bulunmaması ve ingestion'ın yalnızca
+  `fixture` access_method'uyla çalışması.
+
+---
+
+## D-019 — Değerlendirilemeyen ilan için bant üretilmez
+
+- **Status:** Confirmed (2026-07-21) — **D-011'in uygulanması sırasında ortaya çıktı**
+- **Date:** 2026-07-21
+- **Decision:** Bir ilanın **hiçbir** şartı değerlendirilemiyorsa (tümü `unknown`),
+  Match Band ve Confidence **üretilmez**. Kullanıcıya "Zayıf eşleşme" değil,
+  "bu ilanı profilindeki bilgiyle değerlendiremedik" mesajı ve eksik alan listesi
+  gösterilir. `MatchResult.insufficient_data` bunu taşır.
+- **Reason:** Implementation sırasında uçtan uca koşuda görüldü: şoför profiline
+  hemşire ilanı **"Zayıf eşleşme"** olarak çıkıyordu. Nedeni şartların
+  karşılanmaması değil, hiç değerlendirilememesiydi — değerlendirilebilir kütle
+  sıfır olunca skor 0 çıkıyor ve zayıf banda düşüyordu. Bu, `unknown`'ın arka
+  kapıdan `unmet` gibi cezalandırılması, yani **D-011'in bant düzeyindeki
+  ihlalidir**. Skor katmanı doğru davranıyordu; kaçak bant katmanındaydı.
+- **Alternatives:** Bandı coverage ile tavanlamak (reddedildi — bu da `unknown`'a
+  ceza yazar, D-011'e aykırı); olduğu gibi bırakıp yalnızca Confidence'ı düşük
+  göstermek (reddedildi — "Zayıf eşleşme" etiketi kullanıcı tarafından
+  "sana uymuyor" diye okunur, oysa sistemin bilgisi yok).
+- **Consequence:** Arayüzde ilan kartının **dördüncü bir durumu** vardır:
+  güçlü / iyi / şartlı / zayıf **ve** "değerlendirilemedi". Feed sıralaması bu
+  ilanları bant üzerinden sıralayamaz; ayrı ele alınması gerekir (bkz. OPEN-22).
+- **Denetlenebilirlik:** `services/core/tests/test_critical_invariants.py` →
+  `test_all_unknown_produces_no_band_at_all`.

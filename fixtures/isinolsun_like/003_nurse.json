@@ -1,0 +1,34 @@
+{
+  "source_posting_ref": "0ioj-C3",
+  "url": "https://example.invalid/is-ilani/hemsire-meram-C3",
+  "title": "Hemşire — Yoğun Bakım",
+  "employer": "Özel Meram Tıp Merkezi",
+  "city": "Konya",
+  "district": "Selçuklu",
+  "arrangement": "İş yerinde",
+  "occupation_id": "nurse",
+  "posted_at": "2026-07-20",
+  "description": "Yoğun bakım ünitesinde hasta takibi ve bakım süreçleri. Vardiya planı aylık paylaşılır.",
+  "raw_requirements": [
+    {
+      "key": "nurse_license",
+      "label": "Hemşirelik tescil belgesi",
+      "kind": "hard",
+      "category": "license",
+      "span": "tescil belgesi"
+    },
+    {
+      "key": "exp_icu",
+      "label": "Yoğun bakım deneyimi",
+      "kind": "required",
+      "category": "experience",
+      "min_years": 2
+    },
+    {
+      "key": "night_shift",
+      "label": "Gece vardiyası uygunluğu",
+      "kind": "required",
+      "category": "shift"
+    }
+  ]
+}

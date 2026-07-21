@@ -8,6 +8,73 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Stack kararı + çalışan çekirdek (core + ingest, fixture veriyle)
+
+Kullanıcı Seçenek B'yi seçti: stack'i belirle, mimari kararları al, uygulamaya geç.
+Üç karar alındı (AskUserQuestion): **Python veri + TS arayüz**, **M1 gate kısmi
+revizyon**, **tek sunucu/container**.
+
+**D-001 kapandı — [ADR-001](docs/adr/ADR-001-technology-stack.md).** Python
+(ingest + matching + API/FastAPI) + TypeScript/Next.js (web) + PostgreSQL/pgvector,
+Docker Compose ile tek makinede. Hibrit stack'in asıl riski **şema kayması**; çözüm
+yapısal: FastAPI → OpenAPI → generated TypeScript tipleri, CI regenerate diff'inde
+kırılır. Python tarafının seçilme gerekçesi audit'ten geliyor — iki CRITICAL bulgunun
+ikisi de "model geçersiz durumu ifade edebiliyor" tipindeydi; `Literal` union'lar ve
+frozen dataclass'lar bu durumları temsil edilemez kılıyor.
+
+**D-018 — M1 gate kısmen revize edildi.** Implementation fixture veriyle başlar; gate
+(1) gerçek source'a crawl ve (2) gerçek kullanıcı alma için aynen durur.
+
+**`services/core` — domain + matching + explanation.** Audit'in iki CRITICAL bulgusu
+tip düzeyinde temsil edilemez kılındı: `RequirementState` üç varyantlı
+(`met`/`unmet`/`unknown`), `unknown` **gerekçesiz oluşturulamıyor** (`__post_init__`
+ValueError atıyor); gate-relevant kategoriler (`license`, `work_authorization`,
+`legally_required_certificate`) `verified` olmadan `met` üretemiyor. `unknown` skorun
+paydasına girmiyor — cezalandırılmıyor, yalnızca confidence'ı düşürüyor.
+
+**D-019 — implementation sırasında bulunan gerçek hata.** Uçtan uca ilk koşuda şoför
+profiline hemşire ilanı **"Zayıf eşleşme"** çıktı. Nedeni şartların karşılanmaması
+değil, hiç değerlendirilememesiydi: değerlendirilebilir kütle sıfır olunca skor 0
+çıkıyor ve zayıf banda düşüyordu — `unknown`'ın arka kapıdan `unmet` gibi
+cezalandırılması, yani D-011'in **bant düzeyindeki** ihlali. Skor katmanı doğruydu,
+kaçak bant katmanındaydı. Artık hiçbir şart değerlendirilemiyorsa bant üretilmiyor
+(`insufficient_data`). Aynı koşuda ikinci bir hata daha çıktı: explanation katmanı
+karşılanan şart yokken "Mesleğin ilanla örtüşüyor" diye **kanıtsız iddia** üretiyordu;
+kaldırıldı.
+
+**`services/ingest` — Source Registry + pipeline.** Registry, D-002/D-018'in kod
+düzeyindeki zorlayıcısı: `assert_fetchable()` izinsiz kaynakta uyarı değil
+**exception** atıyor ve mesaj bypass yolu değil izin yolunu (OPEN-19/OPEN-09)
+gösteriyor. Kayıtlı 6 kaynağın hiçbiri gerçek+`allowed` değil; tek çalıştırılabilir
+kaynak `src-fixture-001`.
+
+Dedupe, audit'in SCR-02 bulgusuna göre **blocking ile matching ayrılarak** yazıldı:
+Geçit A (employer+title+city) anahtar eşitliğiyle birleştirir; Geçit B işverenden ve
+başlıktan bağımsız kaba blok üretir, karar blok içi Jaccard benzerliğiyle verilir.
+Tek anahtarlı tasarım, agency'nin işvereni gizleyip başlığı değiştirdiği kopyayı
+*hiç karşılaştırmadan* kaçırıyordu; iki aşamalı yapı yeniden yazılmış kopyaları da
+yakalıyor. Blok büyüklüğü sınırı aşılırsa kayıtlar sessizce atılmıyor,
+`oversized_blocks` olarak raporlanıyor.
+
+**Türkçe normalizasyonda iki gerçek bug bulundu ve düzeltildi.** `unicodedata
+.normalize("NFKD", ...)` Türkçe harfleri parçalıyordu (`ş` → `s` + birleşen çengel);
+sonraki noktalama temizliği çengeli silince "şirketi" → "s irketi" oluyor ve kelime
+sınırı bozuluyordu. Ayrıca NFKD, legal-form eşleşmesinden **önce** çalıştığı için
+"anonim şirketi" hiç yakalanmıyordu — yani duplicate anahtarı sessizce çalışmıyordu.
+Açık bir Türkçe katlama tablosuyla değiştirildi; hukuki form yalnızca **sondan**
+soyuluyor ("Ticaret Lisesi Vakfı" bozulmuyor). Regresyon testleriyle kilitlendi.
+
+**Doğrulama.** 44 test geçiyor (core 17, ingest 27). Uçtan uca fixture koşusu:
+8 ilan → 7 canonical, 1 agency kopyası birleşti, kullanıcıya işvereni **yazan** sürüm
+gösteriliyor. Kamu ilanı skor üretmiyor (D-015), askerlik şartı bilgilendirme olarak
+görünüyor (D-013), doğrulanmamış ehliyet şartlı banda düşürüyor (D-012).
+
+**Bu session'da yapılmayanlar:** hiçbir kaynağa ağ isteği gönderilmedi; gerçek ilan
+verisi kullanılmadı; T-021/T-022B'ye dokunulmadı. Fixture'lardaki tüm ilanlar
+sentetiktir, `example.invalid` alan adı kullanır.
+
+---
+
 ## 2026-07-21 — T-022A: Interview hazırlığı + OPEN-19 izin taslakları (Done)
 
 T-003 kullanıcı tarafından kabul edildi; `fb3bf17` T-003 final baseline'ı olarak
