@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "isuygun-api",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "isuygun_api.main:app", "--port", "8137"],
+      "port": 8137,
+      "env": {
+        "PYTHONPATH": "services/api/src;services/core/src;services/ingest/src",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  ]
+}

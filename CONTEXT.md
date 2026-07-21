@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (D-001 kapandı; core + ingest fixture üzerinde çalışıyor)_
+_Last updated: 2026-07-21 (uygulama fixture veriyle uçtan uca çalışıyor)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -35,9 +35,11 @@ kullanıcı almak. Kod bu ikisini engelleyecek şekilde yazıldı —
 
 ## Aktif Hedef
 
-**Çalışan bir çekirdek** — fixture veriyle uçtan uca: ingest → normalize → dedupe →
-match → explanation. Domain katmanı ve ingestion pipeline çalışıyor (44 test).
-Sıradaki: kalıcı şema (PostgreSQL), API katmanı (FastAPI → OpenAPI), web arayüzü.
+**Çalışan uygulama** — fixture veriyle uçtan uca: ingest → normalize → dedupe →
+match → explanation → HTTP → arayüz. **65 test geçiyor.** Uygulama
+`python -m uvicorn isuygun_api.main:app --port 8137` ile ayağa kalkıyor.
+Sıradaki: kalıcılık (PostgreSQL — şu an bellekte, süreç kapanınca profil kayboluyor),
+CI, Next.js'e taşıma, Docker Compose.
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.
@@ -122,7 +124,8 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-15 | Public sector sınav puanı/kadro mekaniği ne zaman modellenecek? | later | [PRD.md](docs/product/PRD.md) | — (V1 değerlendirmesi) | Ertelendi (D-015: MVP'de listing-only) |
 | OPEN-16 | Business model / gelir yolu (A-5) | later | [PRD.md](docs/product/PRD.md) | — | Open |
 | OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | **Kapandı (D-001 / ADR-001, 2026-07-21)** — Python + TypeScript hibrit |
-| OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı; bant üzerinden sıralanamıyor |
+| OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı. **Geçici çözüm:** ayrı bölümde, bant sırasına sokulmadan |
+| OPEN-23 | Profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne zaman ve nasıl kurulacak? | pre-build | [taxonomy.py](services/api/src/isuygun_api/taxonomy.py) | T-016 | Open — MVP'de katalog korpustan türetiliyor; serbest metin eşlemesi yok |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
 değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın

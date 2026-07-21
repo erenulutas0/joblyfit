@@ -1,0 +1,401 @@
+"""İşe Uygun API.
+
+Bu katman iş kuralı **içermez**. Değerlendirme mantığının tamamı
+``isuygun_core``'da, ilan toplama mantığının tamamı ``isuygun_ingest``'tedir.
+API yalnızca onları HTTP'ye açar — kural burada tekrar edilirse iki yerde
+birbirinden sapar.
+
+OpenAPI şeması ``/openapi.json`` adresinden alınır; TypeScript tipleri bundan
+üretilir (ADR-001 şema kayması önlemi).
+"""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+from isuygun_core import build_explanation, match
+from isuygun_core.domain import MatchBand
+from isuygun_ingest import registry
+
+from .cv import read_cv
+from .store import STORE
+
+MAX_CV_BYTES = 10 * 1024 * 1024
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    STORE.load()
+    yield
+
+
+app = FastAPI(
+    lifespan=lifespan,
+    title="İşe Uygun API",
+    version="0.1.0",
+    description=(
+        "Fixture veriyle çalışan MVP çekirdeği. Gerçek ilan kaynağına bağlı "
+        "DEĞİLDİR (D-018)."
+    ),
+)
+
+
+# --------------------------------------------------------------------------
+# Şemalar — OpenAPI çıktısının kaynağı
+# --------------------------------------------------------------------------
+
+
+class ExplanationLineOut(BaseModel):
+    text: str
+    evidence: str
+    action_label: str | None = None
+
+
+class JobSummary(BaseModel):
+    job_id: str
+    title: str
+    employer: str
+    city: str
+    occupation_id: str
+    source: str
+    url: str
+    posted_at: str | None = None
+    is_public_sector: bool
+    duplicate_count: int = Field(1, description="Bu ilanın kaç kopyası birleştirildi")
+    band: str | None = Field(None, description="null ise değerlendirme yapılamadı")
+    band_label: str | None = None
+    confidence_label: str | None = None
+    listing_only: bool = False
+    insufficient_data: bool = False
+    met_count: int = 0
+    unmet_count: int = 0
+    unknown_count: int = 0
+    worth_applying: str = ""
+    worth_applying_rule: str = ""
+
+
+class JobDetail(JobSummary):
+    description_available: bool = False
+    why: list[str] = []
+    met: list[ExplanationLineOut] = []
+    unmet: list[ExplanationLineOut] = []
+    unknown: list[ExplanationLineOut] = []
+    legal_eligibility_notices: list[str] = []
+    verification_notice: str | None = None
+    listing_only_note: str | None = None
+    insufficient_data_note: str | None = None
+    disclaimer: str
+
+
+class FeedOut(BaseModel):
+    evaluated: list[JobSummary]
+    unevaluated: list[JobSummary] = Field(
+        default_factory=list,
+        description=(
+            "Profil bilgisi yetmediği için değerlendirilemeyen ilanlar (D-019). "
+            "Bunlar 'uymuyor' DEĞİLDİR ve bant üzerinden sıralanamaz — OPEN-22."
+        ),
+    )
+    profile_is_empty: bool
+    ingest: dict
+
+
+class CatalogItemOut(BaseModel):
+    key: str
+    label: str
+    category: str
+    category_label: str
+    occupation_id: str
+    occupation_label: str
+    asks_years: bool
+    needs_verification: bool
+
+
+class FactOut(BaseModel):
+    key: str
+    label: str
+    category: str
+    verification: str
+    years: float | None = None
+    counts_as_present: bool
+
+
+class ProfileOut(BaseModel):
+    occupation_ids: list[str]
+    facts: list[FactOut]
+    pending_cv_suggestions: list[dict]
+
+
+class FactIn(BaseModel):
+    key: str
+    years: float | None = None
+    verified: bool = False
+
+
+class OccupationsIn(BaseModel):
+    occupation_ids: list[str]
+
+
+class SourceOut(BaseModel):
+    source_id: str
+    name: str
+    access_method: str
+    scraping_permission: str
+    policy_risk: str
+    status: str
+    may_fetch_network: bool
+    note: str
+
+
+# --------------------------------------------------------------------------
+# Yardımcılar
+# --------------------------------------------------------------------------
+
+_BAND_ORDER = {MatchBand.STRONG: 0, MatchBand.GOOD: 1, MatchBand.CONDITIONAL: 2,
+               MatchBand.WEAK: 3}
+
+# D-008 — kalibre edilmiş occupation'lar. Korpus dar olduğu için hepsi kalibre
+# sayılmaz; kalibre olmayanlarda confidence düşürülür.
+_CALIBRATED = {"driver", "warehouse", "account"}
+
+
+def _evaluate(posting):
+    job = posting.job
+    result = match(
+        job,
+        STORE.profile,
+        calibrated_occupation=job.occupation_id in _CALIBRATED,
+    )
+    return result, build_explanation(result)
+
+
+def _summary(posting, result, exp) -> JobSummary:
+    return JobSummary(
+        job_id=posting.job.job_id,
+        title=posting.job.title,
+        employer=posting.job.employer,
+        city=posting.job.city,
+        occupation_id=posting.job.occupation_id,
+        source=posting.job.source,
+        url=posting.url,
+        posted_at=posting.posted_at,
+        is_public_sector=posting.job.is_public_sector,
+        band=result.band.value if result.band else None,
+        band_label=exp.band_label,
+        confidence_label=exp.confidence_label,
+        listing_only=result.listing_only,
+        insufficient_data=result.insufficient_data,
+        met_count=len(result.met),
+        unmet_count=len(result.unmet),
+        unknown_count=len(result.unknown),
+        worth_applying=exp.worth_applying,
+        worth_applying_rule=exp.worth_applying_rule,
+    )
+
+
+# --------------------------------------------------------------------------
+# Uçlar
+# --------------------------------------------------------------------------
+
+
+@app.get("/api/health")
+def health() -> dict:
+    return {"status": "ok", "ingest": STORE.ingest_summary}
+
+
+@app.get("/api/sources", response_model=list[SourceOut])
+def sources() -> list[SourceOut]:
+    """Kaynak şeffaflığı: hangi kaynak neden kullanılıyor/kullanılmıyor."""
+    return [
+        SourceOut(
+            source_id=r.source_id, name=r.name, access_method=r.access_method,
+            scraping_permission=r.scraping_permission, policy_risk=r.policy_risk,
+            status=r.status, may_fetch_network=r.may_fetch_network, note=r.note,
+        )
+        for r in registry.REGISTRY.values()
+    ]
+
+
+@app.get("/api/catalog", response_model=list[CatalogItemOut])
+def catalog() -> list[CatalogItemOut]:
+    return [
+        CatalogItemOut(
+            key=i.key, label=i.label, category=i.category,
+            category_label=i.category_label, occupation_id=i.occupation_id,
+            occupation_label=i.occupation_label, asks_years=i.asks_years,
+            needs_verification=i.needs_verification,
+        )
+        for i in STORE.catalog_items()
+    ]
+
+
+@app.get("/api/profile", response_model=ProfileOut)
+def get_profile() -> ProfileOut:
+    facts = []
+    for f in STORE.profile.facts:
+        item = STORE.catalog_item(f.key)
+        facts.append(
+            FactOut(
+                key=f.key,
+                label=item.label if item else f.key,
+                category=f.category,
+                verification=f.verification,
+                years=f.years,
+                counts_as_present=f.counts_as_present,
+            )
+        )
+    return ProfileOut(
+        occupation_ids=list(STORE.profile.occupation_ids),
+        facts=facts,
+        pending_cv_suggestions=STORE.pending_cv_suggestions,
+    )
+
+
+@app.put("/api/profile/occupations", response_model=ProfileOut)
+def set_occupations(body: OccupationsIn) -> ProfileOut:
+    STORE.set_occupations(body.occupation_ids)
+    return get_profile()
+
+
+@app.post("/api/profile/facts", response_model=ProfileOut)
+def add_fact(body: FactIn) -> ProfileOut:
+    try:
+        STORE.set_fact(
+            body.key,
+            verification="verified" if body.verified else "user_asserted",
+            years=body.years,
+        )
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    # Onaylanan öneri bekleyenler listesinden düşer.
+    STORE.pending_cv_suggestions = [
+        s for s in STORE.pending_cv_suggestions if s["key"] != body.key
+    ]
+    return get_profile()
+
+
+@app.delete("/api/profile/facts/{key}", response_model=ProfileOut)
+def remove_fact(key: str) -> ProfileOut:
+    STORE.remove_fact(key)
+    return get_profile()
+
+
+@app.post("/api/profile/facts/{key}/verify", response_model=ProfileOut)
+def verify_fact(key: str) -> ProfileOut:
+    """Belge doğrulama — MVP'de **simüle edilmiştir**, arayüzde öyle etiketlenir."""
+    try:
+        STORE.verify_fact(key)
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+    return get_profile()
+
+
+@app.post("/api/profile/reset", response_model=ProfileOut)
+def reset_profile() -> ProfileOut:
+    STORE.reset_profile()
+    return get_profile()
+
+
+@app.post("/api/profile/cv")
+async def upload_cv(file: UploadFile) -> dict:
+    """CV yükler ve alan **önerir**. Profile hiçbir şey yazmaz (T-016)."""
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Yalnızca PDF kabul ediliyor.")
+    data = await file.read()
+    if len(data) > MAX_CV_BYTES:
+        raise HTTPException(400, "Dosya 10 MB sınırını aşıyor.")
+    try:
+        result = read_cv(data, STORE.catalog)
+    except Exception as e:  # bozuk/şifreli PDF
+        raise HTTPException(400, f"PDF okunamadı: {e}") from e
+
+    STORE.pending_cv_suggestions = [
+        {
+            "key": s.key, "label": s.label, "category": s.category,
+            "needs_verification": s.needs_verification, "asks_years": s.asks_years,
+            "years": s.years, "matched_on": s.matched_on,
+        }
+        for s in result.suggestions
+    ]
+    return {
+        "page_count": result.page_count,
+        "char_count": result.char_count,
+        "text_extracted": result.text_extracted,
+        "note": result.note,
+        "discarded_sensitive": result.discarded_sensitive,
+        "suggestions": STORE.pending_cv_suggestions,
+        "written_to_profile": False,
+    }
+
+
+@app.get("/api/feed", response_model=FeedOut)
+def feed() -> FeedOut:
+    evaluated: list[tuple[int, JobSummary]] = []
+    unevaluated: list[JobSummary] = []
+
+    for posting in STORE.postings.values():
+        result, exp = _evaluate(posting)
+        s = _summary(posting, result, exp)
+        if result.band is None:
+            # D-019: bant yok. Bunlar "uymuyor" değil, "bilinmiyor" — ayrı
+            # bölümde gösterilir ve bant sırasına sokulmaz (OPEN-22 açık).
+            unevaluated.append(s)
+        else:
+            evaluated.append((_BAND_ORDER[result.band], s))
+
+    evaluated.sort(key=lambda t: (t[0], t[1].title))
+    return FeedOut(
+        evaluated=[s for _, s in evaluated],
+        unevaluated=unevaluated,
+        profile_is_empty=not STORE.profile.facts,
+        ingest=STORE.ingest_summary,
+    )
+
+
+@app.get("/api/jobs/{job_id:path}", response_model=JobDetail)
+def job_detail(job_id: str) -> JobDetail:
+    posting = STORE.job(job_id)
+    if posting is None:
+        raise HTTPException(404, "İlan bulunamadı.")
+    result, exp = _evaluate(posting)
+    base = _summary(posting, result, exp)
+
+    def lines(items):
+        return [
+            ExplanationLineOut(text=l.text, evidence=l.evidence, action_label=l.action_label)
+            for l in items
+        ]
+
+    return JobDetail(
+        **base.model_dump(),
+        description_available=bool(posting.job_text),
+        why=list(exp.why),
+        met=lines(exp.met),
+        unmet=lines(exp.unmet),
+        unknown=lines(exp.unknown),
+        legal_eligibility_notices=list(exp.legal_eligibility_notices),
+        verification_notice=exp.verification_notice,
+        listing_only_note=exp.listing_only_note,
+        insufficient_data_note=exp.insufficient_data_note,
+        disclaimer=exp.disclaimer,
+    )
+
+
+# --------------------------------------------------------------------------
+# Statik arayüz
+# --------------------------------------------------------------------------
+
+_WEB = Path(__file__).resolve().parents[4] / "web"
+if _WEB.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_WEB)), name="static")
+
+    @app.get("/")
+    def index() -> FileResponse:
+        return FileResponse(str(_WEB / "index.html"))

@@ -1,0 +1,27 @@
+[project]
+name = "isuygun-api"
+version = "0.1.0"
+description = "İşe Uygun — HTTP API (FastAPI). İş kuralı içermez."
+requires-python = ">=3.11"
+dependencies = [
+  "isuygun-core",
+  "isuygun-ingest",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",
+  "pypdf>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../core/src", "../ingest/src"]

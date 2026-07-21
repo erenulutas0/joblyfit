@@ -340,8 +340,10 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
 - **Dependency:** T-011, T-012
 - **Acceptance Criteria:** Boş servis iskeletleri CI'da build oluyor; DEFINITION_OF_DONE
   implementation bölümü uygulanabilir durumda.
-- **Status:** **In Progress** — `services/core` ve `services/ingest` paketleri kuruldu,
-  44 test geçiyor. **Eksik:** CI pipeline, lint yapılandırması, `services/api`, `web/`.
+- **Status:** **In Progress** — `services/core`, `services/ingest`, `services/api`
+  paketleri ve `web/` arayüzü kuruldu; **65 test geçiyor**. Uygulama tek komutla
+  ayağa kalkıyor. **Eksik:** CI pipeline, lint yapılandırması, Next.js'e taşıma,
+  Docker Compose.
 
 #### T-014 — Source Registry + ilk Source Adapter (1 kaynak)
 - **Objective:** Source Registry'nin çalışır hali ve tek bir compliant source için uçtan
@@ -365,7 +367,11 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   onayından geçmeden matching'e girmiyor; **gate-relevant alanlarda doğrulama adımı
   atlanamıyor** (D-012); sensitive alanlar profile'a hiç yazılmıyor (D-006) ve discard
   meta-kaydı üretiliyor.
-- **Status:** Todo
+- **Status:** **In Progress** — manuel profil editörü + PDF CV upload + öneri akışı
+  çalışıyor. CV çıktısı profile **yazılmıyor**; kullanıcı tek tek onaylıyor.
+  Sensitive alan tespiti ve imhası çalışıyor, yalnızca alan adı raporlanıyor.
+  **Eksik:** gerçek belge doğrulama akışı (MVP'de simüle), ontoloji (OPEN-23),
+  taranmış PDF için OCR.
 
 #### T-017 — Matching Engine v0 + Explainability
 - **Objective:** Üç durumlu hard requirement değerlendirmesi + MVP faktör seti ile
@@ -378,7 +384,7 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   revizyon kuralı); her önerinin explanation'ı FR-404 ve FR-411 şartlarını sağlıyor;
   `unknown` durumu explanation'da ayrı bölümde görünüyor; iki katmanlı sensitive
   attribute testi geçiyor; semantic katkının üst sınırı invariant testiyle doğrulanıyor.
-- **Status:** **In Progress** — `services/core` çalışıyor: üç durumlu değerlendirme,
+- **Status:** **In Progress** (API sınırında da doğrulandı — `services/api/tests`) — `services/core` çalışıyor: üç durumlu değerlendirme,
   bant/confidence üretimi, explanation kural tablosu; 17 invariant testi (semantic üst
   sınırı, sensitive attribute, `unknown` ayrımı dahil). D-019 bu task sırasında ortaya
   çıktı. **Eksik:** golden set ve metrik ölçümü (T-006b'ye bağlı), semantic reranking'in

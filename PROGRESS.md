@@ -8,6 +8,66 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Uygulama ayağa kalktı: API + arayüz (fixture veriyle uçtan uca)
+
+Kullanıcı "her şeyi başlatalım ve bir tur test edeyim" dedi. API ve arayüz katmanları
+kuruldu; uygulama tek komutla çalışıyor ve gerçekten tıklanabilir durumda.
+
+**`services/api` — FastAPI.** Katman **iş kuralı içermiyor**; değerlendirme mantığı
+core'da, toplama mantığı ingest'te kalıyor. Kural API'de tekrar edilseydi iki yerde
+birbirinden sapardı. Uçlar: feed, ilan detayı, profil CRUD, belge doğrulama, CV
+yükleme, kaynak şeffaflığı. OpenAPI şeması `/openapi.json`'dan üretiliyor —
+TypeScript tipleri buradan gelecek (ADR-001 şema kayması önlemi).
+
+**`web/` — arayüz.** Tasarım yönü bilinçli olarak iş ilanı sitelerinin tersi: "%95
+uyum!" bağırışı yerine **ilan panosu / basılı kayıt** estetiği. Serif başlıklar,
+ruled satırlar, tek aksan rengi (emaye mavisi). Kritik karar: `unknown` durumu
+**mavi/bilgilendirici** renkte, amber/uyarı değil — D-011'in görsel karşılığı.
+"Bilinmiyor" bölümü "eksiğin var" değil "bilmediğimiz şeyler" diye yazıldı ve her
+satır bir eylem sunuyor. Açık/koyu tema ve dar ekran desteği var.
+
+**Next.js'e taşıma ertelendi.** Kullanıcının bugün test edebilmesi için arayüz statik
+HTML olarak yazıldı ve FastAPI tarafından servis ediliyor — tek süreç, build adımı
+yok. OpenAPI tipleri hazır olduğu için taşıma mekanik bir iş.
+
+**`taxonomy.py` — profil kataloğu korpustan türetiliyor.** Matching, şart anahtarı ile
+profil alanı eşitliğine dayanıyor; gerçek sistemde bu bir **ontoloji** işi (ESCO
+benzeri). MVP'de ontoloji **yok**; katalog doğrudan ilanlardaki şartlardan üretiliyor
+ki profil editörü ile ilanlar arasında sessiz kayma oluşamasın. Bu kasıtlı bir
+sadeleştirme — **OPEN-23** olarak açıldı.
+
+**CV akışı (T-016).** PDF'ten metin çıkarılıyor, alan **öneriliyor**, hiçbir şey
+profile yazılmıyor; kullanıcı tek tek onaylıyor. Sensitive alanlar (D-006) okuma
+anında tespit edilip atılıyor ve yalnızca **alan adı** raporlanıyor — içerik hiçbir
+yere yazılmıyor. Test CV'sindeki doğum tarihi ve medeni hal doğru şekilde imha edildi.
+
+**CV önerisinde iki gerçek hata bulundu ve düzeltildi.** İlk koşuda şoför CV'sine
+**"Hemşirelik tescil belgesi"** öneriliyordu — "belgesi" kelimesi eşleştiği için.
+Ayrıca **"Gece vardiyası"** öneriliyordu: "geçerli" kelimesinin *içinde* "gece"
+geçiyor. Substring eşleşmesi kelime sınırı tanımıyordu. Üçüncüsü: CV'ler Türkçe
+karakter kullanmadan da yazılıyor ("Agir vasita") ve katlama olmadığı için bu CV'ler
+hiç eşleşmiyordu. Üçü de düzeltildi (kelime sınırı + genel kelime süzgeci + `fold()`);
+öneri sayısı 11'den 7'ye düştü ve hepsi şoförle ilgili. Regresyon testleriyle kilitlendi.
+
+**Arayüzde yön hatası.** Metinler sağa yaslanmıştı; Türkçe soldan sağa yazılır.
+Liste ve tablo hizalamaları düzeltildi.
+
+**Doğrulama.** 65 test geçiyor (core 17, ingest 27, API 21). API testleri iş kuralını
+tekrar doğrulamıyor; kuralın **HTTP sınırında kaybolmadığını** doğruluyor — bir kural
+orada düşerse core testleri geçmeye devam eder ama kullanıcı yanlış şey görür.
+Kapsananlar: boş profilde hiçbir ilanın "zayıf" etiketlenmemesi, doğrulanmamış
+ehliyetin `met` sayılmaması, askerlik şartının katalogda bulunmaması ve yazılamaması,
+kamu ilanının puanlanmaması, hiçbir uçtan yüzde sızmaması, hiçbir gerçek kaynağın
+ağ erişimine açık olmaması.
+
+**Bilinen sınırlar.** Kalıcılık **yok** — profil bellekte tutuluyor, sunucu kapanınca
+gidiyor (PostgreSQL sıradaki iş). CI yok. Belge doğrulama akışı MVP'de **simüle**
+ediliyor ve arayüzde öyle etiketleniyor. Taranmış PDF'te OCR yok.
+
+**Bu session'da da hiçbir kaynağa ağ isteği gönderilmedi.** İlanlar sentetiktir.
+
+---
+
 ## 2026-07-21 — Stack kararı + çalışan çekirdek (core + ingest, fixture veriyle)
 
 Kullanıcı Seçenek B'yi seçti: stack'i belirle, mimari kararları al, uygulamaya geç.

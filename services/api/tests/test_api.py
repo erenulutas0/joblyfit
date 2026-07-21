@@ -1,0 +1,240 @@
+"""API sözleşmesi ve kullanıcıya görünen invariant'lar.
+
+Buradaki testler iş kuralını tekrar doğrulamaz (o core'un işi); API katmanının
+kuralları **taşıyıp taşımadığını** doğrular. Bir kural HTTP sınırında kaybolursa
+core testleri geçmeye devam eder ama kullanıcı yanlış şey görür.
+"""
+
+from __future__ import annotations
+
+import io
+import pytest
+from fastapi.testclient import TestClient
+
+from isuygun_api.cv import suggest_facts
+from isuygun_api.main import app
+from isuygun_api.store import STORE
+
+
+@pytest.fixture()
+def client():
+    with TestClient(app) as c:
+        STORE.reset_profile()
+        yield c
+        STORE.reset_profile()
+
+
+def _add(c, key, **kw):
+    r = c.post("/api/profile/facts", json={"key": key, **kw})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+# --------------------------------------------------------------------------
+# Feed — D-019'un HTTP sınırındaki karşılığı
+# --------------------------------------------------------------------------
+
+
+def test_empty_profile_produces_no_bands(client):
+    """Boş profilde hiçbir ilan bantlanmaz — hiçbiri "zayıf" da denmez."""
+    f = client.get("/api/feed").json()
+    assert f["profile_is_empty"] is True
+    assert f["evaluated"] == []
+    assert len(f["unevaluated"]) > 0
+    assert all(j["band"] is None for j in f["unevaluated"])
+
+
+def test_unevaluated_never_labelled_weak(client):
+    """Değerlendirilemeyen ilan zayıf eşleşme etiketi TAŞIYAMAZ."""
+    f = client.get("/api/feed").json()
+    for j in f["unevaluated"]:
+        assert j["band_label"] is None
+        assert j["worth_applying_rule"] in ("insufficient_data", "listing_only")
+
+
+def test_profile_moves_job_into_evaluated(client):
+    _add(client, "exp_heavy", years=6)
+    f = client.get("/api/feed").json()
+    titles = [j["title"] for j in f["evaluated"]]
+    assert any("Şoför" in t for t in titles)
+
+
+def test_no_percentage_in_any_payload(client):
+    """D-005: hiçbir uçtan yüzde veya sayısal skor sızmamalı."""
+    _add(client, "exp_heavy", years=6)
+    feed = client.get("/api/feed").json()
+    blob = str(feed)
+    for j in feed["evaluated"] + feed["unevaluated"]:
+        blob += str(client.get(f"/api/jobs/{j['job_id']}").json())
+    assert "%" not in blob
+    # skor alanı API'de hiç yer almamalı
+    assert "score" not in blob.lower()
+
+
+# --------------------------------------------------------------------------
+# D-012 — doğrulama kapısı HTTP üzerinden atlanamaz
+# --------------------------------------------------------------------------
+
+
+def test_asserted_licence_does_not_count(client):
+    """Beyan edilen ehliyet "karşılanıyor" sayılmaz."""
+    p = _add(client, "license_ce")
+    fact = next(f for f in p["facts"] if f["key"] == "license_ce")
+    assert fact["verification"] == "user_asserted"
+    assert fact["counts_as_present"] is False
+
+
+def test_verified_flag_on_create_is_honoured(client):
+    p = _add(client, "license_ce", verified=True)
+    fact = next(f for f in p["facts"] if f["key"] == "license_ce")
+    assert fact["counts_as_present"] is True
+
+
+def test_verification_endpoint_promotes_fact(client):
+    _add(client, "license_ce")
+    p = client.post("/api/profile/facts/license_ce/verify").json()
+    fact = next(f for f in p["facts"] if f["key"] == "license_ce")
+    assert fact["verification"] == "verified"
+
+
+def test_unverified_gate_forces_conditional_band(client):
+    """Belge doğrulanmadan bant güçlü olamaz; detayda uyarı görünür."""
+    _add(client, "exp_heavy", years=6)
+    _add(client, "src1", verified=True)
+    _add(client, "psiko", verified=True)
+    _add(client, "license_ce")  # kasten doğrulanmamış
+
+    job = next(j for j in client.get("/api/feed").json()["evaluated"]
+               if "Şoför" in j["title"])
+    assert job["band"] == "cond"
+
+    d = client.get(f"/api/jobs/{job['job_id']}").json()
+    assert d["verification_notice"] is not None
+    assert any(l["action_label"] == "Belgeyi doğrula" for l in d["unknown"])
+
+
+def test_verifying_everything_reaches_strong(client):
+    for k in ("exp_heavy",):
+        _add(client, k, years=6)
+    for k in ("src1", "psiko", "license_ce"):
+        _add(client, k, verified=True)
+    job = next(j for j in client.get("/api/feed").json()["evaluated"]
+               if "Şoför" in j["title"])
+    assert job["band"] == "strong"
+
+
+# --------------------------------------------------------------------------
+# D-013 / D-015 / D-006
+# --------------------------------------------------------------------------
+
+
+def test_legal_eligibility_not_in_catalog(client):
+    """Askerlik gibi şartlar profil kataloğunda YER ALMAZ."""
+    keys = [i["key"] for i in client.get("/api/catalog").json()]
+    assert "military" not in keys
+
+
+def test_legal_eligibility_cannot_be_written(client):
+    r = client.post("/api/profile/facts", json={"key": "military"})
+    assert r.status_code in (400, 404)
+
+
+def test_legal_eligibility_shown_as_notice(client):
+    """Skora girmez ama kullanıcıya bilgi olarak gösterilir."""
+    feed = client.get("/api/feed").json()
+    job = next(j for j in feed["evaluated"] + feed["unevaluated"]
+               if "Saha Satış" in j["title"])
+    d = client.get(f"/api/jobs/{job['job_id']}").json()
+    assert d["legal_eligibility_notices"]
+    assert "değerlendirmeye katılmaz" in d["legal_eligibility_notices"][0]
+
+
+def test_public_sector_is_listing_only(client):
+    feed = client.get("/api/feed").json()
+    job = next(j for j in feed["unevaluated"] if j["is_public_sector"])
+    assert job["band"] is None and job["listing_only"] is True
+    d = client.get(f"/api/jobs/{job['job_id']}").json()
+    assert d["listing_only_note"] is not None
+
+
+# --------------------------------------------------------------------------
+# CV — öneri kayıt değildir + sensitive imhası
+# --------------------------------------------------------------------------
+
+_CV = """
+MEHMET Y. - Ozgecmis
+Dogum tarihi: 12.05.1988
+Medeni hal: Evli
+Kuzey Nakliyat - Agir vasita soforu, 8 yil agir vasita tecrubesi.
+C+E sinifi ehliyet. SRC-1 mesleki yeterlilik belgesi. Psikoteknik belgesi - gecerli.
+"""
+
+
+def test_cv_suggestions_are_not_written_to_profile(client, monkeypatch):
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    r = client.post("/api/profile/cv",
+                    files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")})
+    body = r.json()
+    assert body["written_to_profile"] is False
+    assert body["suggestions"]
+    assert client.get("/api/profile").json()["facts"] == []
+
+
+def test_cv_discards_sensitive_fields(client, monkeypatch):
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    body = client.post("/api/profile/cv",
+                       files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")}).json()
+    assert "dogum_tarihi" in body["discarded_sensitive"]
+    assert "medeni_hal" in body["discarded_sensitive"]
+    # İçerik DEĞİL, yalnızca alan adı raporlanır.
+    assert "1988" not in str(body)
+    assert "Evli" not in str(body)
+
+
+def test_cv_rejects_non_pdf(client):
+    r = client.post("/api/profile/cv",
+                    files={"file": ("cv.docx", io.BytesIO(b"x"), "application/msword")})
+    assert r.status_code == 400
+
+
+def test_cv_does_not_suggest_unrelated_professions():
+    """Şoför CV'sine hemşirelik lisansı önerilmemeli.
+
+    "belgesi" gibi genel kelimeler tek başına kanıt sayılınca tam bu oluyordu.
+    """
+    labels = [s.label for s in suggest_facts(_CV, STORE.catalog)]
+    assert not any("Hemşire" in l for l in labels), labels
+    assert any("C+E" in l for l in labels)
+
+
+def test_cv_matching_survives_missing_turkish_characters():
+    """CV'ler "Agir vasita" diye de yazılıyor; katlama olmadan hiç eşleşmiyordu."""
+    keys = [s.key for s in suggest_facts(_CV, STORE.catalog)]
+    assert "exp_heavy" in keys
+
+
+def test_cv_does_not_match_inside_words():
+    """Regresyon: "gecerli" içindeki "gece" gece vardiyası önerdiriyordu."""
+    keys = [s.key for s in suggest_facts(_CV, STORE.catalog)]
+    assert "night_shift" not in keys
+
+
+# --------------------------------------------------------------------------
+# Kaynak şeffaflığı
+# --------------------------------------------------------------------------
+
+
+def test_no_real_source_may_fetch(client):
+    """D-018: API üzerinden bakıldığında da hiçbir gerçek kaynak açık olmamalı."""
+    rows = client.get("/api/sources").json()
+    real_open = [
+        s for s in rows if s["may_fetch_network"] and s["access_method"] != "fixture"
+    ]
+    assert real_open == []
+
+
+def test_openapi_schema_is_generated(client):
+    """TS tipleri bundan üretiliyor; şema bozulursa arayüz sessizce sapar."""
+    schema = client.get("/openapi.json").json()
+    assert "FeedOut" in schema["components"]["schemas"]
+    assert "/api/feed" in schema["paths"]

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>İşe Uygun</title>
+<style>
+:root{
+  --ink:#14181d; --ink-2:#3d4650; --ink-3:#6b7580;
+  --paper:#faf9f6; --paper-2:#f2f1ec; --paper-3:#e8e6df;
+  --rule:#dedcd4; --rule-strong:#b9b6ac;
+  --accent:#1b5e8f; --accent-ink:#0f3f63;
+  --met:#2c6b4c; --unmet:#a33b32; --unknown:#2f7fa8;
+  --met-bg:#e8f1ea; --unmet-bg:#f7eae8; --unknown-bg:#e6f0f6;
+  --serif:Georgia,'Times New Roman',Times,serif;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
+  --shadow:0 1px 2px rgba(20,24,29,.06),0 4px 12px rgba(20,24,29,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ink:#eceae4; --ink-2:#b3b8be; --ink-3:#858d96;
+    --paper:#14181d; --paper-2:#1b2027; --paper-3:#242b33;
+    --rule:#2d353e; --rule-strong:#414a54;
+    --accent:#6bb2dd; --accent-ink:#9ccdf0;
+    --met:#6fc194; --unmet:#e08b80; --unknown:#79bcdd;
+    --met-bg:#17291f; --unmet-bg:#2b1c1a; --unknown-bg:#152730;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eceae4; --ink-2:#b3b8be; --ink-3:#858d96;
+  --paper:#14181d; --paper-2:#1b2027; --paper-3:#242b33;
+  --rule:#2d353e; --rule-strong:#414a54;
+  --accent:#6bb2dd; --accent-ink:#9ccdf0;
+  --met:#6fc194; --unmet:#e08b80; --unknown:#79bcdd;
+  --met-bg:#17291f; --unmet-bg:#2b1c1a; --unknown-bg:#152730;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25);
+}
+:root[data-theme="light"]{
+  --ink:#14181d; --ink-2:#3d4650; --ink-3:#6b7580;
+  --paper:#faf9f6; --paper-2:#f2f1ec; --paper-3:#e8e6df;
+  --rule:#dedcd4; --rule-strong:#b9b6ac;
+  --accent:#1b5e8f; --accent-ink:#0f3f63;
+  --met:#2c6b4c; --unmet:#a33b32; --unknown:#2f7fa8;
+  --met-bg:#e8f1ea; --unmet-bg:#f7eae8; --unknown-bg:#e6f0f6;
+  --shadow:0 1px 2px rgba(20,24,29,.06),0 4px 12px rgba(20,24,29,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--serif); font-weight:600; text-wrap:balance; margin:0}
+a{color:var(--accent); text-underline-offset:2px}
+button{font:inherit; cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+/* ---------- kabuk ---------- */
+.masthead{border-bottom:2px solid var(--ink); background:var(--paper)}
+.masthead-in{max-width:1180px; margin:0 auto; padding:14px 20px;
+  display:flex; align-items:baseline; gap:16px; flex-wrap:wrap}
+.wordmark{font-family:var(--serif); font-size:22px; letter-spacing:-.01em}
+.wordmark span{color:var(--accent)}
+.tagline{font-size:12.5px; color:var(--ink-3); letter-spacing:.02em}
+.masthead-spacer{flex:1}
+.theme-btn{background:none; border:1px solid var(--rule); color:var(--ink-2);
+  padding:5px 10px; border-radius:4px; font-size:12.5px}
+.theme-btn:hover{border-color:var(--rule-strong)}
+
+nav.tabs{border-bottom:1px solid var(--rule); background:var(--paper);
+  position:sticky; top:0; z-index:20}
+.tabs-in{max-width:1180px; margin:0 auto; padding:0 20px; display:flex; gap:2px;
+  overflow-x:auto}
+.tab{background:none; border:0; border-bottom:3px solid transparent;
+  padding:11px 14px; color:var(--ink-3); font-size:14.5px; white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent);
+  font-weight:600}
+main{max-width:1180px; margin:0 auto; padding:26px 20px 80px}
+
+/* ---------- ortak ---------- */
+.notice{border-left:3px solid var(--accent); background:var(--paper-2);
+  padding:12px 15px; font-size:13.5px; color:var(--ink-2); border-radius:0 4px 4px 0}
+.notice strong{color:var(--ink)}
+.eyebrow{font-size:11.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.section-head{display:flex; align-items:baseline; gap:12px;
+  border-bottom:2px solid var(--ink); padding-bottom:7px; margin:34px 0 0}
+.section-head h2{font-size:19px}
+.section-head .count{font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-3); font-size:13.5px}
+.btn{background:var(--accent); color:#fff; border:0; padding:9px 16px;
+  border-radius:4px; font-size:14px; font-weight:500}
+.btn:hover{background:var(--accent-ink)}
+@media (prefers-color-scheme:dark){.btn{color:#0d1319}}
+:root[data-theme="dark"] .btn{color:#0d1319}
+:root[data-theme="light"] .btn{color:#fff}
+.btn-ghost{background:none; color:var(--accent); border:1px solid var(--rule);
+  padding:7px 13px; border-radius:4px; font-size:13.5px}
+.btn-ghost:hover{border-color:var(--accent)}
+.btn-sm{padding:4px 10px; font-size:12.5px}
+.spinner{display:inline-block; width:13px; height:13px; border:2px solid var(--rule);
+  border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite;
+  vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;
+  transition-duration:.01ms!important}}
+
+/* ---------- ilan listesi (pano estetiği) ---------- */
+.listing{border-bottom:1px solid var(--rule); padding:17px 0; display:grid;
+  grid-template-columns:1fr auto; gap:6px 20px; align-items:start; cursor:pointer;
+  background:none; border-left:0; border-right:0; border-top:0; width:100%;
+  text-align:left; color:inherit; font:inherit}
+.listing:hover{background:var(--paper-2)}
+.listing:hover .listing-title{color:var(--accent)}
+.listing-title{font-family:var(--serif); font-size:17.5px; line-height:1.3;
+  margin:0 0 3px}
+.listing-meta{font-size:13px; color:var(--ink-3)}
+.listing-meta b{color:var(--ink-2); font-weight:500}
+.listing-verdict{font-size:13px; color:var(--ink-2); margin-top:7px; max-width:62ch}
+.listing-right{text-align:right; display:flex; flex-direction:column; gap:5px;
+  align-items:flex-end; min-width:132px}
+.band{font-size:12.5px; font-weight:600; padding:3px 9px; border-radius:3px;
+  border:1px solid currentColor; white-space:nowrap}
+.band-strong{color:var(--met); background:var(--met-bg)}
+.band-good{color:var(--met); background:var(--met-bg)}
+.band-cond{color:var(--accent); background:var(--unknown-bg)}
+.band-weak{color:var(--unmet); background:var(--unmet-bg)}
+.band-none{color:var(--ink-3); background:var(--paper-2); border-color:var(--rule)}
+.conf{font-size:11.5px; color:var(--ink-3)}
+.ledger-mini{font-size:11.5px; color:var(--ink-3); font-variant-numeric:tabular-nums;
+  display:flex; gap:9px}
+.ledger-mini i{font-style:normal}
+.lm-met{color:var(--met)} .lm-unmet{color:var(--unmet)} .lm-unk{color:var(--unknown)}
+
+/* ---------- defter (üç durum) ---------- */
+.ledger{margin:14px 0 0; border-top:1px solid var(--rule)}
+.ledger-row{display:grid; grid-template-columns:22px 1fr auto; gap:12px;
+  padding:11px 0; border-bottom:1px solid var(--rule); align-items:start}
+.ledger-mark{font-size:14px; line-height:1.5; text-align:center; font-weight:700}
+.m-met{color:var(--met)} .m-unmet{color:var(--unmet)} .m-unk{color:var(--unknown)}
+.ledger-label{font-size:15px; margin:0 0 2px}
+.ledger-ev{font-size:13px; color:var(--ink-3); font-family:var(--mono);
+  line-height:1.5}
+.ledger-row.is-unknown{background:var(--unknown-bg); margin:0 -12px;
+  padding-left:12px; padding-right:12px; border-radius:3px}
+
+/* ---------- detay ---------- */
+.detail-head{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:4px}
+.detail-head h1{font-size:26px; line-height:1.25; margin:6px 0 8px}
+.verdict-box{background:var(--paper-2); border:1px solid var(--rule);
+  border-radius:5px; padding:16px 18px; margin:20px 0; box-shadow:var(--shadow)}
+.verdict-box .band{font-size:13.5px}
+.verdict-line{font-size:15.5px; margin:11px 0 0; line-height:1.5}
+.disclaimer{font-size:12.5px; color:var(--ink-3); border-top:1px solid var(--rule);
+  margin-top:24px; padding-top:12px; line-height:1.55}
+
+/* ---------- profil ---------- */
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:26px}
+@media (max-width:860px){.grid-2{grid-template-columns:1fr}}
+.occ-group{margin:22px 0 0}
+.occ-group h3{font-size:15px; border-bottom:1px solid var(--rule-strong);
+  padding-bottom:5px; margin-bottom:2px}
+.fact-row{display:flex; align-items:center; gap:10px; padding:9px 0;
+  border-bottom:1px solid var(--rule); flex-wrap:wrap}
+.fact-row .name{flex:1; font-size:14.5px; min-width:170px}
+.fact-row .cat{font-size:11.5px; color:var(--ink-3)}
+.chip{font-size:11.5px; padding:2px 8px; border-radius:10px; white-space:nowrap;
+  border:1px solid currentColor}
+.chip-verified{color:var(--met); background:var(--met-bg)}
+.chip-asserted{color:var(--accent); background:var(--unknown-bg)}
+.chip-needs{color:var(--unknown); background:var(--unknown-bg)}
+input[type=number],input[type=text],select{font:inherit; font-size:14px;
+  padding:5px 8px; border:1px solid var(--rule-strong); border-radius:4px;
+  background:var(--paper); color:var(--ink); width:74px}
+label.occ{display:inline-flex; align-items:center; gap:6px; font-size:14px;
+  padding:6px 11px; border:1px solid var(--rule-strong); border-radius:20px;
+  margin:0 7px 7px 0; cursor:pointer}
+label.occ:has(input:checked){border-color:var(--accent); color:var(--accent);
+  background:var(--unknown-bg)}
+
+/* ---------- CV ---------- */
+.drop{border:2px dashed var(--rule-strong); border-radius:7px; padding:34px 22px;
+  text-align:center; background:var(--paper-2); transition:border-color .15s}
+.drop.over{border-color:var(--accent); background:var(--unknown-bg)}
+.drop h3{font-size:16.5px; margin-bottom:5px}
+
+/* ---------- tablo ---------- */
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+th,td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--rule);
+  vertical-align:top}
+th{font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--ink-3); border-bottom:1px solid var(--rule-strong)}
+.table-wrap{overflow-x:auto; margin-top:12px}
+.perm{font-weight:600; white-space:nowrap}
+.p-rejected{color:var(--unmet)} .p-conditional{color:var(--accent)}
+.p-allowed{color:var(--met)}
+
+/* ---------- dar ekran ---------- */
+@media (max-width:560px){
+  body{font-size:15.5px}
+  .tagline{display:none}
+  .listing{grid-template-columns:1fr; gap:10px; padding:15px 0}
+  .listing-title{font-size:16.5px}
+  .listing-right{flex-direction:row; flex-wrap:wrap; align-items:center;
+    text-align:left; min-width:0; gap:8px 12px}
+  .listing-verdict{margin-top:0}
+  .detail-head h1{font-size:21px}
+  /* Eylem düğmesi ikinci sütunun altına iner; 3 sütun 375px'te sıkışıyordu. */
+  .ledger-row{grid-template-columns:20px 1fr; gap:9px}
+  .ledger-row > div:last-child{grid-column:2; margin-top:3px}
+  .fact-row{gap:8px}
+  .fact-row .name{flex-basis:100%; min-width:0}
+  main{padding:20px 16px 64px}
+  .masthead-in,.tabs-in{padding-left:16px; padding-right:16px}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="wordmark">İşe <span>Uygun</span></div>
+    <div class="tagline">Sana ne kadar uyduğunu <em>tahmin eder</em> — söz vermez.</div>
+    <div class="masthead-spacer"></div>
+    <button class="theme-btn" id="themeBtn" type="button">Tema</button>
+  </div>
+</header>
+
+<nav class="tabs"><div class="tabs-in" role="tablist">
+  <button class="tab" role="tab" data-view="feed">İlanlar</button>
+  <button class="tab" role="tab" data-view="profile">Profilim</button>
+  <button class="tab" role="tab" data-view="cv">CV yükle</button>
+  <button class="tab" role="tab" data-view="sources">Kaynaklar</button>
+</div></nav>
+
+<main id="app"><p class="muted"><span class="spinner"></span> Yükleniyor…</p></main>
+
+<script>
+const API = '/api';
+let VIEW = 'feed', CATALOG = [], PROFILE = null, FEED = null, SOURCES = null;
+
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(path, opts){
+  const r = await fetch(API+path, opts);
+  if(!r.ok){
+    let m = r.statusText;
+    try{ m = (await r.json()).detail || m; }catch(e){}
+    throw new Error(m);
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+/* ---------------- tema ---------------- */
+const root = document.documentElement;
+$('#themeBtn').onclick = () => {
+  const cur = root.getAttribute('data-theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+};
+
+/* ---------------- yönlendirme ---------------- */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => go(t.dataset.view));
+function go(v){
+  VIEW = v;
+  document.querySelectorAll('.tab').forEach(t =>
+    t.setAttribute('aria-selected', String(t.dataset.view === v)));
+  render();
+}
+
+async function refresh(){
+  [PROFILE, FEED] = await Promise.all([api('/profile'), api('/feed')]);
+}
+
+/* ---------------- görünümler ---------------- */
+const BAND_CLASS = {strong:'band-strong', good:'band-good', cond:'band-cond', weak:'band-weak'};
+
+function listingHTML(j){
+  const band = j.band
+    ? `<span class="band ${BAND_CLASS[j.band]}">${esc(j.band_label)}</span>`
+    : `<span class="band band-none">${j.listing_only ? 'Kamu ilanı' : 'Değerlendirilemedi'}</span>`;
+  const conf = j.confidence_label
+    ? `<span class="conf">Güven: ${esc(j.confidence_label)}</span>` : '';
+  const ledger = (j.met_count || j.unmet_count || j.unknown_count) ? `
+    <span class="ledger-mini">
+      ${j.met_count ? `<i class="lm-met">✓ ${j.met_count}</i>` : ''}
+      ${j.unmet_count ? `<i class="lm-unmet">✕ ${j.unmet_count}</i>` : ''}
+      ${j.unknown_count ? `<i class="lm-unk">? ${j.unknown_count}</i>` : ''}
+    </span>` : '';
+  return `<button class="listing" data-job="${esc(j.job_id)}">
+    <span>
+      <h3 class="listing-title">${esc(j.title)}</h3>
+      <div class="listing-meta"><b>${esc(j.employer)}</b> · ${esc(j.city)}${
+        j.posted_at ? ' · ' + esc(j.posted_at) : ''}</div>
+      <div class="listing-verdict">${esc(j.worth_applying)}</div>
+    </span>
+    <span class="listing-right">${band}${conf}${ledger}</span>
+  </button>`;
+}
+
+function viewFeed(){
+  const f = FEED;
+  const empty = f.profile_is_empty ? `
+    <div class="notice" style="margin-bottom:18px">
+      <strong>Profilin henüz boş.</strong> Bu yüzden ilanların çoğu
+      “değerlendirilemedi” görünüyor — bu, ilanların sana uymadığı anlamına
+      <em>gelmez</em>. <a href="#" data-goto="profile">Profilini doldur</a> ya da
+      <a href="#" data-goto="cv">CV yükle</a>.
+    </div>` : '';
+
+  const ev = f.evaluated.length
+    ? f.evaluated.map(listingHTML).join('')
+    : `<p class="muted" style="padding:16px 0">Değerlendirilebilen ilan yok.</p>`;
+
+  const un = f.unevaluated.length ? `
+    <div class="section-head">
+      <h2>Değerlendirilemeyenler</h2>
+      <span class="count">${f.unevaluated.length} ilan</span>
+    </div>
+    <div class="notice" style="margin:14px 0 4px">
+      Bu ilanlarla ilgili elimizde karşılaştıracak bilgi yok. <strong>Sana
+      uymadıkları anlamına gelmez</strong> — profilinde o alanlar boş olduğu için
+      hesaplama yapılamadı. Ayrı tutuyoruz ki “zayıf eşleşme” diye yanlış
+      okunmasınlar.
+    </div>
+    ${f.unevaluated.map(listingHTML).join('')}` : '';
+
+  return `${empty}
+    <div class="section-head">
+      <h2>Sana göre değerlendirilenler</h2>
+      <span class="count">${f.evaluated.length} ilan</span>
+    </div>
+    ${ev}${un}
+    <p class="disclaimer">
+      Korpus: <b>${esc(f.ingest.source)}</b> — ${f.ingest.fetched} kayıt okundu,
+      ${f.ingest.duplicates_merged} kopya birleştirildi, ${f.ingest.canonical} ilan
+      gösteriliyor. <strong>Bu ilanlar gerçek değildir</strong>; sistemi test etmek
+      için üretilmiş örneklerdir.
+    </p>`;
+}
+
+async function viewJob(jobId){
+  const j = await api('/jobs/' + jobId);
+  const rows = (items, mark, cls, extra='') => items.map(l => `
+    <div class="ledger-row ${cls === 'm-unk' ? 'is-unknown' : ''}">
+      <div class="ledger-mark ${cls}">${mark}</div>
+      <div>
+        <p class="ledger-label">${esc(l.text)}</p>
+        ${l.evidence ? `<div class="ledger-ev">${esc(l.evidence)}</div>` : ''}
+      </div>
+      <div>${l.action_label ? `<button class="btn-ghost btn-sm" data-goto="profile">${esc(l.action_label)}</button>` : extra}</div>
+    </div>`).join('');
+
+  const band = j.band
+    ? `<span class="band ${BAND_CLASS[j.band]}">${esc(j.band_label)}</span>
+       <span class="conf" style="margin-left:8px">Güven: ${esc(j.confidence_label)}</span>`
+    : `<span class="band band-none">${j.listing_only ? 'Kamu ilanı — puanlanmaz' : 'Değerlendirilemedi'}</span>`;
+
+  return `
+    <button class="btn-ghost btn-sm" data-goto="feed">← İlanlara dön</button>
+    <div class="detail-head" style="margin-top:16px">
+      <div class="eyebrow">${esc(j.source)}</div>
+      <h1>${esc(j.title)}</h1>
+      <div class="listing-meta"><b>${esc(j.employer)}</b> · ${esc(j.city)}${
+        j.posted_at ? ' · ' + esc(j.posted_at) : ''}</div>
+    </div>
+
+    <div class="verdict-box">
+      <div>${band}</div>
+      <p class="verdict-line">${esc(j.worth_applying)}</p>
+      ${j.verification_notice ? `<div class="notice" style="margin-top:13px">${esc(j.verification_notice)}</div>` : ''}
+      ${j.insufficient_data_note ? `<div class="notice" style="margin-top:13px">${esc(j.insufficient_data_note)}</div>` : ''}
+      ${j.listing_only_note ? `<div class="notice" style="margin-top:13px">${esc(j.listing_only_note)}</div>` : ''}
+    </div>
+
+    ${j.why.length ? `<div class="section-head"><h2>Neden</h2></div>
+      <ul style="font-size:14.5px; color:var(--ink-2)">${
+        j.why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+
+    ${j.met.length ? `<div class="section-head"><h2>Karşılıyorsun</h2>
+      <span class="count">${j.met.length}</span></div>
+      <div class="ledger">${rows(j.met, '✓', 'm-met')}</div>` : ''}
+
+    ${j.unmet.length ? `<div class="section-head"><h2>Karşılamıyorsun</h2>
+      <span class="count">${j.unmet.length}</span></div>
+      <div class="ledger">${rows(j.unmet, '✕', 'm-unmet')}</div>` : ''}
+
+    ${j.unknown.length ? `<div class="section-head"><h2>Bilinmiyor</h2>
+      <span class="count">${j.unknown.length}</span></div>
+      <p class="muted" style="margin:9px 0 0">Bunlar eksiğin değil —
+      <em>bilmediğimiz</em> şeyler. Eklersen değerlendirme netleşir.</p>
+      <div class="ledger">${rows(j.unknown, '?', 'm-unk')}</div>` : ''}
+
+    ${j.legal_eligibility_notices.length ? `
+      <div class="section-head"><h2>Bilgilendirme</h2></div>
+      ${j.legal_eligibility_notices.map(n =>
+        `<div class="notice" style="margin-top:13px">${esc(n)}</div>`).join('')}` : ''}
+
+    <p class="disclaimer">${esc(j.disclaimer)}<br><br>
+      İlan bağlantısı: <span class="ledger-ev">${esc(j.url)}</span> —
+      <strong>bu örnek bir kayıttır, gerçek bir ilan değildir.</strong></p>`;
+}
+
+function viewProfile(){
+  const have = new Map(PROFILE.facts.map(f => [f.key, f]));
+  const occs = [...new Set(CATALOG.map(i => i.occupation_id))];
+  const occLabel = id => (CATALOG.find(i => i.occupation_id === id) || {}).occupation_label || id;
+
+  const groups = occs.map(occ => {
+    const items = CATALOG.filter(i => i.occupation_id === occ);
+    return `<div class="occ-group"><h3>${esc(occLabel(occ))}</h3>
+      ${items.map(i => {
+        const f = have.get(i.key);
+        let right;
+        if(!f){
+          right = `${i.asks_years ? `<input type="number" min="0" max="50" placeholder="yıl" id="y-${esc(i.key)}">` : ''}
+            <button class="btn-ghost btn-sm" data-add="${esc(i.key)}">Ekle</button>`;
+        }else{
+          const chip = f.verification === 'verified'
+            ? `<span class="chip chip-verified">Doğrulandı</span>`
+            : (i.needs_verification
+                ? `<span class="chip chip-needs">Doğrulama gerekiyor</span>`
+                : `<span class="chip chip-asserted">Beyan edildi</span>`);
+          const vbtn = (i.needs_verification && f.verification !== 'verified')
+            ? `<button class="btn-ghost btn-sm" data-verify="${esc(i.key)}">Doğrula</button>` : '';
+          right = `${f.years != null ? `<span class="muted">${f.years} yıl</span>` : ''}
+            ${chip}${vbtn}
+            <button class="btn-ghost btn-sm" data-del="${esc(i.key)}">Kaldır</button>`;
+        }
+        return `<div class="fact-row">
+          <span class="name">${esc(i.label)}<div class="cat">${esc(i.category_label)}</div></span>
+          ${right}
+        </div>`;
+      }).join('')}</div>`;
+  }).join('');
+
+  const pending = PROFILE.pending_cv_suggestions.length ? `
+    <div class="section-head"><h2>CV'den öneriler</h2>
+      <span class="count">${PROFILE.pending_cv_suggestions.length}</span></div>
+    <div class="notice" style="margin:14px 0 4px">
+      Bunlar CV'nde bulundu ama <strong>profiline eklenmedi</strong>. Her birini
+      tek tek onaylaman gerekiyor — onaylamadan hiçbiri değerlendirmeye girmez.
+    </div>
+    ${PROFILE.pending_cv_suggestions.map(s => `
+      <div class="fact-row">
+        <span class="name">${esc(s.label)}
+          <div class="cat">CV'de bulunan: “${esc(s.matched_on)}”</div></span>
+        ${s.asks_years ? `<input type="number" min="0" max="50" placeholder="yıl"
+          id="y-${esc(s.key)}" value="${s.years ?? ''}">` : ''}
+        <button class="btn-ghost btn-sm" data-add="${esc(s.key)}">Onayla ve ekle</button>
+      </div>`).join('')}` : '';
+
+  return `
+    <div class="section-head"><h2>Mesleğin</h2></div>
+    <p class="muted" style="margin:10px 0">Hangi alanlarda iş arıyorsun?</p>
+    <div>${occs.map(o => `<label class="occ">
+      <input type="checkbox" data-occ="${esc(o)}"
+        ${PROFILE.occupation_ids.includes(o) ? 'checked' : ''}> ${esc(occLabel(o))}
+    </label>`).join('')}</div>
+
+    ${pending}
+
+    <div class="section-head"><h2>Bilgilerin</h2>
+      <span class="count">${PROFILE.facts.length} kayıtlı</span></div>
+    <div class="notice" style="margin:14px 0 0">
+      Ehliyet, lisans ve zorunlu belgeler <strong>doğrulanmadan</strong>
+      “karşılanıyor” sayılmaz. Beyanı yeterli saysaydık, olmayan bir belgeye
+      dayanarak sana “güçlü eşleşme” diyebilirdik.
+    </div>
+    ${groups}
+
+    <p class="disclaimer">
+      Fotoğraf, din, etnik köken, medeni hal, sağlık, sendika üyeliği, cinsiyet ve
+      tam doğum tarihi <strong>hiçbir koşulda saklanmaz</strong>. Bu alanlar
+      profilde yer almaz ve CV'den okunursa okuma anında atılır.
+      <br><br>
+      <button class="btn-ghost btn-sm" data-reset="1">Profili sıfırla</button>
+    </p>`;
+}
+
+function viewCV(){
+  return `
+    <div class="section-head"><h2>CV yükle</h2></div>
+    <div class="notice" style="margin:14px 0 18px">
+      CV'nden okunanlar <strong>doğrudan profiline yazılmaz</strong>. Sistem yalnızca
+      öneri üretir; her birini sen onaylarsın. Okuma anahtar kelime eşleşmesine
+      dayanır — CV'nin tamamı anlaşılmış değildir.
+    </div>
+    <div class="drop" id="drop">
+      <h3>PDF'ini buraya sürükle</h3>
+      <p class="muted">ya da dosya seç · yalnızca PDF · en fazla 10 MB</p>
+      <input type="file" id="cvFile" accept="application/pdf,.pdf" style="display:none">
+      <button class="btn" id="cvPick" type="button" style="margin-top:10px">Dosya seç</button>
+    </div>
+    <div id="cvOut" style="margin-top:20px"></div>`;
+}
+
+function viewSources(){
+  const perm = p => `<span class="perm p-${p}">${
+    {allowed:'İzinli', conditional:'Şartlı', rejected:'Reddedildi', unknown:'Bilinmiyor'}[p] || p}</span>`;
+  return `
+    <div class="section-head"><h2>Kaynaklar</h2>
+      <span class="count">${SOURCES.length} kayıt</span></div>
+    <div class="notice" style="margin:14px 0 0">
+      Şu anda <strong>hiçbir gerçek siteden ilan çekilmiyor.</strong> İncelenen
+      kaynakların hiçbiri koşulsuz izinli değil; izin alınmadan veri toplanmıyor.
+      Aşağıdaki ilanlar test için üretilmiş örnek kayıtlardır.
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Kaynak</th><th>İzin</th><th>Risk</th><th>Durum</th>
+        <th>Ağ erişimi</th><th>Not</th></tr></thead>
+      <tbody>${SOURCES.map(s => `<tr>
+        <td><b>${esc(s.name)}</b><div class="cat" style="font-family:var(--mono);
+          font-size:11.5px; color:var(--ink-3)">${esc(s.source_id)}</div></td>
+        <td>${perm(s.scraping_permission)}</td>
+        <td>${esc(s.policy_risk)}</td>
+        <td>${esc(s.status)}</td>
+        <td>${s.may_fetch_network
+          ? '<span class="perm p-allowed">Açık</span>'
+          : '<span class="perm p-rejected">Kapalı</span>'}</td>
+        <td class="muted" style="max-width:34ch">${esc(s.note)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+/* ---------------- render + olaylar ---------------- */
+async function render(){
+  const app = $('#app');
+  app.innerHTML = `<p class="muted"><span class="spinner"></span> Yükleniyor…</p>`;
+  try{
+    if(VIEW === 'feed'){ await refresh(); app.innerHTML = viewFeed(); }
+    else if(VIEW === 'profile'){ await refresh(); app.innerHTML = viewProfile(); }
+    else if(VIEW === 'cv'){ app.innerHTML = viewCV(); wireCV(); }
+    else if(VIEW === 'sources'){
+      SOURCES = SOURCES || await api('/sources'); app.innerHTML = viewSources(); }
+    else if(VIEW.startsWith('job:')){ app.innerHTML = await viewJob(VIEW.slice(4)); }
+    window.scrollTo({top:0, behavior:'instant'});
+  }catch(e){
+    app.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
+      <strong>Hata:</strong> ${esc(e.message)}</div>`;
+  }
+}
+
+document.addEventListener('click', async (ev) => {
+  const t = ev.target.closest('[data-job],[data-goto],[data-add],[data-del],[data-verify],[data-reset]');
+  if(!t) return;
+  ev.preventDefault();
+  try{
+    if(t.dataset.job){ VIEW = 'job:' + t.dataset.job; return render(); }
+    if(t.dataset.goto){ return go(t.dataset.goto); }
+    if(t.dataset.add){
+      const y = $('#y-' + CSS.escape(t.dataset.add));
+      await api('/profile/facts', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({key:t.dataset.add, years: y && y.value ? Number(y.value) : null})});
+      return render();
+    }
+    if(t.dataset.del){
+      await api('/profile/facts/' + encodeURIComponent(t.dataset.del), {method:'DELETE'});
+      return render();
+    }
+    if(t.dataset.verify){
+      await api('/profile/facts/' + encodeURIComponent(t.dataset.verify) + '/verify', {method:'POST'});
+      return render();
+    }
+    if(t.dataset.reset){
+      await api('/profile/reset', {method:'POST'});
+      return render();
+    }
+  }catch(e){ alert('Hata: ' + e.message); }
+});
+
+document.addEventListener('change', async (ev) => {
+  const occ = ev.target.dataset && ev.target.dataset.occ;
+  if(!occ) return;
+  const ids = [...document.querySelectorAll('[data-occ]')]
+    .filter(c => c.checked).map(c => c.dataset.occ);
+  await api('/profile/occupations', {method:'PUT',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({occupation_ids: ids})});
+  PROFILE = await api('/profile');
+});
+
+function wireCV(){
+  const drop = $('#drop'), input = $('#cvFile'), out = $('#cvOut');
+  $('#cvPick').onclick = () => input.click();
+  input.onchange = () => input.files[0] && send(input.files[0]);
+  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', ev => {
+    const f = ev.dataTransfer.files[0]; if(f) send(f); });
+
+  async function send(file){
+    if(!file.name.toLowerCase().endsWith('.pdf')){
+      out.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
+        Yalnızca PDF kabul ediliyor.</div>`; return;
+    }
+    out.innerHTML = `<p class="muted"><span class="spinner"></span> Okunuyor…</p>`;
+    const fd = new FormData(); fd.append('file', file);
+    try{
+      const r = await api('/profile/cv', {method:'POST', body: fd});
+      const disc = r.discarded_sensitive.length ? `
+        <div class="notice" style="margin-top:14px">
+          <strong>Atılan alanlar:</strong> ${r.discarded_sensitive.map(esc).join(', ')}.
+          Bu alanlar tespit edildi ve <strong>saklanmadı</strong>; içerikleri hiçbir
+          yere yazılmadı (yalnızca hangi türde oldukları raporlanıyor).
+        </div>` : '';
+      out.innerHTML = `
+        <div class="verdict-box">
+          <div class="eyebrow">${r.page_count} sayfa · ${r.char_count} karakter okundu</div>
+          <p class="verdict-line">${esc(r.note)}</p>
+          ${disc}
+          ${r.suggestions.length ? `<p style="margin-top:15px">
+            <button class="btn" data-goto="profile">Önerileri incele ve onayla →</button></p>`
+            : `<p style="margin-top:15px">
+            <button class="btn-ghost btn-sm" data-goto="profile">Elle doldur →</button></p>`}
+        </div>`;
+    }catch(e){
+      out.innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
+        <strong>Okunamadı:</strong> ${esc(e.message)}</div>`;
+    }
+  }
+}
+
+/* ---------------- başlat ---------------- */
+(async () => {
+  try{
+    CATALOG = await api('/catalog');
+    go('feed');
+  }catch(e){
+    $('#app').innerHTML = `<div class="notice" style="border-left-color:var(--unmet)">
+      <strong>Sunucuya bağlanılamadı:</strong> ${esc(e.message)}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

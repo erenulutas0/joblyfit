@@ -34,6 +34,59 @@
 
 ---
 
+## 2026-07-21 — Uygulama ayağa kalktı (API + arayüz)
+
+**Bu session'da yapılanlar:**
+- `services/api` (FastAPI) + `web/` (arayüz) kuruldu; uygulama çalışıyor.
+- CV upload akışı, profil editörü, belge doğrulama, kaynak şeffaflık sayfası.
+- **65 test geçiyor** (core 17, ingest 27, API 21).
+- **OPEN-23** açıldı (ontoloji eksikliği). Detay: [PROGRESS.md](PROGRESS.md).
+
+**Çalıştırma:**
+```
+python -m pip install fastapi "uvicorn[standard]" python-multipart pypdf
+set PYTHONPATH=services/api/src;services/core/src;services/ingest/src
+python -m uvicorn isuygun_api.main:app --port 8137
+```
+Sonra http://localhost:8137 — API dokümanı `/docs`, şema `/openapi.json`.
+
+**Yarım kalanlar (dosya/konum ile):**
+- **Kalıcılık yok** — [store.py](services/api/src/isuygun_api/store.py) bellekte
+  çalışıyor. Sunucu kapanınca profil gidiyor. `db/001_init.sql` yazılmadı.
+- **Next.js'e taşınmadı** — [web/index.html](web/index.html) statik; OpenAPI tipleri
+  hazır olduğu için taşıma mekanik.
+- **CI yok**, lint yapılandırması yok, Docker Compose yok.
+- Belge doğrulama **simüle** (`store.verify_fact`); gerçek akış yazılmadı.
+- Fixture korpusu 8 ilan / 5 meslek — dar.
+
+**Bir sonraki session'ın ilk adımı:**
+- Kullanıcı onayı bekleniyor. Onaylanırsa: `db/001_init.sql` + store'un PostgreSQL'e
+  taşınması (arayüz değişmez, `Store` sınıfı tek değişecek yer).
+
+**Bu session'da alınan kararlar / yeni assumption'lar:**
+- Arayüz **şimdilik statik HTML**, Next.js sonra — kullanıcının bugün test
+  edebilmesi için. ADR-001'i değiştirmez, sırayı değiştirir.
+- Feed'de "değerlendirilemedi" ilanlar **ayrı bölümde**, bant sırasına sokulmadan —
+  OPEN-22'nin geçici çözümü, kalıcı karar değil.
+
+**Yeni open question'lar:**
+- **OPEN-23** — profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne
+  zaman ve nasıl kurulacak? MVP'de katalog korpustan türetiliyor, serbest metin
+  eşlemesi yok.
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **`--reload` ile çalıştırma.** Uvicorn her dosya değişiminde yeniden başlıyor ve
+  bellekteki profil siliniyor. [launch.json](.claude/launch.json) bu yüzden
+  `--reload` içermiyor.
+- **CV eşleşmesinde substring kullanma.** Kelime sınırı olmadan "geçerli" içindeki
+  "gece" eşleşiyor. `cv._find()` kullan.
+- **Genel kelimeler kanıt değildir.** "belgesi", "ehliyet", "deneyimi" gibi terimler
+  `_TOO_GENERIC` süzgecinde; kaldırılırsa şoföre hemşire lisansı önerilir.
+- **Türkçe soldan sağa yazılır.** Arayüzde `text-align:right` kullanma.
+- API katmanına **iş kuralı yazma**. Kural core'da; API yalnızca taşır.
+
+---
+
 ## 2026-07-21 — Stack kararı + çalışan çekirdek (core + ingest)
 
 **Bu session'da yapılanlar:**
