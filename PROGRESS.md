@@ -8,6 +8,74 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Gerçek ilanlar: izinli ATS API'leri (D-020) + paylaşılan sözlük
+
+Kullanıcı kendi CV'sini yükledi ve **hiçbir alan eşleşmedi**; ayrıca LinkedIn'den
+ilan çekmek istediğini söyledi. İkisi de haklı eleştiriydi ve ikisi de düzeltildi.
+
+**LinkedIn: yasal yolu yok — ve aranmadı.** Araştırma sonucu: LinkedIn'in okuma
+API'si **hiç yok**; Job Posting API ters yönde çalışıyor (ATS → LinkedIn) ve
+Microsoft'un kendi dokümanı yeni partner alınmadığını yazıyor; robots.txt
+`Disallow: /` ve otomatik erişimi açıkça yasaklıyor. Indeed'in publisher API'si de
+kapatılmış. Bunları aşmanın yolu **önerilmedi**.
+
+**D-020 — izinli ATS API'leri açıldı.** Lever, Greenhouse ve Recruitee'nin public
+job board uçları, şirketlerin kendi kariyer sayfalarını kurması için yayınladığı,
+kimlik doğrulaması istemeyen API'lerdir; yanıt ilanın **kendi sayfasına** giden URL
+taşır — yani kullanıcıyı kaynağa yönlendirmek amaçlanan kullanım. İzin kanıtları
+(`api.lever.co/robots.txt` → `Allow: /` + `Crawl-delay: 1` vb.) doğrulanıp
+Source Registry'ye **kanıt alanıyla** yazıldı. D-018'in "hiçbir kaynağa crawl yok"
+maddesinin yerini yeni bir denetim aldı: **izin iddiası kanıtsız yazılamaz.**
+
+Sonuç: 5 pano (Trendyol, Dream Games, iyzico, Commencis, Macellan), 70 ilan çekildi,
+18'i Türkiye dışı olduğu için elendi, **52 gerçek Türkiye ilanı** gösteriliyor.
+Crawl-delay uygulanıyor; pano listesi elle tutuluyor, otomatik keşif yok.
+
+**CV'nin neden eşleşmediği — kök neden.** Katalog *korpustan* türetiliyordu: profil
+editörü yalnızca 8 sentetik ilandaki 18 alanı tanıyordu. İki taraf da aynı sentetik
+korpustan geldiği için sistem "çalışıyor" görünüyordu. Gerçek bir CV yüklendiğinde
+eşleşecek **hiçbir alan yoktu** — extraction bozuk değildi, hedef yoktu.
+
+Düzeltme: ilan tarafı ile CV tarafı artık **aynı sözlüğe** bağlı
+(`isuygun_ingest.lexicon`, 82 terim, 15 meslek kümesi — yazılımdan kaynakçılığa,
+hemşirelikten aşçılığa). Katalog korpustan bağımsız. Bir yazılımcı CV'siyle test:
+önce 0 alan, şimdi 13 alan (Python 4 yıl dahil, doğru okundu).
+
+**Gerçek veri üç ciddi hata gösterdi.**
+
+1. **Yanlış duplicate birleştirme.** iyzico'nun "Instore Sales Manager" ile
+   "Senior AML Analyst" ilanları %100 benzer çıkıp tek ilana indirgeniyordu. Sebep:
+   Lever'ın `descriptionPlain` alanı çoğu ilanda yalnızca şirket tanıtımıdır ve
+   firmanın bütün ilanlarında birebir aynıdır. Asıl içerik `lists` altındaki
+   bölümlerde. Adapter düzeltildi; ayrıca Geçit B'ye koruma eklendi — aynı **bilinen**
+   işverenin ilanları B'den geçemez (B'nin amacı işvereni *gizlenmiş* kopyalar).
+2. **Parantez soyma yanlıştı.** "Software Engineer" ile "Software Engineer (New Grad)"
+   aynı anahtara düşüp Geçit A'da birleşiyordu. Artık soyulmuyor: yanlış birleştirme
+   gerçek bir ilanı kullanıcıdan **tamamen gizler**, kaçırılan birleştirme yalnızca
+   iki kez gösterir. Asimetri kararı belirledi.
+3. **D-021 — ayırt edici olmayan şartlar sahte güven üretiyordu.** Bir yazılımcı
+   profiline **"Legal Professionals — Labor Law"** ilanı *Güçlü eşleşme* çıktı; o
+   ilandan yalnızca "İngilizce" ve "Lisans mezuniyeti" çıkarılabilmişti ve geliştirici
+   ikisine de sahipti → 1/1 → güçlü. Artık değerlendirilebilen şartların hepsi
+   `language`/`education`/`shift` kategorisindeyse bant üretilmiyor. Eşleşen ilan
+   sayısı 34'ten 16'ya düştü — **kasıtlı**: az ve doğru, çok ve yanlıştan iyidir.
+
+**Diğer düzeltmeler.** Meslek kümesi tahmininde başlık ağırlığı (önce "Accounting
+Intern" ilanı metninde SQL geçtiği için "Yazılım" kümesine düşüyordu) · "What We
+Offer" bölümü şart sayılmıyor · Türkiye dışı ilanlar eleniyor (pazar filtresi core'a
+gömülmedi, D-009 gereği politika parametresi) · olumlu bantlı ilanda açıklama önce
+karşılanan şartları söylüyor.
+
+**Doğrulama.** 70 test geçiyor (core 19, ingest 29, API 22). API testleri artık
+**ağa çıkmıyor** — canlı ingest'i her testte çağırmak hem yavaştı hem de dış servise
+gereksiz yüktü, ayrıca testi uzak sunucunun o anki içeriğine bağlıyordu.
+
+**Kapsam sınırı gizlenmiyor.** ATS panoları ağırlıklı olarak teknoloji/kurumsal ilan
+içerir; arayüz bunu açıkça yazıyor. Mavi yaka kapsamı için Careerjet/Jooble publisher
+kaydı gerekiyor — kayıt kullanıcıya ait (OPEN-24).
+
+---
+
 ## 2026-07-21 — Uygulama ayağa kalktı: API + arayüz (fixture veriyle uçtan uca)
 
 Kullanıcı "her şeyi başlatalım ve bir tur test edeyim" dedi. API ve arayüz katmanları

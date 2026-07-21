@@ -11,7 +11,7 @@
   "description": "Tekstil sektöründe genel muhasebe süreçlerini yürütecek uzman. Mizan, beyanname, cari mutabakat.",
   "raw_requirements": [
     {
-      "key": "exp_acc",
+      "key": "accounting",
       "label": "Muhasebe deneyimi",
       "kind": "required",
       "category": "experience",

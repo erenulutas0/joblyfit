@@ -34,6 +34,52 @@
 
 ---
 
+## 2026-07-21 — Gerçek ilanlar akıyor (D-020) + paylaşılan sözlük
+
+**Bu session'da yapılanlar:**
+- **D-020**: izinli ATS API'leri (Lever/Greenhouse/Recruitee) açıldı, kanıtla.
+  **D-021**: ayırt edici olmayan şartlar tek başına bant üretemez. ✔
+- `lexicon.py` (82 terim) — ilan ve CV **aynı** sözlüğe bağlandı.
+- 52 gerçek Türkiye ilanı akıyor. **70 test geçiyor.**
+- Detay: [PROGRESS.md](PROGRESS.md) → "Gerçek ilanlar: izinli ATS API'leri".
+
+**Yarım kalanlar:**
+- **Careerjet/Jooble adapter'ı yazılmadı** (OPEN-24) — publisher kaydını kullanıcı
+  yapacak. ATS kapsamı tech ağırlıklı; mavi yaka bunu bekliyor.
+- Kalıcılık yok (bellekte), CI yok, Next.js'e taşınmadı, Docker Compose yok.
+- Sözlük elle yazıldı, serbest metni anlamıyor (OPEN-23 kısmen azaldı).
+- İlan başına ortalama ~2.8 şart çıkarılıyor — zayıf. 2 ilanda hiç şart yok.
+
+**Bir sonraki session'ın ilk adımı:**
+- Kullanıcı onayı bekleniyor. Öncelik sırası ona ait: Careerjet entegrasyonu
+  (kapsam) mı, kalıcılık (PostgreSQL) mi, extraction kalitesi mi.
+
+**Bu session'da alınan kararlar:**
+- D-020, D-021 — ikisi de DECISIONS.md'de ✔
+- Pazar filtresi (Türkiye) **core'a gömülmedi**, `run_live_ingest` parametresi —
+  D-009 gereği pazara özgü her şey politika katmanında.
+
+**Yeni open question'lar:**
+- **OPEN-24** — Careerjet/Jooble publisher kaydı yapılacak mı? Mavi yaka kapsamı
+  buna bağlı.
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **LinkedIn ve Indeed'e dokunma.** LinkedIn'in okuma API'si yok, robots.txt
+  `Disallow: /`. D-020 gate'i açtı ama onları kapsamıyor; `test_rejected_sources_
+  stay_rejected` bunu denetliyor.
+- **`allowed` yazarken `permission_evidence` doldur.** Kanıtsız izin iddiası
+  `test_allowed_sources_must_carry_evidence` ile düşer.
+- **Testlerde canlı ingest çağırma.** `STORE.load(live=False)` kullan; aksi halde
+  her test ağa çıkar ve `Crawl-delay: 1` yüzünden dakikalarca sürer.
+- **İlan ve CV aynı sözlüğü kullanmak zorunda.** Ayrı liste tutmak tam olarak bu
+  session'da düzeltilen hatanın kendisidir.
+- **Lever'da `descriptionPlain` yeterli değil** — çoğu ilanda sadece şirket
+  tanıtımıdır ve firmanın bütün ilanlarında aynıdır. `lists` kullan.
+- **Yeni pano eklerken `registry.BOARDS`'a elle yaz.** Otomatik keşif yok; kaynak
+  listesinin sessizce büyümemesi kasıtlı.
+
+---
+
 ## 2026-07-21 — Uygulama ayağa kalktı (API + arayüz)
 
 **Bu session'da yapılanlar:**

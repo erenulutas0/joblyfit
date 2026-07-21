@@ -42,6 +42,17 @@ GATE_RELEVANT_CATEGORIES: frozenset[str] = frozenset(
     {"license", "work_authorization", "legally_required_certificate"}
 )
 
+# Ayırt edici olmayan şartlar: mesleğe özgü bilgi taşımazlar.
+#
+# "İngilizce" ve "lisans mezuniyeti" hemen her beyaz yaka ilanında geçer.
+# Bir ilandan yalnızca bunlar çıkarılabildiyse, kullanıcının ikisini de
+# karşılıyor olması onun o işe uyduğunu **göstermez**. Gerçek veriyle ilk
+# koşuda bir yazılımcı profiline "Legal Professionals — Labor Law" ilanı
+# "Güçlü eşleşme" çıkmıştı; sebebi tam olarak buydu.
+NON_DISCRIMINATIVE_CATEGORIES: frozenset[str] = frozenset(
+    {"language", "education", "shift"}
+)
+
 
 class MatchBand(str, Enum):
     """Kullanıcıya gösterilen eşleşme bandı.

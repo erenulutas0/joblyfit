@@ -67,9 +67,29 @@ def test_unregistered_source_rejected():
         registry.assert_fetchable("src-tr-999")
 
 
-def test_no_real_source_is_allowed():
-    """D-018 denetimi: gerçek hiçbir kaynak `allowed` işaretli olmamalı."""
-    assert registry.audit()["gercek_allowed"] == 0
+def test_allowed_sources_must_carry_evidence():
+    """D-020 denetimi: izin iddiası **kanıtsız** yazılamaz.
+
+    D-018'in "hiçbir kaynağa crawl yok" kuralının yerini bu aldı. Bir kaynağı
+    `allowed` yapmak serbest değil; gerekçesi kayıtta durmak zorunda.
+    """
+    offenders = registry.allowed_without_evidence()
+    assert offenders == [], [r.source_id for r in offenders]
+    assert registry.audit()["kanitsiz_allowed"] == 0
+
+
+def test_rejected_sources_stay_rejected():
+    """D-020 gate'i açtı diye LinkedIn/Indeed açılmadı."""
+    for sid in ("src-tr-014", "src-tr-015"):
+        assert registry.get(sid).scraping_permission == "rejected"
+        assert not registry.get(sid).may_fetch_network
+
+
+def test_every_board_points_at_an_allowed_source():
+    """Çekilen her pano, izinli bir kayda bağlı olmalı."""
+    for source_id, _platform, slug, _employer in registry.BOARDS:
+        rec = registry.assert_fetchable(source_id)
+        assert rec.scraping_permission == "allowed", slug
 
 
 def test_permission_error_names_the_gate():
@@ -123,9 +143,16 @@ def test_legal_form_is_only_stripped_from_the_end():
     assert "ticaret" in normalize_employer("Ticaret Lisesi Vakfı İktisadi İşletmesi")
 
 
-def test_title_parenthetical_is_stripped():
-    assert normalize_title("Ağır Vasıta Şoförü (Bölgesel Rota)") == normalize_title(
-        "Ağır Vasıta Şoförü"
+def test_title_parenthetical_is_kept():
+    """Parantez içi **atılmaz** — atıldığında farklı işler birleşiyordu.
+
+    "Software Engineer" ile "Software Engineer (New Grad)" aynı anahtara düşüp
+    Geçit A tarafından tek ilana indirgeniyordu. Yanlış birleştirme gerçek bir
+    ilanı kullanıcıdan tamamen gizler; kaçırılan birleştirme yalnızca iki kez
+    gösterir. Asimetri bu yönde karar verdirir.
+    """
+    assert normalize_title("Software Engineer (New Grad)") != normalize_title(
+        "Software Engineer"
     )
 
 

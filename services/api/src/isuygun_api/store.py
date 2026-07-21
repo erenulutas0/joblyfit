@@ -13,7 +13,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 
 from isuygun_core.domain import CareerProfile, ProfileFact, VerificationState
-from isuygun_ingest.pipeline import NormalizedPosting, run_fixture_ingest
+from isuygun_ingest.pipeline import (
+    NormalizedPosting,
+    run_fixture_ingest,
+    run_live_ingest,
+)
 
 from .taxonomy import CatalogItem, build_catalog, selectable
 
@@ -29,18 +33,37 @@ class Store:
 
     # -- ilanlar -----------------------------------------------------------
 
-    def load(self) -> None:
-        """Fixture korpusunu ingest edip belleğe alır."""
-        result = run_fixture_ingest()
+    def load(self, *, live: bool = True, include_fixtures: bool = True) -> None:
+        """İlanları ingest edip belleğe alır.
+
+        ``live=True`` iken Registry'de izinli ATS panolarından **gerçek** ilanlar
+        çekilir (D-020). Ağ hatası ingest'i düşürmez; ``errors`` alanına yazılır
+        ve arayüzde görünür — sessizce boş liste göstermek, kaynağın kapandığını
+        gizlerdi.
+        """
+        if live:
+            try:
+                result = run_live_ingest(include_fixtures=include_fixtures)
+            except Exception as e:  # ağ tamamen kapalıysa fixture'a düş
+                result = run_fixture_ingest()
+                result = {**result, "errors": [{"board": "canlı ingest", "error": str(e)}],
+                          "boards": [], "filtered_out_of_market": 0}
+        else:
+            result = run_fixture_ingest()
+            result = {**result, "errors": [], "boards": [], "filtered_out_of_market": 0}
+
         self.postings = {
             p.job.job_id: p for p in result["canonical_postings"].values()
         }
-        self.catalog = build_catalog(self.postings.values())
+        self.catalog = build_catalog()
         self.ingest_summary = {
             "source": result["source"],
             "fetched": result["fetched"],
             "canonical": result["canonical"],
             "duplicates_merged": result["duplicates_merged"],
+            "filtered_out_of_market": result.get("filtered_out_of_market", 0),
+            "boards": result.get("boards", []),
+            "errors": result.get("errors", []),
         }
 
     def job(self, job_id: str) -> NormalizedPosting | None:

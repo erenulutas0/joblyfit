@@ -20,6 +20,7 @@ import io
 import re
 from dataclasses import dataclass
 
+from isuygun_ingest import lexicon
 from isuygun_ingest.pipeline import fold
 
 from .taxonomy import CatalogItem
@@ -36,39 +37,7 @@ _SENSITIVE_PATTERNS: dict[str, re.Pattern[str]] = {
     "fotograf": re.compile(r"\b(foto[ğg]raf|vesikal[ıi]k)\b", re.I),
 }
 
-# Katalog etiketinin kendisi yetmediğinde kullanılan eş anlamlılar.
-_SYNONYMS: dict[str, tuple[str, ...]] = {
-    "license_ce": ("c+e", "ce sınıfı", "tır", "çekici", "ağır vasıta ehliyet"),
-    "license_b": ("b sınıfı", "b ehliyet", "binek"),
-    "license_d": ("d sınıfı", "otobüs ehliyet"),
-    "src1": ("src", "src1", "src-1", "mesleki yeterlilik"),
-    "psiko": ("psikoteknik",),
-    "forklift": ("forklift", "istif makinesi", "transpalet"),
-    "nurse_license": ("hemşirelik tescil", "tescil belgesi", "diploma tescil"),
-    "acc_software": ("logo", "mikro", "netsis", "eta", "muhasebe programı", "luca"),
-    "efatura": ("e-fatura", "e fatura", "e-defter", "e arşiv"),
-    "smmm": ("smmm", "mali müşavir", "serbest muhasebeci"),
-    "shift_ok": ("vardiya",),
-    "night_shift": ("gece vardiya", "nöbet"),
-    "exp_heavy": ("ağır vasıta", "tır şoför", "uzun yol"),
-    "exp_wh": ("depo", "stok", "sevkiyat", "wms"),
-    "exp_icu": ("yoğun bakım", "reanimasyon"),
-    "exp_acc": ("muhasebe", "mizan", "beyanname", "cari"),
-    "exp_sales": ("saha satış", "bayi", "müşteri portföy"),
-}
 
-_YEAR_NEAR = re.compile(r"(\d{1,2})\s*(?:\+)?\s*yil", re.I)
-
-# Etiketten türetilen kelimeler tek başına kanıt sayılamaz: "belgesi", "ehliyet"
-# gibi terimler neredeyse her CV'de geçer ve alakasız öneri üretir. Bunlar
-# olmadan bir şoför CV'sine "Hemşirelik tescil belgesi" önerilebiliyordu.
-_TOO_GENERIC: frozenset[str] = frozenset({
-    "belge", "belgesi", "belgeler", "ehliyet", "ehliyeti", "sinif", "sinifi",
-    "deneyim", "deneyimi", "tecrube", "sertifika", "sertifikasi", "kullanim",
-    "kullanimi", "uygunluk", "uygunlugu", "sistem", "sistemi", "mesleki",
-    "yeterlilik", "operator", "gorevlisi", "calisabilme", "program", "programi",
-    "tescil", "ruhsat", "ruhsati", "vasita", "sahibi", "bilgisi",
-})
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,59 +78,19 @@ def _scan_sensitive(text: str) -> list[str]:
     return sorted(name for name, pat in _SENSITIVE_PATTERNS.items() if pat.search(text))
 
 
-def _needles(item: CatalogItem) -> tuple[str, ...]:
-    """Bu alanın CV'de aranacak ipuçları.
-
-    Etiketten türeyen kelimeler ``_TOO_GENERIC`` süzgecinden geçer; ayırt edici
-    olmayan bir kelime tek başına öneri üretemez.
-    """
-    label_tokens = tuple(
-        w for w in re.split(r"\W+", fold(item.label))
-        if len(w) > 3 and w not in _TOO_GENERIC
-    )
-    return tuple(fold(s) for s in _SYNONYMS.get(item.key, ())) + label_tokens
-
-
-def _find(needle: str, text: str) -> int:
-    """Kelime sınırına saygılı arama; bulunursa konum, yoksa -1.
-
-    Düz ``in`` kullanmak kelime içi eşleşme üretiyordu: "geçerli" kelimesinin
-    içindeki "gece" yüzünden şoför CV'sine "Gece vardiyası" öneriliyordu.
-    """
-    m = re.search(rf"\b{re.escape(needle)}\b", text)
-    return m.start() if m else -1
-
-
 def suggest_facts(text: str, catalog: list[CatalogItem]) -> list[Suggestion]:
-    """CV metninden profil alanı **önerir**. Hiçbir şeyi profile yazmaz."""
-    # CV'ler Türkçe karakter kullanmadan da yazılıyor ("Agir vasita"). Her iki
-    # tarafı da katlamadan bu CV'ler hiç eşleşmiyordu.
-    low = fold(text)
+    """CV metninden profil alanı **önerir**. Hiçbir şeyi profile yazmaz.
+
+    Tarama, ilan tarafıyla **aynı** fonksiyondan (``lexicon.scan``) geçer.
+    Ayrı bir CV sözlüğü tutmak, iki tarafın sessizce birbirinden sapmasına yol
+    açardı — nitekim bu modülün önceki sürümünde tam olarak bu olmuştu.
+    """
+    by_key = {i.key: i for i in catalog}
     out: list[Suggestion] = []
-
-    for item in catalog:
-        if item.is_legal_eligibility:
-            continue  # D-013 — bu alanlar hiç önerilmez
-        hit, idx = None, -1
-        for n in _needles(item):
-            if not n:
-                continue
-            pos = _find(n, low)
-            if pos >= 0:
-                hit, idx = n, pos
-                break
-        if hit is None:
-            continue
-
-        years: float | None = None
-        if item.asks_years:
-            # Eşleşmenin yakınındaki "N yıl" ifadesini arar. Bulamazsa boş bırakır —
-            # tahmin üretmez; kullanıcı kendisi girer.
-            window = low[max(0, idx - 120): idx + 120]
-            m = _YEAR_NEAR.search(window)
-            if m:
-                years = float(m.group(1))
-
+    for hit in lexicon.scan(text):
+        item = by_key.get(hit.term.key)
+        if item is None or item.is_legal_eligibility:
+            continue  # D-013 — yasal uygunluk alanları hiç önerilmez
         out.append(
             Suggestion(
                 key=item.key,
@@ -169,8 +98,8 @@ def suggest_facts(text: str, catalog: list[CatalogItem]) -> list[Suggestion]:
                 category=item.category,
                 needs_verification=item.needs_verification,
                 asks_years=item.asks_years,
-                years=years,
-                matched_on=hit,
+                years=hit.years,
+                matched_on=hit.matched_form,
             )
         )
     return out

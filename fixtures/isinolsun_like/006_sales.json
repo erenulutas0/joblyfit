@@ -17,14 +17,14 @@
       "category": "license"
     },
     {
-      "key": "exp_sales",
+      "key": "field_sales",
       "label": "Saha satış deneyimi",
       "kind": "required",
       "category": "experience",
       "min_years": 2
     },
     {
-      "key": "military",
+      "key": "legal_military",
       "label": "Askerlik durumu",
       "kind": "hard",
       "category": "other",

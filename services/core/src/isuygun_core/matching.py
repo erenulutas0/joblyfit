@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .domain import (
+    NON_DISCRIMINATIVE_CATEGORIES,
     CareerProfile,
     Confidence,
     JobPosting,
@@ -150,12 +151,26 @@ def match(
 
     base, coverage = _structured_score(outcomes)
 
-    if coverage == 0.0 and outcomes:
-        # Tek bir şart bile değerlendirilemedi. Skor 0 çıkar ve bu "zayıf
-        # eşleşme"ye dönerdi — oysa sistemin söylediği "uymuyorsun" değil,
-        # "bilmiyorum"dur. Bu ikisini bant düzeyinde de ayırmak D-011'in
-        # gereğidir; aksi halde `unknown` arka kapıdan `unmet` gibi
-        # cezalandırılmış olur.
+    # Değerlendirilebilen şartların hiçbiri mesleğe özgü değilse, elde bir
+    # eşleşme iddiası kuracak kanıt yoktur. "İngilizce biliyorsun" bir hukuk
+    # ilanı için uyum kanıtı değildir.
+    discriminative = any(
+        o.state != "unknown"
+        and o.requirement.category not in NON_DISCRIMINATIVE_CATEGORIES
+        and not o.requirement.is_legal_eligibility
+        for o in outcomes
+    )
+
+    if outcomes and (coverage == 0.0 or not discriminative):
+        # İki durum da aynı sonuca çıkar: elimizde bant kuracak kanıt yok.
+        #
+        # (a) Hiçbir şart değerlendirilemedi. Skor 0 çıkar ve bu "zayıf
+        #     eşleşme"ye dönerdi — oysa sistemin söylediği "uymuyorsun" değil,
+        #     "bilmiyorum"dur. Bu ikisini bant düzeyinde de ayırmak D-011'in
+        #     gereğidir; aksi halde `unknown` arka kapıdan `unmet` gibi
+        #     cezalandırılmış olur.
+        # (b) Değerlendirilenlerin hepsi ayırt edici olmayan şartlar. Bunlara
+        #     dayanıp "güçlü eşleşme" demek uydurma bir iddia olurdu.
         return MatchResult(
             job=job,
             outcomes=outcomes,

@@ -1,29 +1,25 @@
-"""Profil alan kataloğu — korpustan türetilir.
+"""Profil alan kataloğu — paylaşılan sözlükten türetilir.
 
-Matching, şart anahtarı (``Requirement.key``) ile profil alanı (``ProfileFact.key``)
-eşitliğine dayanır. Bu, gerçek bir sistemde bir **ontoloji** işidir (ESCO benzeri):
-serbest metin "TIR şoförlüğü" ile ilandaki "C+E sınıfı ehliyet" bir eşleme
-katmanından geçmelidir.
+**Bu dosya bir hatanın düzeltilmesidir.** Önceki sürümde katalog *korpustan*
+türetiliyordu: profil editörü yalnızca eldeki 8 sentetik ilanda geçen 18 alanı
+tanıyordu. Gerçek bir CV yüklendiğinde hiçbir şey eşleşmedi — çünkü kullanıcının
+mesleği o 18 alanın hiçbiri değildi. Sistem bozuk değildi; **eşleşecek bir alan
+yoktu.**
 
-MVP'de böyle bir ontoloji **yoktur**. Bunun yerine katalog doğrudan korpustaki
-şartlardan türetilir; böylece profil editörü ile ilanlar arasında sessiz bir
-kayma oluşamaz. Bu kasıtlı bir sadeleştirmedir ve gerçek kaynağa geçilmeden
-önce ontolojiyle değiştirilmelidir (bkz. OPEN-23).
+Artık katalog ``isuygun_ingest.lexicon``'dan gelir. İlan tarafı da CV tarafı da
+aynı sözlüğe eşlendiği için eşleşme anlamlıdır ve profil editörü korpusta o an
+hangi ilanlar olduğundan bağımsızdır.
+
+Bu hâlâ tam bir ontoloji değildir (OPEN-23) — sözlük elle yazılmıştır ve
+serbest metni anlamaz.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from isuygun_core.domain import GATE_RELEVANT_CATEGORIES, Requirement
-
-OCCUPATION_LABELS: dict[str, str] = {
-    "driver": "Şoförlük ve taşımacılık",
-    "warehouse": "Depo ve lojistik",
-    "nurse": "Sağlık",
-    "account": "Muhasebe ve finans",
-    "sales": "Satış",
-}
+from isuygun_core.domain import GATE_RELEVANT_CATEGORIES
+from isuygun_ingest import lexicon
 
 CATEGORY_LABELS: dict[str, str] = {
     "license": "Belge ve ehliyet",
@@ -32,6 +28,8 @@ CATEGORY_LABELS: dict[str, str] = {
     "experience": "Deneyim",
     "skill": "Beceri",
     "shift": "Çalışma düzeni",
+    "language": "Dil",
+    "education": "Eğitim",
     "work_authorization": "Çalışma izni",
     "other": "Diğer",
 }
@@ -45,42 +43,41 @@ class CatalogItem:
     label: str
     category: str
     category_label: str
-    occupation_id: str
+    occupation_id: str          # lexicon cluster'ı
     occupation_label: str
-    #: Süre soruluyor mu (ilan en az X yıl istiyorsa)
     asks_years: bool
-    #: `verified` olmadan `met` üretemeyen alan (D-012)
-    needs_verification: bool
-    #: D-013 — yasal uygunluk şartı; profile hiç yazılmaz
-    is_legal_eligibility: bool
+    needs_verification: bool    # `verified` olmadan `met` üretemez (D-012)
+    is_legal_eligibility: bool = False
 
 
-def build_catalog(postings) -> list[CatalogItem]:
-    """İlan korpusundaki şartlardan profil kataloğunu türetir."""
-    seen: dict[str, CatalogItem] = {}
-    for p in postings:
-        occ = p.job.occupation_id
-        for req in p.job.requirements:
-            if req.key in seen:
-                continue
-            seen[req.key] = CatalogItem(
-                key=req.key,
-                label=req.label,
-                category=req.category,
-                category_label=CATEGORY_LABELS.get(req.category, req.category),
-                occupation_id=occ,
-                occupation_label=OCCUPATION_LABELS.get(occ, occ),
-                asks_years=req.min_years is not None,
-                needs_verification=req.category in GATE_RELEVANT_CATEGORIES,
-                is_legal_eligibility=req.is_legal_eligibility,
-            )
-    return sorted(seen.values(), key=lambda i: (i.occupation_label, i.category_label, i.label))
+def build_catalog(_postings=None) -> list[CatalogItem]:
+    """Kataloğu sözlükten kurar.
+
+    ``_postings`` artık kullanılmaz; imza, çağıranları kırmamak için korunur.
+    Katalog **korpustan bağımsızdır** — bu, düzeltmenin özüdür.
+    """
+    items = [
+        CatalogItem(
+            key=t.key,
+            label=t.label,
+            category=t.category,
+            category_label=CATEGORY_LABELS.get(t.category, t.category),
+            occupation_id=t.cluster,
+            occupation_label=t.cluster,
+            asks_years=t.asks_years,
+            needs_verification=t.category in GATE_RELEVANT_CATEGORIES,
+        )
+        for t in lexicon.TERMS
+    ]
+    order = {c: i for i, c in enumerate(lexicon.clusters())}
+    return sorted(items, key=lambda i: (order.get(i.occupation_id, 999),
+                                        i.category_label, i.label))
 
 
 def selectable(catalog: list[CatalogItem]) -> list[CatalogItem]:
     """Kullanıcının profiline ekleyebileceği alanlar.
 
     Yasal uygunluk şartları (askerlik, yaş, sağlık) **listede yer almaz** —
-    bunlar profile hiç yazılmaz ve skora girmez (D-013 + D-006).
+    profile hiç yazılmaz ve skora girmez (D-013 + D-006).
     """
     return [i for i in catalog if not i.is_legal_eligibility]

@@ -16,12 +16,26 @@ from isuygun_api.main import app
 from isuygun_api.store import STORE
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _offline_corpus():
+    """Testler **ağa çıkmaz**.
+
+    Canlı ingest gerçek ATS uçlarına gider ve ``Crawl-delay: 1`` uygular;
+    testlerde bunu yapmak hem yavaş hem de dış servise gereksiz yük olurdu.
+    Ayrıca test sonucunun uzak bir sunucunun o anki içeriğine bağlı olması
+    testi kırılgan yapar.
+    """
+    STORE.load(live=False)
+    yield
+
+
 @pytest.fixture()
 def client():
-    with TestClient(app) as c:
-        STORE.reset_profile()
-        yield c
-        STORE.reset_profile()
+    # lifespan'i tetiklemeden: korpus zaten yüklendi.
+    c = TestClient(app)
+    STORE.reset_profile()
+    yield c
+    STORE.reset_profile()
 
 
 def _add(c, key, **kw):
@@ -53,7 +67,7 @@ def test_unevaluated_never_labelled_weak(client):
 
 
 def test_profile_moves_job_into_evaluated(client):
-    _add(client, "exp_heavy", years=6)
+    _add(client, "heavy_driving", years=6)
     f = client.get("/api/feed").json()
     titles = [j["title"] for j in f["evaluated"]]
     assert any("Şoför" in t for t in titles)
@@ -61,7 +75,7 @@ def test_profile_moves_job_into_evaluated(client):
 
 def test_no_percentage_in_any_payload(client):
     """D-005: hiçbir uçtan yüzde veya sayısal skor sızmamalı."""
-    _add(client, "exp_heavy", years=6)
+    _add(client, "heavy_driving", years=6)
     feed = client.get("/api/feed").json()
     blob = str(feed)
     for j in feed["evaluated"] + feed["unevaluated"]:
@@ -99,8 +113,8 @@ def test_verification_endpoint_promotes_fact(client):
 
 def test_unverified_gate_forces_conditional_band(client):
     """Belge doğrulanmadan bant güçlü olamaz; detayda uyarı görünür."""
-    _add(client, "exp_heavy", years=6)
-    _add(client, "src1", verified=True)
+    _add(client, "heavy_driving", years=6)
+    _add(client, "src", verified=True)
     _add(client, "psiko", verified=True)
     _add(client, "license_ce")  # kasten doğrulanmamış
 
@@ -114,9 +128,9 @@ def test_unverified_gate_forces_conditional_band(client):
 
 
 def test_verifying_everything_reaches_strong(client):
-    for k in ("exp_heavy",):
+    for k in ("heavy_driving",):
         _add(client, k, years=6)
-    for k in ("src1", "psiko", "license_ce"):
+    for k in ("src", "psiko", "license_ce"):
         _add(client, k, verified=True)
     job = next(j for j in client.get("/api/feed").json()["evaluated"]
                if "Şoför" in j["title"])
@@ -131,11 +145,11 @@ def test_verifying_everything_reaches_strong(client):
 def test_legal_eligibility_not_in_catalog(client):
     """Askerlik gibi şartlar profil kataloğunda YER ALMAZ."""
     keys = [i["key"] for i in client.get("/api/catalog").json()]
-    assert "military" not in keys
+    assert not any(k.startswith("legal_") for k in keys)
 
 
 def test_legal_eligibility_cannot_be_written(client):
-    r = client.post("/api/profile/facts", json={"key": "military"})
+    r = client.post("/api/profile/facts", json={"key": "legal_military"})
     assert r.status_code in (400, 404)
 
 
@@ -210,7 +224,7 @@ def test_cv_does_not_suggest_unrelated_professions():
 def test_cv_matching_survives_missing_turkish_characters():
     """CV'ler "Agir vasita" diye de yazılıyor; katlama olmadan hiç eşleşmiyordu."""
     keys = [s.key for s in suggest_facts(_CV, STORE.catalog)]
-    assert "exp_heavy" in keys
+    assert "heavy_driving" in keys
 
 
 def test_cv_does_not_match_inside_words():
@@ -224,13 +238,27 @@ def test_cv_does_not_match_inside_words():
 # --------------------------------------------------------------------------
 
 
-def test_no_real_source_may_fetch(client):
-    """D-018: API üzerinden bakıldığında da hiçbir gerçek kaynak açık olmamalı."""
+def test_open_sources_are_only_permitted_apis(client):
+    """D-020: ağ erişimi açık olan her kaynak izinli bir API olmalı.
+
+    Gate açıldı ama sınırsız açılmadı: yalnızca `api` erişim yöntemli, izni
+    `allowed` kayıtlar çekilebilir. Bir gün buraya `html` erişimli bir kayıt
+    sızarsa bu test düşer.
+    """
     rows = client.get("/api/sources").json()
-    real_open = [
-        s for s in rows if s["may_fetch_network"] and s["access_method"] != "fixture"
-    ]
-    assert real_open == []
+    for s in rows:
+        if not s["may_fetch_network"]:
+            continue
+        assert s["scraping_permission"] == "allowed", s["source_id"]
+        assert s["access_method"] in ("api", "feed", "fixture"), s["source_id"]
+
+
+def test_rejected_platforms_remain_closed(client):
+    """LinkedIn ve Indeed kapalı kalmalı — gate açılışı onları kapsamadı."""
+    rows = {s["name"]: s for s in client.get("/api/sources").json()}
+    for name in ("LinkedIn", "Indeed Türkiye"):
+        assert rows[name]["may_fetch_network"] is False
+        assert rows[name]["scraping_permission"] == "rejected"
 
 
 def test_openapi_schema_is_generated(client):

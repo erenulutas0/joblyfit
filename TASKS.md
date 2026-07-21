@@ -353,11 +353,12 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   depolanıyor; provenance kaydediliyor; rate limit ve robots uyumu loglardan doğrulanabiliyor;
   **access-change detection** (login wall/CAPTCHA imzası) çalışıyor ve tetiklendiğinde
   crawl duruyor.
-- **Status:** **In Progress (yalnızca fixture)** — Source Registry çalışıyor
-  (`services/ingest/src/isuygun_ingest/registry.py`); izin kapısı kod düzeyinde
-  zorlayıcı. Pipeline fetch → normalize → dedupe uçtan uca koşuyor.
-  **Bloke kalan kısım:** gerçek source adapter, rate limit, access-change detection —
-  bunlar ancak OPEN-19/OPEN-09 kapanınca yazılır (D-018).
+- **Status:** **In Progress** — Source Registry ve **gerçek ATS adapter'ı** çalışıyor
+  (Lever/Greenhouse/Recruitee, D-020). 5 panodan 52 gerçek Türkiye ilanı çekiliyor;
+  provenance kaydediliyor, `Crawl-delay: 1` uygulanıyor, izin kanıtı registry'de.
+  **Eksik:** access-change detection (403/login-wall imzası tespiti kısmî — hata
+  raporlanıyor ama crawl durdurma mantığı yok), Careerjet/Jooble (OPEN-24).
+  **Bloke kalan:** izin gerektiren TR siteleri (OPEN-19/OPEN-09).
 
 #### T-016 — Career Profile + CV upload/parsing (MVP kapsamı)
 - **Objective:** Manuel profil editörü + CV upload (PDF/Türkçe) + parsing + kullanıcı

@@ -108,10 +108,23 @@ def _worth_applying(result: MatchResult) -> tuple[str, str]:
             "bilgileri profiline eklersen ilanın sana uyup uymadığını gösterebiliriz.",
             "insufficient_data",
         )
+    strong_side = result.band in (MatchBand.STRONG, MatchBand.GOOD)
+
     if result.unknown:
         first = result.unknown[0].requirement.label
+        n = len(result.unknown)
+        rest = f" (ve {n - 1} şart daha)" if n > 1 else ""
+        if strong_side:
+            # Bandı olumlu olan bir ilana "değerlendirme eksik kaldı" diye
+            # başlamak, kullanıcının kazandığı zemini gizler. Önce ne
+            # bildiğimizi söyleriz, sonra neyi bilmediğimizi.
+            return (
+                f"Kontrol edebildiğimiz şartları karşılıyorsun. {first} bilgisi"
+                f"{rest} profilinde yok — eklersen değerlendirme netleşir.",
+                "partial_unknown",
+            )
         return (
-            f"Değerlendirme eksik kaldı: {first} bilgisi profilinde yok. "
+            f"Değerlendirme eksik kaldı: {first} bilgisi{rest} profilinde yok. "
             "Eklersen bu ilanın sana uyup uymadığı netleşir.",
             "hard_unknown_missing",
         )

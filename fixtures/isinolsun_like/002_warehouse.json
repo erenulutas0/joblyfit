@@ -11,14 +11,14 @@
   "description": "Mal kabul, yerleştirme, sayım ve sevkiyat hazırlığı. Barkod ve el terminali kullanımı.",
   "raw_requirements": [
     {
-      "key": "exp_wh",
+      "key": "warehouse",
       "label": "Depo/stok sistemi deneyimi",
       "kind": "required",
       "category": "experience",
       "min_years": 2
     },
     {
-      "key": "shift_ok",
+      "key": "shift_work",
       "label": "Vardiyalı çalışabilme",
       "kind": "required",
       "category": "shift"

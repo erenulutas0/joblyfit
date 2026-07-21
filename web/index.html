@@ -336,10 +336,22 @@ function viewFeed(){
     </div>
     ${ev}${un}
     <p class="disclaimer">
-      Korpus: <b>${esc(f.ingest.source)}</b> — ${f.ingest.fetched} kayıt okundu,
-      ${f.ingest.duplicates_merged} kopya birleştirildi, ${f.ingest.canonical} ilan
-      gösteriliyor. <strong>Bu ilanlar gerçek değildir</strong>; sistemi test etmek
-      için üretilmiş örneklerdir.
+      <strong>Kaynak:</strong> ${esc(f.ingest.source)} —
+      ${f.ingest.fetched} ilan okundu,
+      ${f.ingest.filtered_out_of_market || 0} tanesi Türkiye dışı olduğu için elendi,
+      ${f.ingest.duplicates_merged} kopya birleştirildi,
+      <b>${f.ingest.canonical}</b> ilan gösteriliyor.
+      ${(f.ingest.boards || []).length ? `Panolar: ${
+        f.ingest.boards.map(b => esc(b.employer) + ' (' + b.count + ')').join(', ')}.` : ''}
+      ${(f.ingest.errors || []).length ? `<br><b style="color:var(--unmet)">
+        Çekilemeyen kaynak:</b> ${f.ingest.errors.map(e => esc(e.board)).join(', ')}.` : ''}
+      <br><br>
+      <strong>Kapsam dar.</strong> Şu an yalnızca izinli ATS API'lerinden
+      (Lever, Greenhouse, Recruitee) çekiliyor; bu da ağırlıklı olarak teknoloji ve
+      kurumsal ilan demek. Mavi yaka kapsamı için Careerjet/Jooble entegrasyonu ya da
+      doğrudan izin gerekiyor. Ayrıca birkaç sentetik test ilanı korpusa dahildir
+      (<span class="ledger-ev">example.invalid</span> adresli olanlar).
+      <a href="#" data-goto="sources">Kaynak listesi →</a>
     </p>`;
 }
 
@@ -506,9 +518,14 @@ function viewSources(){
     <div class="section-head"><h2>Kaynaklar</h2>
       <span class="count">${SOURCES.length} kayıt</span></div>
     <div class="notice" style="margin:14px 0 0">
-      Şu anda <strong>hiçbir gerçek siteden ilan çekilmiyor.</strong> İncelenen
-      kaynakların hiçbiri koşulsuz izinli değil; izin alınmadan veri toplanmıyor.
-      Aşağıdaki ilanlar test için üretilmiş örnek kayıtlardır.
+      İlanlar yalnızca <strong>izni kaynağın kendi yayınında kanıtlanmış</strong>
+      uçlardan çekiliyor. Bunlar şirketlerin kariyer sayfası kurmak için yayınladığı,
+      kimlik doğrulaması istemeyen public API'lerdir ve kullanıcıyı ilanın
+      <strong>kendi sayfasına</strong> yönlendirmek amaçlanan kullanımdır.
+      <br><br>
+      <strong>LinkedIn ve Indeed çekilmiyor ve çekilmeyecek.</strong> LinkedIn'in
+      okuma API'si yok, robots.txt'i otomatik erişimi açıkça yasaklıyor; Indeed'in
+      eski publisher API'si kapatıldı. Bunları aşmanın yolu aranmıyor.
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Kaynak</th><th>İzin</th><th>Risk</th><th>Durum</th>
@@ -522,7 +539,9 @@ function viewSources(){
         <td>${s.may_fetch_network
           ? '<span class="perm p-allowed">Açık</span>'
           : '<span class="perm p-rejected">Kapalı</span>'}</td>
-        <td class="muted" style="max-width:34ch">${esc(s.note)}</td>
+        <td class="muted" style="max-width:34ch">${esc(s.note)}${
+          s.permission_evidence ? `<div style="margin-top:5px; font-size:11.5px">
+            <b>İzin kanıtı:</b> ${esc(s.permission_evidence)}</div>` : ''}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
 }

@@ -400,3 +400,64 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   ilanları bant üzerinden sıralayamaz; ayrı ele alınması gerekir (bkz. OPEN-22).
 - **Denetlenebilirlik:** `services/core/tests/test_critical_invariants.py` →
   `test_all_unknown_produces_no_band_at_all`.
+
+---
+
+## D-020 — İzinli ATS API'leri açıldı; LinkedIn/Indeed kapalı kaldı
+
+- **Status:** Confirmed (2026-07-21 kullanıcı onayı) — **D-018'i kısmen revize eder**
+- **Date:** 2026-07-21
+- **Decision:** Gerçek ilanlar, **izni kaynağın kendi yayınında kanıtlanan** public
+  ATS API'lerinden çekilir: Lever, Greenhouse, Recruitee. Bu uçlar şirketlerin
+  kendi kariyer sayfalarını kurmaları için yayınladığı, kimlik doğrulaması
+  istemeyen public API'lerdir ve yanıt ilanın **kendi sayfasına** giden URL taşır.
+
+  D-018'in "hiçbir kaynağa crawl başlatılmaz" maddesi **yalnızca bu sınıf için**
+  kalkar. Kaldıran şey kararsızlık değil, kanıttır: izin, kaynağın kendi
+  robots.txt'inde ve dokümantasyonunda yazılıdır.
+
+  D-018'in ikinci maddesi (**beta'ya gerçek kullanıcı alınmaz**) aynen durur.
+- **Reason:** Kullanıcı gerçek ilanları listelemek ve kullanıcıyı ilanın kendi
+  sayfasına yönlendirmek istedi. Araştırma, LinkedIn için **hiçbir yasal yol
+  olmadığını** gösterdi (okuma API'si yok; Job Posting API ters yönde çalışıyor ve
+  yeni partner almıyor; robots.txt `Disallow: /`). Buna karşılık ATS public API'leri
+  tam olarak bu kullanım için var: yönlendirilen trafik kaynağın **istediği** şey.
+- **Alternatives:** Careerjet / Jooble publisher API'leri (Türkiye kapsamı daha
+  geniş, blue-collar dahil — **ertelenmedi, sırada**; publisher kaydını kullanıcı
+  yapacak). Aggregator scraper'ları (JSearch, Coresignal) **reddedildi**: kendi
+  tanımlarıyla LinkedIn/Indeed'i scrape ediyorlar, o ToS ihlalini devralmak olurdu.
+- **Consequence:** Türkiye kapsamı **dar ve tech ağırlıklı** — 5 pano, ~52 ilan.
+  Ürünün "her meslek dalı" iddiasını bu kaynak tek başına karşılamaz; Careerjet/
+  Jooble veya doğrudan izin (OPEN-19) gerekir. Kapsam sınırı arayüzde gizlenmez.
+- **Denetlenebilirlik:**
+  1. `allowed` işaretli her kayıt `permission_evidence` taşımak zorundadır;
+     `registry.allowed_without_evidence()` boş dönmelidir
+     (`test_allowed_sources_must_carry_evidence`).
+  2. LinkedIn ve Indeed `rejected` kalır (`test_rejected_sources_stay_rejected`).
+  3. Ağ erişimi açık her kayıt `access_method` olarak yalnızca `api`/`feed`
+     taşıyabilir (`test_open_sources_are_only_permitted_apis`).
+  4. Çekilecek panolar `registry.BOARDS` içinde **elle** listelenir; otomatik
+     keşif yoktur.
+
+---
+
+## D-021 — Ayırt edici olmayan şartlar tek başına bant üretemez
+
+- **Status:** Confirmed (2026-07-21) — gerçek veriyle ortaya çıktı
+- **Date:** 2026-07-21
+- **Decision:** Bir ilandan değerlendirilebilen şartların **hepsi** ayırt edici
+  olmayan kategorilerdense (`language`, `education`, `shift`), Match Band
+  üretilmez; ilan "değerlendirilemedi" olarak gösterilir (D-019 mekanizması).
+- **Reason:** Gerçek ATS ilanlarıyla ilk koşuda bir yazılımcı profiline
+  **"Legal Professionals — Labor Law"** ilanı *Güçlü eşleşme* çıktı. Sebep: o
+  ilandan yalnızca "İngilizce" ve "Lisans mezuniyeti" çıkarılabilmişti ve
+  geliştirici ikisine de sahipti → 1/1 → güçlü. Hiçbir mesleki kanıt olmadan
+  uyum iddia edilmiş oluyordu. Bu, zayıf extraction'ın sahte güvene dönüşmesidir.
+- **Alternatives:** Occupation eşleşmesini skora katmak (reddedildi — meslek
+  sınıflandırması kestirimdir, gate kararı veremez); ayırt edici şartlara daha
+  yüksek ağırlık vermek (reddedildi — ağırlık, kanıt yokluğunu gizler, yalnızca
+  geciktirir).
+- **Consequence:** Zayıf çıkarımlı ilanlar bant almaz. Bu, feed'de daha az
+  "eşleşme" demektir — **kasıtlıdır**: az ve doğru, çok ve yanlıştan iyidir.
+  Extraction iyileştikçe bant alan ilan sayısı kendiliğinden artar.
+- **Denetlenebilirlik:** `test_generic_requirements_alone_produce_no_band`.

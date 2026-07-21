@@ -324,3 +324,49 @@ def test_uncalibrated_occupation_lowers_confidence():
 
     assert match(job, prof, calibrated_occupation=True).confidence.value == "high"
     assert match(job, prof, calibrated_occupation=False).confidence.value == "low"
+
+
+# --------------------------------------------------------------------------
+# Ayırt edici kanıt — gerçek veriyle ortaya çıkan hata
+# --------------------------------------------------------------------------
+
+
+def test_generic_requirements_alone_produce_no_band():
+    """Yalnızca "İngilizce + lisans" karşılamak eşleşme kanıtı DEĞİLDİR.
+
+    Gerçek ilanlarla ilk koşuda bir yazılımcı profiline "Legal Professionals —
+    Labor Law" ilanı **Güçlü eşleşme** çıkmıştı: o ilandan yalnızca dil ve
+    eğitim düzeyi çıkarılabilmiş, geliştirici de ikisine sahipti. 1/1 → güçlü.
+    Bu, hiçbir mesleki kanıt olmadan uyum iddia etmektir.
+    """
+    reqs = (
+        Requirement(key="english", label="İngilizce", kind="required", category="language"),
+        Requirement(key="bachelor", label="Lisans", kind="required", category="education"),
+    )
+    job = JobPosting(job_id="j", title="Hukuk Uzmanı", employer="E", city="İstanbul",
+                     occupation_id="hukuk", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="english", category="language", verification="user_asserted"),
+        ProfileFact(key="bachelor", category="education", verification="user_asserted"),
+    ))
+
+    r = match(job, prof)
+    assert r.met and not r.unmet, "iki şart da karşılanıyor"
+    assert r.band is None, "ayırt edici kanıt yokken bant üretilemez"
+    assert r.insufficient_data
+
+
+def test_one_discriminative_requirement_is_enough():
+    """Mesleğe özgü tek bir şart bile değerlendirilebiliyorsa bant üretilir."""
+    reqs = (
+        Requirement(key="english", label="İngilizce", kind="required", category="language"),
+        Requirement(key="python", label="Python", kind="required", category="skill"),
+    )
+    job = JobPosting(job_id="j", title="Backend Developer", employer="E", city="İstanbul",
+                     occupation_id="yazilim", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="english", category="language", verification="user_asserted"),
+        ProfileFact(key="python", category="skill", verification="user_asserted"),
+    ))
+    r = match(job, prof)
+    assert r.band is not None and not r.insufficient_data

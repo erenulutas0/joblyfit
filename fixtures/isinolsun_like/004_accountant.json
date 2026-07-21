@@ -11,7 +11,7 @@
   "description": "Cari hesap takibi, fatura kayıt, banka mutabakat. Haftada iki gün uzaktan.",
   "raw_requirements": [
     {
-      "key": "exp_acc",
+      "key": "accounting",
       "label": "Ön muhasebe deneyimi",
       "kind": "required",
       "category": "experience",

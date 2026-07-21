@@ -150,6 +150,7 @@ class SourceOut(BaseModel):
     status: str
     may_fetch_network: bool
     note: str
+    permission_evidence: str = ""
 
 
 # --------------------------------------------------------------------------
@@ -159,9 +160,11 @@ class SourceOut(BaseModel):
 _BAND_ORDER = {MatchBand.STRONG: 0, MatchBand.GOOD: 1, MatchBand.CONDITIONAL: 2,
                MatchBand.WEAK: 3}
 
-# D-008 — kalibre edilmiş occupation'lar. Korpus dar olduğu için hepsi kalibre
-# sayılmaz; kalibre olmayanlarda confidence düşürülür.
-_CALIBRATED = {"driver", "warehouse", "account"}
+# D-008 — kalibre edilmiş meslek kümeleri. Hiçbiri golden set'le ölçülmedi
+# (T-006b açık), bu yüzden liste bilinçli olarak **boştur**: her ilan düşük
+# confidence ile gösterilir. Kalibre olmadan "yüksek güven" demek, ölçülmemiş
+# bir şeye güven iddia etmek olurdu.
+_CALIBRATED: set[str] = set()
 
 
 def _evaluate(posting):
@@ -216,6 +219,7 @@ def sources() -> list[SourceOut]:
             source_id=r.source_id, name=r.name, access_method=r.access_method,
             scraping_permission=r.scraping_permission, policy_risk=r.policy_risk,
             status=r.status, may_fetch_network=r.may_fetch_network, note=r.note,
+            permission_evidence=r.permission_evidence,
         )
         for r in registry.REGISTRY.values()
     ]

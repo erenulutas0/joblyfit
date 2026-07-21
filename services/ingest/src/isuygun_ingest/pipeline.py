@@ -85,8 +85,17 @@ def normalize_employer(raw: str) -> str:
 
 
 def normalize_title(raw: str) -> str:
-    s = re.sub(r"\(.*?\)", " ", raw)        # "(Bölgesel Rota)" gibi ekleri at
-    return " ".join(_words(s))
+    """Başlığı karşılaştırılabilir hale getirir — ama **içerik atmadan**.
+
+    Parantez içi ekler bilinçli olarak korunur. Atıldığında "Software Engineer"
+    ile "Software Engineer (New Grad)" aynı anahtara düşüyor ve Geçit A bunları
+    tek ilana indirgiyordu; oysa bunlar farklı pozisyonlar.
+
+    Buradaki asimetri kararı belirler: kaçırılan bir birleştirme kullanıcıya
+    ilanı iki kez gösterir, yanlış birleştirme ise **gerçek bir ilanı ondan
+    tamamen gizler**. İkincisi daha ağır bir hatadır.
+    """
+    return " ".join(_words(raw))
 
 
 # --------------------------------------------------------------------------
@@ -165,26 +174,75 @@ def content_similarity(a: NormalizedPosting, b: NormalizedPosting) -> float:
     return len(ta & tb) / len(ta | tb)
 
 
-def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
-    reqs = tuple(
-        Requirement(
-            key=r["key"],
-            label=r["label"],
-            kind=r.get("kind", "required"),
-            category=r.get("category", "skill"),
-            min_years=r.get("min_years"),
-            extraction_confidence=r.get("confidence", 1.0),
-            is_legal_eligibility=r.get("is_legal_eligibility", False),
-            source_span=r.get("span"),
-        )
-        for r in raw.raw_requirements
+# Geçit B'de başlıkların da bir miktar örtüşmesi beklenir. Agency kopyası
+# başlığı değiştirir ama tanınmaz hale getirmez ("Muhasebe Uzmanı" →
+# "Finans ve Muhasebe Uzmanı Aranıyor").
+TITLE_SIMILARITY_FLOOR = 0.3
+
+
+def _title_similarity(a: NormalizedPosting, b: NormalizedPosting) -> float:
+    ta, tb = set(a.title_key.split()), set(b.title_key.split())
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+_ANON_MARKERS = ("gizli", "belirtilmemis", "firma adi", "confidential")
+
+
+def _is_anonymous(p: NormalizedPosting) -> bool:
+    return any(m in p.employer_key for m in _ANON_MARKERS)
+
+
+def may_pair_via_gate_b(a: NormalizedPosting, b: NormalizedPosting) -> bool:
+    """Geçit B'nin bu çifti değerlendirmeye alıp almayacağı.
+
+    Geçit B **işveren gizlendiğinde** devreye girer. İki ilan aynı ve bilinen
+    işverene aitse Geçit A zaten yetkilidir; B'nin araya girmesi aynı şirketin
+    farklı ilanlarını birleştirir. Gerçekte olan buydu: iyzico'nun "Instore
+    Sales Manager" ve "Senior AML Analyst" ilanları, paylaşılan şirket
+    tanıtımı yüzünden %100 benzer çıkıp tek ilana indirgeniyordu.
+    """
+    same_known_employer = (
+        a.employer_key == b.employer_key
+        and a.employer_key
+        and not _is_anonymous(a)
     )
+    if same_known_employer:
+        return False
+    return _title_similarity(a, b) >= TITLE_SIMILARITY_FLOOR
+
+
+def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
+    if raw.raw_requirements:
+        # Fixture'lar şartları hazır verir.
+        reqs = tuple(
+            Requirement(
+                key=r["key"],
+                label=r["label"],
+                kind=r.get("kind", "required"),
+                category=r.get("category", "skill"),
+                min_years=r.get("min_years"),
+                extraction_confidence=r.get("confidence", 1.0),
+                is_legal_eligibility=r.get("is_legal_eligibility", False),
+                source_span=r.get("span"),
+            )
+            for r in raw.raw_requirements
+        )
+        occupation = raw.occupation_id
+    else:
+        # Gerçek ilanlar serbest metindir; şartlar sözlükten çıkarılır.
+        # Extraction ayrı bir alt sistem değil, normalize'ın parçasıdır (ARC-01).
+        from .extract import extract_requirements, infer_occupation
+
+        reqs = extract_requirements(raw.title, raw.description)
+        occupation = raw.occupation_id or infer_occupation(raw.title, reqs)
     job = JobPosting(
         job_id=f"{raw.source_id}:{raw.source_posting_ref}",
         title=raw.title,
         employer=raw.employer,
         city=raw.city,
-        occupation_id=raw.occupation_id,
+        occupation_id=occupation,
         source=registry.get(raw.source_id).name,
         requirements=reqs,
         is_public_sector=raw.is_public_sector,
@@ -268,6 +326,8 @@ def cluster(
             oversized.append(key)
             continue
         for x, y in combinations(group, 2):
+            if not may_pair_via_gate_b(x, y):
+                continue
             if content_similarity(x, y) >= CONTENT_SIMILARITY_THRESHOLD:
                 union(x.job.job_id, y.job.job_id)
 
@@ -327,6 +387,90 @@ def run_fixture_ingest(source_id: str = "src-fixture-001", root: Path | None = N
     return {
         "source": rec.name,
         "fetched": len(raws),
+        "normalized": len(normalized),
+        "canonical": len(clusters),
+        "duplicates_merged": len(normalized) - len(clusters),
+        "oversized_blocks": oversized,
+        "postings": normalized,
+        "clusters": clusters,
+        "canonical_postings": canonical,
+    }
+
+
+# --------------------------------------------------------------------------
+# Gerçek kaynak ingest'i (D-020)
+# --------------------------------------------------------------------------
+
+LIVE_ADAPTER_VERSION = "ats-0.1.0"
+
+# Türkiye şehir/ülke işaretleri. **Core'a gömülmez** — D-009 gereği pazara özgü
+# her şey politika katmanında parametre olarak kalır; başka bir pazara açılırken
+# değişecek tek yer burasıdır.
+TR_LOCATION_MARKERS: tuple[str, ...] = (
+    "turkiye", "turkey", "istanbul", "ankara", "izmir", "bursa", "antalya",
+    "kocaeli", "adana", "konya", "gaziantep", "eskisehir", "kayseri", "samsun",
+    "denizli", "mersin", "sakarya", "tekirdag", "trabzon", "maslak", "atasehir",
+)
+
+
+def in_market(posting: NormalizedPosting, markers: tuple[str, ...] = TR_LOCATION_MARKERS) -> bool:
+    """İlan hedef pazarda mı? Konum boşsa **dışlanmaz** — `unknown` gibi davranılır."""
+    if not posting.city_key.strip():
+        return True
+    return any(m in posting.city_key for m in markers)
+
+
+def run_live_ingest(
+    *,
+    include_fixtures: bool = False,
+    market_markers: tuple[str, ...] | None = TR_LOCATION_MARKERS,
+) -> dict:
+    """Registry'de izinli ATS panolarından **gerçek** ilanları çeker.
+
+    Her pano için :func:`registry.assert_fetchable` çağrılır — kapı budur.
+    Bir pano hata verirse kayıtlar sessizce atılmaz; ``errors`` listesine
+    girer ve çağıran tarafa raporlanır (access-change sinyali olabilir).
+    """
+    from .adapters.ats import Board, FetchError, fetch_board
+
+    raws: list[RawPosting] = []
+    errors: list[dict] = []
+    fetched_boards: list[dict] = []
+
+    for source_id, platform, slug, employer in registry.BOARDS:
+        try:
+            registry.assert_fetchable(source_id)
+            board = Board(source_id=source_id, platform=platform, slug=slug, employer=employer)
+            items = fetch_board(board)
+        except (registry.PermissionError_, FetchError) as e:
+            errors.append({"board": f"{platform}/{slug}", "error": str(e)})
+            continue
+        raws.extend(items)
+        fetched_boards.append({"board": f"{platform}/{slug}", "employer": employer,
+                               "count": len(items)})
+
+    normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
+    fetched_total = len(normalized)
+
+    filtered_out = 0
+    if market_markers:
+        kept = [p for p in normalized if in_market(p, market_markers)]
+        filtered_out = len(normalized) - len(kept)
+        normalized = kept
+
+    if include_fixtures:
+        fx = run_fixture_ingest()
+        normalized.extend(fx["postings"])
+
+    clusters, oversized = cluster(normalized)
+    canonical = {cid: pick_canonical(group) for cid, group in clusters.items()}
+
+    return {
+        "source": "ATS public API'leri" + (" + fixture" if include_fixtures else ""),
+        "boards": fetched_boards,
+        "errors": errors,
+        "fetched": fetched_total,
+        "filtered_out_of_market": filtered_out,
         "normalized": len(normalized),
         "canonical": len(clusters),
         "duplicates_merged": len(normalized) - len(clusters),

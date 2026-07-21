@@ -44,6 +44,9 @@ class SourceRecord:
     note: str = ""
     # Fixture modunda okunacak yerel dizin (D-018)
     fixture_dir: str | None = None
+    # `allowed` işaretlemenin dayanağı. İzin iddiası kanıtsız yazılamaz (D-020);
+    # `audit()` bunu denetler.
+    permission_evidence: str = ""
 
     @property
     def may_fetch_network(self) -> bool:
@@ -101,8 +104,60 @@ REGISTRY: dict[str, SourceRecord] = {
             note="Sentetik ilanlar. Gerçek kaynak DEĞİLDİR; şema ve pipeline "
                  "doğrulaması için kullanılır (D-018).",
         ),
+        # ------------------------------------------------------------------
+        # D-020 — ATS public job board API'leri.
+        # Bunlar şirketlerin kendi kariyer sayfalarını kurmaları için yayınladığı
+        # kimlik doğrulaması istemeyen public uçlardır. İzin kanıtı `permission_evidence`
+        # alanındadır; robots.txt kayıtları 2026-07-21'de doğrulanmıştır.
+        # ------------------------------------------------------------------
+        SourceRecord(
+            source_id="src-ats-lever", name="Lever public job board API",
+            source_type="ats_api", base_url="https://api.lever.co", access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "api.lever.co/robots.txt → 'User-agent: * / Allow: / / Crawl-delay: 1' "
+                "(doğrulandı 2026-07-21). Uç kimlik doğrulaması istemez ve yanıt, "
+                "ilanın kendi sayfasına giden hostedUrl taşır."
+            ),
+            note="Crawl-delay: 1 uygulanıyor. Yalnızca kayıtlı board slug'ları çekilir.",
+        ),
+        SourceRecord(
+            source_id="src-ats-greenhouse", name="Greenhouse job board API",
+            source_type="ats_api", base_url="https://boards-api.greenhouse.io",
+            access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "boards-api.greenhouse.io/robots.txt → yalnızca '/embed/' disallow; "
+                "'/v1/boards/' serbest (doğrulandı 2026-07-21). Resmî doküman uçların "
+                "amacını 'build careers pages with a unique look and feel' diye tanımlar: "
+                "developers.greenhouse.io/job-board.html"
+            ),
+        ),
+        SourceRecord(
+            source_id="src-ats-recruitee", name="Recruitee public offers API",
+            source_type="ats_api", base_url="https://*.recruitee.com", access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "<firma>.recruitee.com/robots.txt → yalnızca '/v/' disallow; "
+                "'/api/offers/' serbest (doğrulandı 2026-07-21)."
+            ),
+        ),
     ]
 }
+
+# D-020 — çekilmesine izin verilen şirket panoları.
+#
+# Kapsam bilinçli olarak **dar**: her slug elle doğrulanmıştır. Otomatik keşif
+# yoktur; listede olmayan bir şirket çekilmez. Bu, kaynak listesinin sessizce
+# büyümesini engeller.
+BOARDS: tuple[tuple[str, str, str, str], ...] = (
+    # (source_id,        platform,     slug,         işveren adı)
+    ("src-ats-lever",      "lever",      "trendyol",   "Trendyol"),
+    ("src-ats-lever",      "lever",      "dreamgames", "Dream Games"),
+    ("src-ats-lever",      "lever",      "iyzico",     "iyzico"),
+    ("src-ats-lever",      "lever",      "commencis",  "Commencis"),
+    ("src-ats-recruitee",  "recruitee",  "macellan",   "Macellan"),
+)
 
 
 def get(source_id: str) -> SourceRecord:
@@ -136,15 +191,29 @@ def assert_fetchable(source_id: str) -> SourceRecord:
     return rec
 
 
-def audit() -> dict[str, int]:
-    """D-018 denetimi: `allowed` işaretli gerçek kaynak olmamalı."""
-    real_allowed = [
+def allowed_without_evidence() -> list[SourceRecord]:
+    """`allowed` işaretli ama gerekçesi yazılmamış kayıtlar. **Boş olmalı.**
+
+    D-018'in "hiçbir kaynağa crawl yok" maddesi D-020 ile izinli API kanalları
+    için revize edildi. Kuralın yerini alan yeni denetim budur: izin iddiası
+    kanıtsız yazılamaz. Bu liste boş değilse birisi bir kaynağı gerekçesiz
+    açmış demektir.
+    """
+    return [
         r for r in REGISTRY.values()
-        if r.scraping_permission == "allowed" and r.access_method != "fixture"
+        if r.scraping_permission == "allowed"
+        and r.access_method != "fixture"
+        and not r.permission_evidence.strip()
     ]
+
+
+def audit() -> dict[str, int]:
+    """Registry sağlık denetimi (D-020)."""
     return {
         "toplam": len(REGISTRY),
-        "gercek_allowed": len(real_allowed),  # 0 olmalı
+        "allowed": sum(1 for r in REGISTRY.values() if r.scraping_permission == "allowed"),
+        "kanitsiz_allowed": len(allowed_without_evidence()),  # 0 olmalı
         "conditional": sum(1 for r in REGISTRY.values() if r.scraping_permission == "conditional"),
         "rejected": sum(1 for r in REGISTRY.values() if r.scraping_permission == "rejected"),
+        "board_sayisi": len(BOARDS),
     }
