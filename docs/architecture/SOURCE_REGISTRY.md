@@ -53,10 +53,10 @@ coverage:
 languages: ["tr"]
 
 # --- Erişim ---
-access_method: structured_data    # api | feed | structured_data | html
-api_availability: none            # official | partner_only | none
-authentication_requirement: none  # none | api_key | oauth | login_wall
-public_or_restricted: public      # public | partially_restricted | restricted
+access_method: structured_data    # api | feed | structured_data | html | unknown
+api_availability: none            # official | partner_only | none | unknown
+authentication_requirement: none  # none | api_key | oauth | login_wall | unknown
+public_or_restricted: public      # public | partially_restricted | restricted | unknown
 rate_limit:
   declared: null                  # kaynak açıkça belirtiyorsa
   applied: "muhafazakâr varsayılan; ör. tekil istek, saniyeler arası bekleme"
@@ -64,8 +64,8 @@ rate_limit:
 # --- Policy (insan onayı zorunlu) ---
 robots_rules_summary: "ilan sayfalarına izinli; arama sonuç sayfaları disallow"
 terms_summary: "otomatik erişim açıkça yasaklanmamış; içerik yeniden yayın kısıtı belirsiz"
-scraping_permission: conditional  # allowed | conditional | rejected
-policy_risk: medium               # low | medium | high + gerekçe
+scraping_permission: conditional  # allowed | conditional | rejected | unknown
+policy_risk: medium               # low | medium | high | unknown + gerekçe
 policy_risk_note: "içerik gösterim kısıtı belirsiz; özet + source'a link ile gösterim"
 policy_reviewed_by: "—"
 policy_reviewed_at: "—"
@@ -109,6 +109,14 @@ Hedef değer (≥0.8) bir başarı çizgisidir, müdahale eşiği değildir.
 
 - **Kimlik + Erişim + Policy** alanları insan tarafından doldurulur/onaylanır;
   **Sağlık & Kalite** alanlarını Scraper Health Monitor günceller — elle oynanmaz.
+- **`unknown` ne zaman kullanılır:** kaynağa erişilemediği (DNS/TLS hatası, robots.txt'in
+  kendisinin engellenmesi) veya ilgili belgenin okunamadığı durumlarda alan **tahminle
+  doldurulmaz**, `unknown` yazılır. `scraping_permission: unknown` olan bir source
+  **crawl edilemez** — `conditional`'dan farkı, değerlendirmenin yapılamamış olmasıdır;
+  `conditional`'da değerlendirme yapılmış ama karar insana bırakılmıştır.
+- **Ordinal alanlarda ara değer kullanılmaz.** `policy_risk` yalnızca `low | medium |
+  high | unknown` alır; "medium-high" gibi ara ifadeler **sahte hassasiyet** üretir.
+  Nüans skorun kendisine değil `policy_risk_note` alanına yazılır.
 - `scraping_permission` ile `access_method` birbirinden bağımsız değerlendirilir:
   teknik olarak kolay erişilebilir bir source policy nedeniyle `rejected` olabilir
   (yapılabilirlik ≠ izin).
@@ -128,21 +136,21 @@ Hedef değer (≥0.8) bir başarı çizgisidir, müdahale eşiği değildir.
 
 | source_id | source_name | source_type | access_method | auth | scraping_permission | policy_risk | status | Not |
 |---|---|---|---|---|---|---|---|---|
-| src-tr-001 | İşin Olsun | job_board | feed (sitemap) + html | none | **conditional** | medium-high | under_review | **Wave 1 adayı.** robots `Allow: /`; üyelik sözleşmesi §4.12 reuse kısıtı → yazılı izin talebi önerilir |
+| src-tr-001 | İşin Olsun | job_board | feed | none | **conditional** | high | under_review | **Wave 1 adayı.** robots `Allow: /` + sitemap; ancak üyelik sözleşmesi §4.12 veri kopyalamayı yazılı izne bağlıyor → template kuralı gereği `high` ve **ancak yazılı izinle `allowed` olabilir** |
 | src-tr-002 | Kariyer.net | job_board | html | none | **conditional** | high | under_review | ToS sayfası 403 → içerik doğrulanamadı; "izin var" varsayılamaz |
-| src-tr-003 | Yenibiriş | job_board | unknown | unknown | **rejected** (MVP) | high | rejected | robots.txt'in kendisi 403; crawl kuralları bilinemiyor |
-| src-tr-004 | SecretCV | job_board | feed (sitemap) + html | none | **conditional** | medium-high | under_review | Arama parametreleri disallow; **fallback** |
-| src-tr-005 | Eleman.net | job_board | html | none | **rejected** (MVP) | high | rejected | robots `/is_ilanlari.php` ve `?ilan_id=` disallow |
-| src-tr-006 | İŞKUR e-Şube | government_portal | html (ASP.NET postback) | none | **conditional** | medium | under_review | **Wave 2 adayı.** robots izinli; reuse lisansı yok; adapter karmaşıklığı high |
-| src-tr-007 | İŞKUR Kurumsal | government_portal | html | none | **rejected** (ilan ingestion) | medium | rejected | `/is-arama?*` ve `/*?*` disallow — e-şube host'undan **ayrı kayıt** |
-| src-tr-008 | Kamu İlan (SBB) | government_portal | html | none | **conditional** | low-medium | candidate | **Wave 2 adayı.** robots yok (404); D-015 **listing-only**; hacim düşük |
-| src-tr-009 | ilan.gov.tr | government_portal | unknown | unknown | **unknown** | unknown | candidate | TLS sertifika hatası → elle doğrulama gerekli |
-| src-tr-010 | Kariyer Kapısı | government_portal | unknown | muhtemel e-Devlet | **unknown** | unknown | candidate | DNS çözülemedi → elle doğrulama gerekli |
+| src-tr-003 | Yenibiriş | job_board | unknown | unknown | **rejected** | unknown | rejected | robots.txt'in kendisi 403 → crawl kuralları **bilinemiyor**; policy riski değerlendirilemediği için `unknown`, ama robots okunamadan crawl D-002 ile uyumsuz olduğundan MVP için `rejected` |
+| src-tr-004 | SecretCV | job_board | feed | none | **conditional** | medium | under_review | Arama parametreleri disallow, ilan sayfaları değil; ToS **incelenmedi** → risk `medium`, doğrulanınca güncellenecek. **Fallback** |
+| src-tr-005 | Eleman.net | job_board | html | none | **rejected** | high | rejected | robots `/is_ilanlari.php` ve `?ilan_id=` disallow |
+| src-tr-006 | İŞKUR e-Şube | government_portal | html | none | **conditional** | medium | under_review | **Wave 2 adayı.** robots izinli; reuse lisansı yok; pagination ASP.NET postback → adapter karmaşıklığı high |
+| src-tr-007 | İŞKUR Kurumsal | government_portal | html | none | **rejected** | medium | rejected | `/is-arama?*` ve `/*?*` disallow — e-şube host'undan **ayrı kayıt** |
+| src-tr-008 | Kamu İlan (SBB) | government_portal | html | none | **conditional** | low | candidate | **Wave 2 adayı.** robots kısıtı yok (404); kamu duyurusu niteliği → risk `low`, ancak açık reuse lisansı da yok. D-015 **listing-only**; hacim düşük |
+| src-tr-009 | ilan.gov.tr | government_portal | unknown | unknown | **unknown** | unknown | candidate | TLS sertifika hatası → hiçbir alan değerlendirilemedi; elle doğrulama gerekli. `unknown` permission = **crawl edilemez** |
+| src-tr-010 | Kariyer Kapısı | government_portal | unknown | unknown | **unknown** | unknown | candidate | DNS çözülemedi → elle doğrulama gerekli. e-Devlet kimlik doğrulaması **tahmin edilmedi**, `unknown` bırakıldı |
 | src-tr-011 | Boğaziçi Kariyer Merkezi | university_portal | html | none | **conditional** | low | candidate | **Fallback.** Crawl-delay 10; hacim low |
-| src-tr-012 | ODTÜ KPM | university_portal | — | **login_wall** | **rejected** | — | rejected | İlanlar üyeye özel → D-002 kapsam dışı; **bypass tasarlanmaz** |
-| src-tr-013 | ATS career page'leri (ör. hrpeak) | ats_page | html | none | **unknown** (tenant bazlı) | medium | candidate | Provider robots izinli, tenant 403 → tenant bazında değerlendirilir; Wave 2+ kaldıraç |
-| src-tr-014 | Indeed Türkiye | job_board | — | none | **rejected** | high | rejected | robots iş ilanı path'lerini açıkça disallow (AI bot'ları dahil) |
-| src-tr-015 | LinkedIn | job_board | — | login (çoğu) | **rejected** | high | rejected | robots'ta açık otomatik erişim yasağı + login wall |
+| src-tr-012 | ODTÜ KPM | university_portal | unknown | login_wall | **rejected** | unknown | rejected | İlanlar üyeye özel → D-002 gereği **kategorik** kapsam dışı; erişim ve policy hiç değerlendirilmedi (bu yüzden `unknown`, `low` değil). **Bypass tasarlanmaz** |
+| src-tr-013 | ATS career page'leri (ör. hrpeak) | ats_page | html | unknown | **unknown** | unknown | candidate | Provider robots izinli ama örnek tenant 403 → permission **tenant bazında** değerlendirilir, provider seviyesinde karar verilemez. Wave 2+ kaldıraç |
+| src-tr-014 | Indeed Türkiye | job_board | html | none | **rejected** | high | rejected | robots iş ilanı path'lerini açıkça disallow (AI bot'ları dahil) |
+| src-tr-015 | LinkedIn | job_board | html | login_wall | **rejected** | high | rejected | robots'ta açık otomatik erişim yasağı + login wall |
 
 **Kayıt kuralı hatırlatması:** `rejected` kayıtlar silinmez (§2). Koşullar değişirse
 (resmi API, yazılı izin) `under_review`'a döner. Bütün `conditional` kayıtların

@@ -55,24 +55,29 @@ Wave 1 kriteri "en az iki cluster" tek kaynakla karşılanabiliyor.
 
 ## 2. Source Candidate Karşılaştırma Tablosu
 
-Ölçek: **Low / Medium / High** ordinal; sahte hassasiyet üretilmemiştir. Her skorun
-gerekçesi §3'teki kartlarda.
+Ölçek: **Low / Medium / High / Unknown** ordinal; sahte hassasiyet üretilmemiştir.
+Her skorun gerekçesi §3'teki kartlarda.
+
+> **Not:** "Policy riski" sütunu bir Source Record **şema alanıdır**
+> ([SOURCE_REGISTRY.md](../architecture/SOURCE_REGISTRY.md) §3) ve registry'deki değerle
+> birebir aynıdır — ara değer ("medium-high") kullanılmaz, nüans nota yazılır. Diğer
+> sütunlar bu araştırmanın kendi değerlendirmesidir.
 
 | ID | Source | Tip | Cluster kapsamı | Public erişim | Auth | API/Feed | robots durumu | Permission confidence | Teknik erişim | Adapter karmaşıklığı | Policy riski | Önerilen statü |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| src-tr-001 | isinolsun.com | job_board | Log+Ops, Office | Public | none | Sitemap (XML) | `Allow: /` + sitemap | **Low** (sözleşme §4.12 reuse kısıtı) | High | Low | **Medium-High** | Candidate → UnderReview |
+| src-tr-001 | isinolsun.com | job_board | Log+Ops, Office | Public | none | Sitemap (XML) | `Allow: /` + sitemap | **Low** (sözleşme §4.12 reuse kısıtı) | High | Low | **High** | Candidate → UnderReview |
 | src-tr-002 | kariyer.net | job_board | 3/3 | Public | none | Sitemap | İlan sayfaları izinli; hesap/CV path'leri disallow | **Unknown** (ToS 403) | High | Medium | **High** | UnderReview |
-| src-tr-003 | yenibiris.com | job_board | 3/3 (varsayılan) | Unknown | Unknown | Unknown | **robots.txt 403** | **Unknown** | **Low** (403) | Unknown | **High** | Rejected (MVP) |
-| src-tr-004 | secretcv.com | job_board | 3/3 | Public | none | Sitemap | Arama parametreleri (`?k=`,`?s=`,`?p=`) disallow | **Unknown** | Medium | Medium | **Medium-High** | UnderReview |
+| src-tr-003 | yenibiris.com | job_board | 3/3 (varsayılan) | Unknown | Unknown | Unknown | **robots.txt 403** | **Unknown** | **Low** (403) | Unknown | **Unknown** | Rejected (MVP) |
+| src-tr-004 | secretcv.com | job_board | 3/3 | Public | none | Sitemap | Arama parametreleri (`?k=`,`?s=`,`?p=`) disallow | **Unknown** | Medium | Medium | **Medium** | UnderReview |
 | src-tr-005 | eleman.net | job_board | Log+Ops ağırlıklı | Public | none | none | **`/is_ilanlari.php`, `?ilan_id=`, `*.html$` disallow** | **Low** (ilan path'leri disallow) | Low | Medium | **High** | Rejected (MVP) |
 | src-tr-006 | esube.iskur.gov.tr | government_portal | 3/3 | Public (arama loginsiz) | none (arama) | none | `Allow: /` + 1 popup disallow | **Medium** (robots izinli, reuse lisansı yok) | Medium | **High** (ASP.NET postback) | **Medium** | Candidate → UnderReview |
 | src-tr-007 | iskur.gov.tr (kurumsal) | government_portal | Kamu duyuruları | Public | none | Sitemap | **`/is-arama?*` ve `/*?*` disallow**; SEO bot'ları tamamen disallow | **Low** (arama path'leri disallow) | Medium | Medium | **Medium** | Rejected (ilan ingestion için) |
-| src-tr-008 | kamuilan.sbb.gov.tr | government_portal | Kamu (3/3 dolaylı) | Public | none | none | robots.txt **yok (404)** | **Medium** (kısıt beyanı yok, izin beyanı da yok) | High | Low | **Low-Medium** | Candidate (listing-only) |
+| src-tr-008 | kamuilan.sbb.gov.tr | government_portal | Kamu (3/3 dolaylı) | Public | none | none | robots.txt **yok (404)** | **Medium** (kısıt beyanı yok, izin beyanı da yok) | High | Low | **Low** | Candidate (listing-only) |
 | src-tr-009 | ilan.gov.tr | government_portal | Kamu personel alımı | Unknown | Unknown | Unknown | **Unknown** (TLS sertifika hatası) | **Unknown** | **Unknown** | Unknown | Unknown | Candidate (doğrulama gerekli) |
 | src-tr-010 | kariyerkapisi.cbiko.gov.tr | government_portal | Kamu | Unknown | Muhtemel e-Devlet | Unknown | **Unknown** (DNS çözülemedi) | **Unknown** | **Unknown** | Unknown | Unknown | Candidate (doğrulama gerekli) |
 | src-tr-011 | kariyermerkezi.bogazici.edu.tr | university_portal | Office (entry-level) | Public | none | none | Drupal robots; **Crawl-delay: 10**; ilan path'leri disallow değil | **Medium** | High | Low | **Low** | Candidate (düşük hacim) |
-| src-tr-012 | kpm.metu.edu.tr (ODTÜ KPM) | university_portal | Office (entry-level) | **Restricted** | **login wall** | none | — | **Rejected** (login arkası) | — | — | — | Rejected (D-002) |
-| src-tr-013 | ATS-powered career pages (ör. `*.hrpeak.com`) | ats_page | Değişken | Public (tenant'a göre) | none | Tenant'a göre | Örnek: `careers.hrpeak.com` → `Disallow:` (tam izinli) | **Medium** (tenant ToS'una bağlı) | **Değişken** (örnek tenant 403 döndü) | Medium | **Medium** | Candidate (Wave 2+ araştırma) |
+| src-tr-012 | kpm.metu.edu.tr (ODTÜ KPM) | university_portal | Office (entry-level) | **Restricted** | **login_wall** | none | Unknown | **Rejected** (login arkası) | Unknown | Unknown | **Unknown** | Rejected (D-002) |
+| src-tr-013 | ATS-powered career pages (ör. `*.hrpeak.com`) | ats_page | Değişken | Public (tenant'a göre) | none | Tenant'a göre | Örnek: `careers.hrpeak.com` → `Disallow:` (tam izinli) | **Unknown** (tenant bazlı; provider seviyesinde karar verilemez) | **Değişken** (örnek tenant 403 döndü) | Medium | **Unknown** | Candidate (Wave 2+ araştırma) |
 | src-tr-014 | tr.indeed.com | job_board (aggregator) | 3/3 | Public | none | Partner API | **`/job/`, `/jobs/`, `/viewjob?`, `/q-`, `/l-` disallow — AI bot'ları dahil** | **Rejected** | — | — | **High** | **Rejected** |
 | src-tr-015 | linkedin.com | job_board | 3/3 | Kısmen | login (çoğu) | Partner API | **robots.txt başında otomatik erişim açıkça yasak**; `/jobs*` disallow | **Rejected** | — | — | **High** | **Rejected** |
 
@@ -114,7 +119,7 @@ gerekçesi §3'teki kartlarda.
 | Public-sector davranışı | Yok |
 | Adapter complexity | **Low** — sitemap + detay sayfası |
 | Expected maintenance | **Low-Medium** |
-| Policy riski | **Medium-High** — §4.12 nedeniyle |
+| Policy riski | **High** — §4.12 veri kopyalama kısıtı nedeniyle; template kuralı gereği `high` olan source **ancak yazılı izinle** `allowed` olur |
 | Önerilen statü | `Candidate` → **UnderReview** (yazılı izin talebi önerilir) |
 | Evidence | [robots.txt](https://isinolsun.com/robots.txt) · [sitemap](https://isinolsun.com/sitemap.xml) · [jobdetailsitemap1](https://isinolsun.com/sitemaps/jobdetailsitemap1.xml) · [Platform Üyelik Sözleşmesi](https://isinolsun.com/sozlesmeler/platform-uyelik-sozlesmesi) |
 | Last reviewed | 2026-07-21 |
@@ -149,7 +154,7 @@ gerekçesi §3'teki kartlarda.
 |---|---|
 | robots.txt | **HTTP 403 Forbidden** — robots.txt'in kendisi otomatik istemciye kapalı |
 | Yorum | Bu, [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) FS-12'de tanımlanan **access-change / anti-automation imzasının** erken bir örneği. robots.txt okunamadığı için crawl kuralları bilinemez |
-| Scraping permission confidence | **Unknown** — ve robots okunamadan crawl başlatmak D-002 ile uyumsuz |
+| Scraping permission confidence | **Unknown** — robots okunamadığı için değerlendirme **yapılamadı**; policy_risk de bu yüzden `unknown` (yüksek değil — yüksek demek bir değerlendirme yapıldığını ima ederdi). Robots okunamadan crawl başlatmak D-002 ile uyumsuz olduğundan MVP için `rejected` |
 | Önerilen statü | **Rejected (MVP)** — bypass denenmez; ileride resmi feed/izin yolu araştırılabilir |
 | Evidence | [robots.txt (403)](https://www.yenibiris.com/robots.txt) |
 | Last reviewed | 2026-07-21 |
@@ -164,7 +169,7 @@ gerekçesi §3'teki kartlarda.
 | Covered clusters | 3/3 (Acıbadem gibi sağlık grubu firma sayfaları mevcut) |
 | Scraping permission confidence | **Unknown** — ToS incelenmedi |
 | Adapter complexity | **Medium** — arama parametreleri disallow olduğu için keşif sitemap'e bağımlı |
-| Policy riski | **Medium-High** |
+| Policy riski | **Medium** — ToS incelenmedi; doğrulanınca güncellenecek |
 | Önerilen statü | **UnderReview** |
 | Evidence | [robots.txt](https://www.secretcv.com/robots.txt) |
 | Last reviewed | 2026-07-21 |
@@ -228,7 +233,7 @@ gerekçesi §3'teki kartlarda.
 | Estimated job volume | **Low** — sayfada "TÜM İLANLAR 81 ilan" görüldü |
 | Adapter complexity | **Low** |
 | Public-sector davranışı | **Tamamı kamu** → D-015 **listing-only / guidance mode** zorunlu; Match Score üretilmez |
-| Policy riski | **Low-Medium** |
+| Policy riski | **Low** — robots kısıtı yok, kamu duyurusu niteliği; ancak açık reuse lisansı da yok |
 | Önerilen statü | `Candidate` — listing-only besleyici olarak uygun, **core loop doğrulaması için uygun değil** (skor üretmiyor) |
 | Evidence | [kamuilan.sbb.gov.tr](https://kamuilan.sbb.gov.tr/) · [robots.txt (404)](https://kamuilan.sbb.gov.tr/robots.txt) |
 | Last reviewed | 2026-07-21 |
@@ -289,7 +294,7 @@ gerekçesi §3'teki kartlarda.
 | Gözlem | `careers.hrpeak.com/robots.txt` → `User-agent: * / Disallow:` (**tam izinli**). Ancak örnek bir tenant sayfası (`tss.hrpeak.com/jobs`) → **HTTP 403** |
 | Yorum | ATS altyapısı robots açısından açık olsa bile **her tenant kendi erişim davranışını ve ToS'unu taşıyabiliyor.** Bu yüzden "ATS provider onaylandı" denemez; **tenant bazında** değerlendirme gerekir |
 | Türkiye'de yaygın ATS'ler | Arama sonuçlarına göre SAP SuccessFactors, Workday, Oracle Taleo, Greenhouse, Lever ve yerel çözümler kullanılıyor (**public job endpoint'leri doğrulanmadı** — `Unknown`) |
-| Scraping permission confidence | **Medium** (provider) / **Unknown** (tenant) |
+| Scraping permission confidence | **Unknown** — provider robots izinli olsa da izin **tenant bazında** belirlenir; provider seviyesinde `allowed` denemez |
 | Adapter complexity | **Medium** — bir ATS için yazılan adapter aynı provider'ın diğer tenant'larına yeniden kullanılabilir (**kaldıraç fırsatı**) |
 | Önerilen statü | `Candidate` — Wave 2+ için **en umut verici uzun vadeli yol**; T-003 kapsamında tam envanter çıkarılmadı |
 | Evidence | [careers.hrpeak.com/robots.txt](https://careers.hrpeak.com/robots.txt) · [tss.hrpeak.com/jobs (403)](https://tss.hrpeak.com/jobs) |
