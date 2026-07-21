@@ -370,3 +370,51 @@ def test_one_discriminative_requirement_is_enough():
     ))
     r = match(job, prof)
     assert r.band is not None and not r.insufficient_data
+
+
+def test_single_requirement_cannot_produce_strong_band():
+    """Tek bir şarta dayanarak "güçlü eşleşme" denemez (D-022).
+
+    Gerçek veride bir yazılımcı profiline "Majors Account Executive" ilanı
+    güçlü eşleşme çıkmıştı: ilan metninde "bulut" geçiyordu, geliştiricide de
+    o beceri vardı, 1/1 → skor 1.0 → güçlü. Tek veri noktası bu iddiayı
+    taşımaz.
+    """
+    reqs = (
+        Requirement(key="cloud", label="Bulut", kind="required", category="skill"),
+        Requirement(key="sales", label="Saha satış", kind="required", category="experience"),
+        Requirement(key="crm", label="CRM", kind="required", category="skill"),
+    )
+    job = JobPosting(job_id="j", title="Account Executive", employer="E", city="Berlin",
+                     occupation_id="satis", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="cloud", category="skill", verification="user_asserted"),
+    ))
+
+    r = match(job, prof)
+    assert len(r.met) == 1 and not r.unmet
+    assert r.band.value == "cond", "tek şartla güçlü/iyi bant üretilemez"
+
+
+def test_three_requirements_may_reach_strong():
+    """Yeterli kanıt varsa tavan kalkar."""
+    reqs = tuple(
+        Requirement(key=k, label=k, kind="required", category="skill")
+        for k in ("python", "sql", "ml")
+    )
+    job = JobPosting(job_id="j", title="Data Scientist", employer="E", city="C",
+                     occupation_id="veri", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=tuple(
+        ProfileFact(key=k, category="skill", verification="user_asserted")
+        for k in ("python", "sql", "ml")))
+    assert match(job, prof).band.value == "strong"
+
+
+def test_cap_never_lowers_a_weak_band():
+    """Tavan bir **üst sınırdır**; zayıf bandı daha da düşürmez."""
+    reqs = (Requirement(key="a", label="A", kind="required", category="experience", min_years=9),)
+    job = JobPosting(job_id="j", title="T", employer="E", city="C",
+                     occupation_id="o", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="a", category="experience", verification="user_asserted", years=1),))
+    assert match(job, prof).band.value == "weak"

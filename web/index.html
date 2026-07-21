@@ -193,6 +193,8 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
   flex-wrap:wrap; align-items:center}
 .card-meta b{color:var(--ink-2); font-weight:600}
 .card-meta .dot{color:var(--ink-4)}
+.rgn{font-size:10.5px; letter-spacing:.04em; padding:1px 7px; border-radius:4px;
+  background:var(--accent-soft); color:var(--accent); font-weight:600}
 .card-right{flex:none; text-align:right; display:flex; flex-direction:column;
   align-items:flex-end; gap:5px}
 .band{font-size:12px; font-weight:700; padding:4px 11px; border-radius:20px;
@@ -381,7 +383,7 @@ tr:last-child td{border-bottom:0}
 <script>
 const API='/api';
 let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
-const F={q:'', city:'', cluster:'', band:'', employer:''};   // filtre durumu
+const F={q:'', city:'', cluster:'', band:'', employer:'', region:''};  // filtre durumu
 let PQ='', OPEN=new Set();                                    // profil arama + açık gruplar
 
 const $=(s,r=document)=>r.querySelector(s);
@@ -430,6 +432,7 @@ const BC={strong:'b-strong',good:'b-good',cond:'b-cond',weak:'b-weak'};
 const mono=s=>esc(String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase());
 
 function matches(j){
+  if(F.region && !(j.regions||[]).includes(F.region)) return false;
   if(F.city && j.city!==F.city) return false;
   if(F.cluster && j.occupation_id!==F.cluster) return false;
   if(F.employer && j.employer!==F.employer) return false;
@@ -456,8 +459,12 @@ function card(j){
         <h3>${esc(j.title)}</h3>
         <div class="card-meta"><b>${esc(j.employer)}</b>
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
+          ${(j.other_locations||[]).length?`<span class="rgn" title="${
+            esc(j.other_locations.join(', '))}">+${j.other_locations.length} konum</span>`:''}
           ${j.posted_at?`<span class="dot">·</span>${esc(j.posted_at)}`:''}
           ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
+          ${(j.regions||[]).filter(r=>r!=='Diğer').map(r=>
+            `<span class="rgn">${esc(r)}</span>`).join('')}
         </div>
       </div>
       <div class="card-right">
@@ -482,7 +489,14 @@ function filterBar(){
   const opt=(list,cur)=>list.map(v=>
     `<option value="${esc(v)}"${v===cur?' selected':''}>${esc(v)}</option>`).join('');
   const bands=[['','Tümü'],['match','Değerlendirilenler'],['strong','Güçlü / iyi']];
+  const regs=fx.regions||[];
   return `<div class="filters">
+    ${regs.length?`<div class="frow">
+      <span class="fl-label">Bölge</span>
+      <button class="chip" data-region="" aria-pressed="${F.region===''}">Tümü</button>
+      ${regs.map(r=>`<button class="chip" data-region="${esc(r.name)}"
+        aria-pressed="${F.region===r.name}">${esc(r.name)} <b style="opacity:.7">${r.count}</b></button>`).join('')}
+    </div>`:''}
     <div class="frow">
       <div class="search"><input id="fq" type="search" placeholder="Pozisyon, şirket veya beceri ara…"
         value="${esc(F.q)}"></div>
@@ -543,12 +557,14 @@ function viewFeed(){
       ${(i.errors||[]).length?`<br><b style="color:var(--unmet)">Çekilemeyen:</b> ${
         i.errors.map(e=>esc(e.board)).join(', ')}`:''}
       <br><br>
-      <strong>Kapsam dar.</strong> Şu an yalnızca izinli ATS API'lerinden
-      (Lever, Greenhouse, Recruitee) çekiliyor — bu da ağırlıklı olarak teknoloji ve
-      kurumsal ilan demek. Türkiye'de bu sistemleri kullanan şirket sayısı sınırlı,
-      bu yüzden ilan hacmi düşük. Mavi yaka kapsamı ve hacim için Careerjet/Jooble
-      entegrasyonu gerekiyor. Birkaç sentetik test ilanı da korpusta
-      (<code>example.invalid</code> adresli olanlar).
+      <strong>Kapsam:</strong> izinli ATS API'leri (Lever, Greenhouse, Ashby,
+      Recruitee) — şirketlerin kariyer sayfası kurmak için yayınladığı public uçlar.
+      Ağırlıklı olarak <strong>teknoloji ve kurumsal</strong> ilan; Avrupa ve ABD
+      kapsamı geniş, Türkiye'de bu sistemleri kullanan şirket az olduğu için TR
+      hacmi düşük. Mavi yaka kapsamı için Careerjet/Jooble entegrasyonu gerekiyor.
+      Her panodan yalnızca en yeni ilanlar alınıyor${(i.truncated||0)
+        ? ` — ${i.truncated} daha eski ilan kırpıldı` : ''}.
+      Birkaç sentetik test ilanı da korpusta (<code>example.invalid</code> adresli).
       <a href="#" data-goto="sources">Kaynak listesi →</a>
     </p>`;
 }
@@ -881,10 +897,15 @@ function wireJob(){
 }
 
 document.addEventListener('click',async ev=>{
-  const chip=ev.target.closest('[data-cluster],[data-band]');
+  const chip=ev.target.closest('[data-cluster],[data-band],[data-region]');
   if(chip){
     if(chip.dataset.cluster!==undefined) F.cluster=chip.dataset.cluster;
     if(chip.dataset.band!==undefined) F.band=chip.dataset.band;
+    if(chip.dataset.region!==undefined){
+      F.region=chip.dataset.region;
+      // Bölge değişince şehir/işveren seçimi anlamsızlaşıyor.
+      F.city=''; F.employer='';
+    }
     return repaintFeed();
   }
   const t=ev.target.closest('[data-job],[data-goto],[data-add],[data-addall],[data-del],[data-verify],[data-reset]');

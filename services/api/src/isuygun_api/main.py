@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from isuygun_core import build_explanation, match
 from isuygun_core.domain import MatchBand
-from isuygun_ingest import registry
+from isuygun_ingest import regions, registry
 
 from .cv import read_cv
 from .store import STORE
@@ -80,6 +80,11 @@ class JobSummary(BaseModel):
     #: Kartta gösterilecek kısa şart önizlemesi
     top_requirements: list[str] = []
     matched_requirements: list[str] = []
+    #: Konumdan türetilen bölge etiketleri (bir ilan birden fazlasına ait olabilir)
+    regions: list[str] = []
+    #: Aynı rolün diğer konumları. Bunlar **ayrı ilanlardır** (her birinin kendi
+    #: URL'i var) ve birleştirilmez; yalnızca listede tek satır olarak gösterilir.
+    other_locations: list[str] = []
 
 
 class JobDetail(JobSummary):
@@ -182,6 +187,28 @@ def _evaluate(posting):
     return result, build_explanation(result)
 
 
+def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
+    """Aynı işverenin aynı rolünü farklı konumlarda tek satıra indirir.
+
+    Greenhouse gibi sistemlerde bir rol her konum için ayrı ilan olarak
+    yayınlanır; feed'de "AI Infrastructure Engineer" üç kez görünüyordu.
+    Bunlar **duplicate değildir** (ayrı URL, ayrı konum), bu yüzden ingest
+    katmanında birleştirilmezler — burada yalnızca *gösterim* birleştirilir ve
+    diğer konumlar ``other_locations``'ta korunur.
+    """
+    out: list[JobSummary] = []
+    seen: dict[tuple[str, str], JobSummary] = {}
+    for j in items:
+        key = (j.employer.casefold(), j.title.casefold())
+        first = seen.get(key)
+        if first is None:
+            seen[key] = j
+            out.append(j)
+        elif j.city and j.city not in first.other_locations and j.city != first.city:
+            first.other_locations.append(j.city)
+    return out
+
+
 def _summary(posting, result, exp) -> JobSummary:
     return JobSummary(
         job_id=posting.job.job_id,
@@ -209,6 +236,7 @@ def _summary(posting, result, exp) -> JobSummary:
             and not o.requirement.is_legal_eligibility
         ][:5],
         matched_requirements=[o.requirement.label for o in result.met][:5],
+        regions=sorted(regions.classify(posting.job.city)),
     )
 
 
@@ -368,14 +396,20 @@ def feed() -> FeedOut:
     evaluated.sort(key=lambda t: (t[0], t[1].title))
     every = [s for _, s in evaluated] + unevaluated
     return FeedOut(
-        evaluated=[s for _, s in evaluated],
-        unevaluated=unevaluated,
+        evaluated=_group_by_role([s for _, s in evaluated]),
+        unevaluated=_group_by_role(unevaluated),
         profile_is_empty=not STORE.profile.facts,
         ingest=STORE.ingest_summary,
         facets={
             "cities": sorted({j.city for j in every if j.city}),
             "employers": sorted({j.employer for j in every if j.employer}),
             "clusters": sorted({j.occupation_id for j in every if j.occupation_id}),
+            # Bölge sayaçları: kullanıcı hangi pazarda kaç ilan olduğunu görebilmeli.
+            "regions": [
+                {"name": r, "count": sum(1 for j in every if r in j.regions)}
+                for r in regions.ALL
+                if any(r in j.regions for j in every)
+            ],
         },
     )
 

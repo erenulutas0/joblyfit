@@ -215,14 +215,52 @@ def _recruitee(board: Board) -> list[RawPosting]:
     return out
 
 
-FETCHERS = {"lever": _lever, "greenhouse": _greenhouse, "recruitee": _recruitee}
+def _ashby(board: Board) -> list[RawPosting]:
+    data = fetch_json(
+        f"https://api.ashbyhq.com/posting-api/job-board/{board.slug}?includeCompensation=false"
+    )
+    jobs = data.get("jobs", []) if isinstance(data, dict) else []
+    out = []
+    for j in jobs:
+        out.append(
+            RawPosting(
+                source_id=board.source_id,
+                source_posting_ref=str(j.get("id", "")),
+                url=j.get("jobUrl") or j.get("applyUrl") or "",
+                title=j.get("title") or "",
+                employer=board.employer,
+                city=j.get("location") or "",
+                arrangement=j.get("workplaceType") or "",
+                occupation_id="",
+                posted_at=(j.get("publishedAt") or "")[:10] or None,
+                description=html_to_text(j.get("descriptionHtml", ""))
+                or (j.get("descriptionPlain") or ""),
+            )
+        )
+    return out
 
 
-def fetch_board(board: Board) -> list[RawPosting]:
+FETCHERS = {"lever": _lever, "greenhouse": _greenhouse,
+            "recruitee": _recruitee, "ashby": _ashby}
+
+#: Pano başına alınacak en yeni ilan sayısı. Tek bir dev şirketin 780 ilanı
+#: feed'i doldurup diğer 70 işvereni görünmez kılıyordu; sınır çeşitliliği korur.
+#: Kırpma **sessiz değildir** — ingest raporunda `truncated` olarak görünür.
+MAX_PER_BOARD = 40
+
+
+def fetch_board(board: Board, *, limit: int = MAX_PER_BOARD) -> tuple[list[RawPosting], int]:
+    """Panoyu çeker. Döner: (ilanlar, kırpılan sayı)."""
     fetch = FETCHERS.get(board.platform)
     if fetch is None:
         raise FetchError(f"Bilinmeyen platform: {board.platform!r}")
-    return fetch(board)
+    items = fetch(board)
+    total = len(items)
+    if limit and total > limit:
+        # En yeniler önce. Tarihi olmayanlar sona düşer.
+        items.sort(key=lambda r: r.posted_at or "", reverse=True)
+        items = items[:limit]
+    return items, total - len(items)
 
 
 def _ms_to_date(ms) -> str | None:

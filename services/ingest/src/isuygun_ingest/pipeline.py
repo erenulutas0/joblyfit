@@ -134,6 +134,15 @@ class NormalizedPosting:
     posted_at: str | None
     fetched_at: str
     provenance: dict
+    #: Metin token'ları. Blok içi karşılaştırma O(n²) olduğu için her çiftte
+    #: yeniden hesaplamak pahalıydı; bir kez üretilip saklanır.
+    _tokens_cache: set | None = None
+
+    @property
+    def tokens(self) -> set:
+        if self._tokens_cache is None:
+            self._tokens_cache = _tokens(self.job_text)
+        return self._tokens_cache
 
     @property
     def blocking_key_a(self) -> str:
@@ -168,7 +177,7 @@ CONTENT_SIMILARITY_THRESHOLD = 0.75
 
 def content_similarity(a: NormalizedPosting, b: NormalizedPosting) -> float:
     """İki ilanın metin örtüşmesi (Jaccard). 1.0 = birebir aynı metin."""
-    ta, tb = _tokens(a.job_text), _tokens(b.job_text)
+    ta, tb = a.tokens, b.tokens
     if not ta or not tb:
         return 0.0
     return len(ta & tb) / len(ta | tb)
@@ -403,64 +412,114 @@ def run_fixture_ingest(source_id: str = "src-fixture-001", root: Path | None = N
 
 LIVE_ADAPTER_VERSION = "ats-0.1.0"
 
-# Türkiye şehir/ülke işaretleri. **Core'a gömülmez** — D-009 gereği pazara özgü
-# her şey politika katmanında parametre olarak kalır; başka bir pazara açılırken
-# değişecek tek yer burasıdır.
-TR_LOCATION_MARKERS: tuple[str, ...] = (
-    "turkiye", "turkey", "istanbul", "ankara", "izmir", "bursa", "antalya",
-    "kocaeli", "adana", "konya", "gaziantep", "eskisehir", "kayseri", "samsun",
-    "denizli", "mersin", "sakarya", "tekirdag", "trabzon", "maslak", "atasehir",
-)
+def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
+    """Panoları çeker. Aynı host'a ait istekler sıralı, farklı host'lar paralel.
+
+    ``Crawl-delay: 1`` **host başınadır**; 70 panoyu tek sırada çekmek 70+ saniye
+    sürerdi. Host'lara bölmek gecikmeyi korurken süreyi platform sayısına düşürür.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .adapters.ats import Board, FetchError, fetch_board
+
+    by_platform: dict[str, list] = {}
+    for source_id, platform, slug, employer in boards:
+        by_platform.setdefault(platform, []).append(
+            Board(source_id=source_id, platform=platform, slug=slug, employer=employer)
+        )
+
+    raws, fetched, errors = [], [], []
+
+    def run_platform(group):
+        local_raws, local_fetched, local_errors = [], [], []
+        for board in group:
+            try:
+                registry.assert_fetchable(board.source_id)
+                items, truncated = fetch_board(board)
+            except (registry.PermissionError_, FetchError) as e:
+                local_errors.append({"board": f"{board.platform}/{board.slug}",
+                                     "error": str(e)})
+                continue
+            local_raws.extend(items)
+            local_fetched.append({"board": f"{board.platform}/{board.slug}",
+                                  "employer": board.employer,
+                                  "count": len(items), "truncated": truncated})
+        return local_raws, local_fetched, local_errors
+
+    with ThreadPoolExecutor(max_workers=len(by_platform) or 1) as ex:
+        for r, f, e in ex.map(run_platform, by_platform.values()):
+            raws.extend(r); fetched.extend(f); errors.extend(e)
+
+    return raws, fetched, errors
 
 
-def in_market(posting: NormalizedPosting, markers: tuple[str, ...] = TR_LOCATION_MARKERS) -> bool:
-    """İlan hedef pazarda mı? Konum boşsa **dışlanmaz** — `unknown` gibi davranılır."""
-    if not posting.city_key.strip():
-        return True
-    return any(m in posting.city_key for m in markers)
+def _cache_path(root: Path | None = None) -> Path:
+    return (root or REPO_ROOT) / ".cache" / "ats_postings.json"
+
+
+def _read_cache(max_age_hours: float) -> list[RawPosting] | None:
+    """Taze önbellek varsa ham kayıtları döndürür.
+
+    Önbellek bir performans önlemidir, kaynağın yerine geçmez: süresi dolduğunda
+    yeniden çekilir ve `--reload` olmadan çalışan sunucuda yeniden başlatma
+    dakikalar yerine saniyeler sürer.
+    """
+    path = _cache_path()
+    if not path.is_file():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+        fetched_at = datetime.fromisoformat(blob["fetched_at"])
+        if (datetime.now() - fetched_at).total_seconds() > max_age_hours * 3600:
+            return None
+        return [RawPosting(**r) for r in blob["postings"]]
+    except Exception:
+        return None   # bozuk önbellek sessizce yok sayılır, hata olarak değil
+
+
+def _write_cache(raws: list[RawPosting], meta: dict) -> None:
+    from dataclasses import asdict
+
+    path = _cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "fetched_at": datetime.now().isoformat(),
+        "meta": meta,
+        "postings": [asdict(r) for r in raws],
+    }, ensure_ascii=False), encoding="utf-8")
 
 
 def run_live_ingest(
     *,
     include_fixtures: bool = False,
-    market_markers: tuple[str, ...] | None = TR_LOCATION_MARKERS,
+    cache_hours: float = 6.0,
+    force_refresh: bool = False,
 ) -> dict:
     """Registry'de izinli ATS panolarından **gerçek** ilanları çeker.
 
     Her pano için :func:`registry.assert_fetchable` çağrılır — kapı budur.
-    Bir pano hata verirse kayıtlar sessizce atılmaz; ``errors`` listesine
-    girer ve çağıran tarafa raporlanır (access-change sinyali olabilir).
+    Bir pano hata verirse kayıtlar sessizce atılmaz; ``errors`` listesine girer
+    (access-change sinyali olabilir).
+
+    Bölge filtresi **uygulanmaz**: hangi bölgenin gösterileceği kullanıcının
+    kararıdır (D-009 — pazara özgü davranış core'a gömülmez). Her ilan
+    :mod:`regions` ile etiketlenir ve filtreleme arayüzde yapılır.
     """
-    from .adapters.ats import Board, FetchError, fetch_board
+    cached = None if force_refresh else _read_cache(cache_hours)
+    from_cache = cached is not None
 
-    raws: list[RawPosting] = []
-    errors: list[dict] = []
-    fetched_boards: list[dict] = []
-
-    for source_id, platform, slug, employer in registry.BOARDS:
-        try:
-            registry.assert_fetchable(source_id)
-            board = Board(source_id=source_id, platform=platform, slug=slug, employer=employer)
-            items = fetch_board(board)
-        except (registry.PermissionError_, FetchError) as e:
-            errors.append({"board": f"{platform}/{slug}", "error": str(e)})
-            continue
-        raws.extend(items)
-        fetched_boards.append({"board": f"{platform}/{slug}", "employer": employer,
-                               "count": len(items)})
+    if from_cache:
+        raws, fetched_boards, errors = cached, [], []
+    else:
+        raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
+        if raws:
+            _write_cache(raws, {"boards": fetched_boards, "errors": errors})
 
     normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
     fetched_total = len(normalized)
 
-    filtered_out = 0
-    if market_markers:
-        kept = [p for p in normalized if in_market(p, market_markers)]
-        filtered_out = len(normalized) - len(kept)
-        normalized = kept
-
     if include_fixtures:
-        fx = run_fixture_ingest()
-        normalized.extend(fx["postings"])
+        normalized.extend(run_fixture_ingest()["postings"])
 
     clusters, oversized = cluster(normalized)
     canonical = {cid: pick_canonical(group) for cid, group in clusters.items()}
@@ -469,9 +528,9 @@ def run_live_ingest(
         "source": "ATS public API'leri" + (" + fixture" if include_fixtures else ""),
         "boards": fetched_boards,
         "errors": errors,
+        "from_cache": from_cache,
         "fetched": fetched_total,
-        "filtered_out_of_market": filtered_out,
-        "normalized": len(normalized),
+        "truncated": sum(b.get("truncated", 0) for b in fetched_boards),
         "canonical": len(clusters),
         "duplicates_merged": len(normalized) - len(clusters),
         "oversized_blocks": oversized,

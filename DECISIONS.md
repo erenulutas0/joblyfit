@@ -461,3 +461,27 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   "eşleşme" demektir — **kasıtlıdır**: az ve doğru, çok ve yanlıştan iyidir.
   Extraction iyileştikçe bant alan ilan sayısı kendiliğinden artar.
 - **Denetlenebilirlik:** `test_generic_requirements_alone_produce_no_band`.
+
+---
+
+## D-022 — Bant tavanı: iddianın gücü, kanıtın miktarını aşamaz
+
+- **Status:** Confirmed (2026-07-21) — gerçek veriyle ortaya çıktı
+- **Date:** 2026-07-21
+- **Decision:** Match Band, **değerlendirilebilen ayırt edici şart sayısıyla**
+  tavanlanır: 1 şart → en fazla `cond`, 2 şart → en fazla `good`, 3+ → `strong`
+  serbest. Bu bir ceza değil **üst sınırdır**; bandı skorun verdiğinden aşağı
+  çekmez.
+- **Reason:** ~2400 gerçek ilanla koşuda bir yazılımcı profiline **"Majors
+  Account Executive, Berlin"** ilanı *Güçlü eşleşme* çıktı. İlan metninde
+  "bulut" geçiyordu, geliştiricide de o beceri vardı → 1/1 → skor 1.0 → güçlü.
+  Tek tesadüfi kelime örtüşmesi "güçlü eşleşme" iddiasını taşımaz.
+- **Alternatives:** Occupation eşleşmesini skora katmak (reddedildi — meslek
+  sınıflandırması kestirimdir, gate kararı veremez); ayırt edici şartlara daha
+  yüksek ağırlık (reddedildi — kanıt *yokluğunu* gizler, yalnızca geciktirir).
+- **Consequence:** Güçlü bant sayısı belirgin şekilde azalır (252 → 207 örnek
+  koşuda) ve kalanlar 3+ karşılanan şarta dayanır. **D-011 korunur:** kaç şartın
+  *bilinmediği* bandı etkilemez; belirleyici olan kaç şartın gerçekten
+  *değerlendirilebildiğidir*.
+- **Denetlenebilirlik:** `test_single_requirement_cannot_produce_strong_band`,
+  `test_three_requirements_may_reach_strong`, `test_cap_never_lowers_a_weak_band`.

@@ -93,20 +93,59 @@ def _structured_score(outcomes: tuple[RequirementOutcome, ...]) -> tuple[float, 
     return earned / assessable, coverage
 
 
-def _band(score: float, has_blocking_unmet: bool, has_pending_verification: bool) -> MatchBand:
+# D-022 — bant tavanı: iddianın gücü, kanıtın miktarını aşamaz.
+#
+# Bir ilandan yalnızca tek bir mesleğe özgü şart değerlendirilebildiyse ve o da
+# karşılanıyorsa skor 1.0 çıkar ve "Güçlü eşleşme" denir. Gerçek veride bunun
+# sonucu şuydu: bir yazılımcı profiline **"Majors Account Executive"** ilanı
+# güçlü eşleşme olarak gösterildi — ilan metninde "bulut" geçtiği için.
+#
+# Bu bir ceza değil **tavan**dır: bandı skorun verdiğinden aşağı çekmez, yalnızca
+# tek veri noktasına dayanan fazla iddialı etiketi engeller. Kaç şartın
+# *bilinmediği* bandı etkilemez (D-011 korunur); belirleyici olan kaç şartın
+# gerçekten *değerlendirilebildiğidir*.
+_EVIDENCE_CAP: tuple[tuple[int, MatchBand], ...] = (
+    (1, MatchBand.CONDITIONAL),   # tek şart değerlendirildi → en fazla "şartlı"
+    (2, MatchBand.GOOD),          # iki şart → en fazla "iyi"
+)
+
+_BAND_RANK = {MatchBand.WEAK: 0, MatchBand.CONDITIONAL: 1,
+              MatchBand.GOOD: 2, MatchBand.STRONG: 3}
+
+
+def _cap_for(discriminative_assessed: int) -> MatchBand | None:
+    for threshold, cap in _EVIDENCE_CAP:
+        if discriminative_assessed <= threshold:
+            return cap
+    return None
+
+
+def _band(
+    score: float,
+    has_blocking_unmet: bool,
+    has_pending_verification: bool,
+    discriminative_assessed: int,
+) -> MatchBand:
     if has_blocking_unmet:
         # Hard şart karşılanmıyorsa hiçbir koşulda "güçlü" denmez (FR-402).
         return MatchBand.WEAK
     if has_pending_verification:
         # Zorunlu belge doğrulanmadan eşleşme kesinleşmez (D-012).
         return MatchBand.CONDITIONAL
+
     if score >= 0.85:
-        return MatchBand.STRONG
-    if score >= 0.6:
-        return MatchBand.GOOD
-    if score >= 0.35:
-        return MatchBand.CONDITIONAL
-    return MatchBand.WEAK
+        band = MatchBand.STRONG
+    elif score >= 0.6:
+        band = MatchBand.GOOD
+    elif score >= 0.35:
+        band = MatchBand.CONDITIONAL
+    else:
+        band = MatchBand.WEAK
+
+    cap = _cap_for(discriminative_assessed)
+    if cap is not None and _BAND_RANK[band] > _BAND_RANK[cap]:
+        return cap
+    return band
 
 
 def _confidence(coverage: float, unknown_count: int, calibrated_occupation: bool) -> Confidence:
@@ -154,14 +193,14 @@ def match(
     # Değerlendirilebilen şartların hiçbiri mesleğe özgü değilse, elde bir
     # eşleşme iddiası kuracak kanıt yoktur. "İngilizce biliyorsun" bir hukuk
     # ilanı için uyum kanıtı değildir.
-    discriminative = any(
-        o.state != "unknown"
+    discriminative_assessed = sum(
+        1 for o in outcomes
+        if o.state != "unknown"
         and o.requirement.category not in NON_DISCRIMINATIVE_CATEGORIES
         and not o.requirement.is_legal_eligibility
-        for o in outcomes
     )
 
-    if outcomes and (coverage == 0.0 or not discriminative):
+    if outcomes and (coverage == 0.0 or discriminative_assessed == 0):
         # İki durum da aynı sonuca çıkar: elimizde bant kuracak kanıt yok.
         #
         # (a) Hiçbir şart değerlendirilemedi. Skor 0 çıkar ve bu "zayıf
@@ -195,7 +234,7 @@ def match(
     return MatchResult(
         job=job,
         outcomes=outcomes,
-        band=_band(score, has_blocking, pending_verify),
+        band=_band(score, has_blocking, pending_verify, discriminative_assessed),
         confidence=_confidence(coverage, unknown_count, calibrated_occupation),
         semantic_contribution=sem,
     )

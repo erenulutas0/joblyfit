@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (arayüz elden geçirildi: filtre, ilan linki, tam metin)_
+_Last updated: 2026-07-21 (Avrupa/ABD kapsamı: ~2450 ilan, 70 pano, bölge filtresi)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -39,16 +39,17 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 ## Aktif Hedef
 
-**Gerçek ilanlarla çalışan uygulama** — 5 ATS panosundan ~52 gerçek Türkiye ilanı
-çekiliyor, sözlük tabanlı çıkarımdan geçiyor, profille eşleşiyor ve kullanıcı
-ilanın **kendi sayfasına** yönlendiriliyor. **70 test geçiyor.**
+**Gerçek ilanlarla çalışan uygulama** — **70 ATS panosundan ~2450 gerçek ilan**
+(ABD 1065 · Avrupa 812 · Uzaktan 435 · Türkiye 62), sözlük tabanlı çıkarımdan
+geçiyor, profille eşleşiyor, kullanıcı ilanın **kendi sayfasına** yönlendiriliyor.
+**73 test geçiyor.** Bölge/şehir/işveren/alan/durum filtreleri var.
 
-**Bilinen kapsam sınırı:** ATS panoları ağırlıklı olarak teknoloji/kurumsal ilan
-içerir. Ürünün "her meslek dalı" iddiasını tek başına karşılamaz — Careerjet/Jooble
-publisher entegrasyonu (kullanıcı kaydı gerekiyor) veya OPEN-19 izni gerekli.
+**Bilinen kapsam sınırı:** ATS panoları ağırlıklı olarak **teknoloji ve kurumsal**
+ilan içerir. Ürünün "her meslek dalı" iddiasını tek başına karşılamaz. Türkiye
+hacmi düşük (62) çünkü TR'de bu sistemleri kullanan şirket az.
 
-Sıradaki: Careerjet/Jooble adapter'ı · kalıcılık (PostgreSQL — şu an bellekte) ·
-CI · Next.js'e taşıma.
+Sıradaki: mavi yaka / TR hacmi için yeni kaynak (OPEN-24, **kullanıcı kararı**) ·
+kalıcılık (PostgreSQL — şu an bellekte, açılış 16 sn) · CI · Next.js'e taşıma.
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.
@@ -135,7 +136,8 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | **Kapandı (D-001 / ADR-001, 2026-07-21)** — Python + TypeScript hibrit |
 | OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı. **Geçici çözüm:** ayrı bölümde, bant sırasına sokulmadan |
 | OPEN-23 | Profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne zaman ve nasıl kurulacak? | pre-build | [lexicon.py](services/ingest/src/isuygun_ingest/lexicon.py) | T-016 | Open — **kısmen azaltıldı:** elle yazılmış 82 terimlik paylaşılan sözlük kuruldu; ilan ve CV aynı sözlüğe eşleniyor. Serbest metin anlaşılmıyor |
-| OPEN-24 | Careerjet / Jooble publisher kaydı yapılacak mı? | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** ATS kapsamı tech ağırlıklı; mavi yaka kapsamı buna bağlı |
+| OPEN-24 | Hangi ek ilan kaynakları eklenecek? | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** Doğrulanmış adaylar: Arbeitsagentur (DE, auth'suz), JobTechDev (SE, açık veri), The Muse (ABD, 500/saat), Himalayas + Arbeitnow (auth'suz), Adzuna/USAJOBS/Reed (ücretsiz kayıt). TR ve mavi yaka için Careerjet/Jooble |
+| OPEN-25 | Registry, kaynak başına `attribution_required` / `min_poll_interval` / `redistribution_policy` alanlarını taşımalı mı? | pre-build | [registry.py](services/ingest/src/isuygun_ingest/registry.py) | OPEN-24 | Open — yeni kaynakların atıf ve gecikme şartları birbirinden farklı; mevcut D-020 yapısı bunları modellemiyor |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
 değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın

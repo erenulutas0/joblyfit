@@ -8,6 +8,61 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Avrupa/ABD kapsamı: 70 pano, ~2450 ilan, bölge filtresi
+
+Kullanıcı LinkedIn'den ilan istedi ve daha fazla ilan (Avrupa/ABD) istedi.
+
+**LinkedIn yine reddedildi ve gerekçesi tekrarlandı.** Okuma API'si yok, robots.txt
+`Disallow: /`, Job Posting API ters yönde ve yeni partner almıyor. Kullanıcı
+"scrape etmek istiyorum" dedi; yapılmadı ve bypass yolu önerilmedi.
+
+**ATS rotası Avrupa/ABD'de patladı.** Türkiye'de 61 ilanda tıkanan aynı adapter,
+hiç değişmeden ~120 ABD/AB şirketi taranınca **11.349 ilan / 74 pano** buldu —
+çünkü oradaki şirketler Greenhouse/Lever/Ashby'yi yaygın kullanıyor. 70 pano
+registry'ye elle eklendi (Stripe, Databricks, OpenAI, Anthropic, Datadog, Adyen,
+Wolt, N26, Monzo, Spotify, Palantir, Figma, GitLab…). Ashby fetcher'ı yazıldı.
+
+**Kapsam kontrollü tutuldu.** Pano başına en yeni 40 ilan alınıyor: tek bir dev
+şirketin 780 ilanı feed'i doldurup diğer 70 işvereni görünmez kılıyordu. Kırpma
+sessiz değil — `truncated` olarak raporlanıyor ve arayüzde yazıyor.
+
+**Bölge sınıflandırma** (`regions.py`) eklendi — politika katmanında, core'da değil
+(D-009). Bir ilan birden fazla bölgeye ait olabilir ("Remote (UK)" hem Avrupa hem
+Uzaktan). Sonuç: ABD 1065 · Avrupa 812 · Uzaktan 435 · Türkiye 62 · Diğer 369.
+
+**İki gerçek performans hatası bulundu ve düzeltildi.** Önbellekten yükleme
+**100 saniye** sürüyordu. (1) `Term.needle_patterns` bir property'di ve her
+çağrıda regex'leri yeniden derliyordu — 2445 ilan × 90 terim × 4 biçim = ~880 bin
+gereksiz derleme. (2) `content_similarity` her çift karşılaştırmasında token
+kümesini yeniden hesaplıyordu. Tek büyük alternasyona derlemek de yetmedi: Python'un
+`re` motoru trie kurmaz, metnin her konumunda bütün alternatifleri dener. Çözüm iki
+aşamalı tarama — metin bir kez kelimelere ayrılır, tek kelimelik biçimler sözlük
+araması olur, çok kelimeli biçimler için önce ucuz ön-eleme yapılır.
+**100s → 16s.** Feed yanıtı 0.32s.
+
+**D-022 — üçüncü kalite hatası.** Yazılımcı profiline **"Majors Account Executive,
+Berlin"** ilanı *Güçlü eşleşme* çıktı: ilan metninde "bulut" geçiyordu, geliştiricide
+de o beceri vardı → 1/1 → skor 1.0. Artık bant, değerlendirilebilen ayırt edici şart
+sayısıyla tavanlanıyor (1 → şartlı, 2 → iyi, 3+ → güçlü). Bu bir ceza değil tavan;
+D-011 korunuyor çünkü kaç şartın *bilinmediği* değil, kaç şartın gerçekten
+*değerlendirilebildiği* belirleyici.
+
+**Aynı rol birden fazla konumda.** "AI Infrastructure Engineer" feed'de üç kez
+görünüyordu (Intercom, üç şehir). Bunlar duplicate **değil** — ayrı URL, ayrı konum —
+bu yüzden ingest'te birleştirilmiyorlar; yalnızca gösterimde tek satıra iniyor ve
+"+2 konum" olarak işaretleniyor.
+
+**Ek kaynak araştırması yapıldı, uygulanmadı.** Doğrulanmış adaylar: Arbeitsagentur
+(DE, auth'suz), JobTechDev (SE, açık veri), The Muse (ABD, 500 istek/saat),
+Himalayas, Arbeitnow; ücretsiz kayıtla Adzuna, USAJOBS, Reed. **Kaynak eklemek
+kullanıcı onayı gerektiriyor** (AGENTS.md) — OPEN-24 olarak bekliyor. Araştırma
+ayrıca bir eksik gösterdi: her kaynağın atıf/gecikme/yeniden yayın şartı farklı;
+registry bunları modellemiyor (OPEN-25).
+
+**Doğrulama.** 73 test geçiyor (core 22, ingest 29, API 22).
+
+---
+
 ## 2026-07-21 — Arayüz elden geçirildi: filtre, ilan linki, tam metin, okunabilirlik
 
 Kullanıcı üç şey söyledi: filtre yok, tasarım sönük, ilan linki ve tam gereksinimler

@@ -34,6 +34,37 @@
 
 ---
 
+## 2026-07-21 — Avrupa/ABD kapsamı (70 pano) + performans + D-022
+
+**Bu session'da yapılanlar:**
+- 70 ATS panosu (ABD/AB/TR), Ashby fetcher, pano başına 40 ilan sınırı.
+- `regions.py` — bölge sınıflandırma (politika katmanı), arayüzde bölge filtresi.
+- Performans: önbellekten yükleme **100s → 16s** (iki gerçek hata düzeltildi).
+- **D-022** — bant tavanı: kanıt miktarı iddianın gücünü sınırlar.
+- Aynı rolün farklı konumları gösterimde gruplanıyor.
+- Detay: [PROGRESS.md](PROGRESS.md) → "Avrupa/ABD kapsamı".
+
+**Yarım kalanlar:**
+- **OPEN-24 kullanıcı kararı bekliyor:** ek kaynaklar (Arbeitsagentur, JobTechDev,
+  The Muse, Himalayas, Arbeitnow auth'suz; Adzuna/USAJOBS/Reed ücretsiz kayıt).
+  **Kaynak eklemek onay gerektirir — kendiliğinden ekleme.**
+- **OPEN-25:** registry `attribution_required` / `min_poll_interval` /
+  `redistribution_policy` taşımıyor. RemoteOK ve Jobicy sert atıf şartı koyuyor,
+  Remotive günde 4 istekle sınırlı — bunlar modellenmeden eklenmemeli.
+- Kalıcılık yok (açılış 16s, önbellek `.cache/` altında, 6 saat TTL).
+- Mavi yaka ve TR hacmi hâlâ düşük (62 ilan).
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **`.cache/ats_postings.json` 16 MB ve git'te değil.** Silinirse ilk açılış
+  dakikalarca sürer (70 pano × crawl-delay).
+- **`lexicon.scan` sıcak yol.** Property içinde regex derleme veya terim başına
+  ayrı arama eklersen ingest 5 kat yavaşlar. Test: 2445 ilan < 20 sn.
+- **LinkedIn/Indeed'e dokunma.** Kullanıcı iki kez istedi; ikisinde de yasal yol
+  olmadığı için yapılmadı. `test_rejected_sources_stay_rejected` bunu denetliyor.
+- `web/index.html` düzenledikten sonra `node --check` (bkz. önceki handoff).
+
+---
+
 ## 2026-07-21 — Arayüz elden geçirildi: filtreler, ilan linki, tam metin
 
 **Bu session'da yapılanlar:**

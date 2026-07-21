@@ -44,10 +44,6 @@ class Term:
     cluster: str = "genel"           # meslek kümesi (arayüzde gruplama)
     asks_years: bool = False         # süre sorulur mu
 
-    @property
-    def needle_patterns(self) -> tuple[re.Pattern[str], ...]:
-        return tuple(_compile(f) for f in self.forms)
-
 
 def _compile(form: str) -> re.Pattern[str]:
     """Kelime sınırına saygılı desen.
@@ -235,6 +231,51 @@ TERMS: tuple[Term, ...] = (
 
 BY_KEY: dict[str, Term] = {t.key: t for t in TERMS}
 
+
+# --------------------------------------------------------------------------
+# Tarama motoru
+# --------------------------------------------------------------------------
+#
+# Naif yaklaşım — her terim için ayrı regex — ilan başına ~360 arama demekti ve
+# desenler her çağrıda yeniden derleniyordu; 2445 ilanlık korpusta tek başına
+# ~60 saniye tutuyordu. Tek büyük alternasyona derlemek de yetmedi: Python'un
+# `re` motoru trie kurmaz, metnin **her konumunda** bütün alternatifleri sırayla
+# dener.
+#
+# Çözüm iki aşamalı. Metin bir kez kelimelere ayrılır; tek kelimelik biçimler
+# (çoğunluk: "python", "forklift", "docker") doğrudan sözlük araması olur.
+# Çok kelimeli veya simge içeren biçimler ("makine ogrenmesi", "c++", "e-fatura")
+# için önce **ucuz bir ön-eleme** yapılır: biçimin ilk kelimesi metinde hiç
+# geçmiyorsa regex hiç çalıştırılmaz.
+
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _probe(folded_form: str) -> str | None:
+    """Biçimin ucuz ön-eleme anahtarı: ilk alfanümerik kelime."""
+    m = _WORD.search(folded_form)
+    return m.group(0) if m else None
+
+
+def _form_pattern(folded: str) -> re.Pattern[str]:
+    head = r"\b" if folded[0].isalnum() else r"(?<!\w)"
+    tail = r"\b" if folded[-1].isalnum() else r"(?!\w)"
+    return re.compile(head + re.escape(folded) + tail)
+
+
+#: tek kelimelik biçim → terim (doğrudan sözlük araması)
+_SIMPLE: dict[str, Term] = {}
+#: (probe, derlenmiş desen, biçim, terim) — yalnızca probe tutarsa çalıştırılır
+_COMPLEX: list[tuple[str | None, re.Pattern[str], str, Term]] = []
+
+for _t in TERMS:
+    for _raw in _t.forms:
+        _f = fold(_raw)
+        if _WORD.fullmatch(_f):
+            _SIMPLE.setdefault(_f, _t)
+        else:
+            _COMPLEX.append((_probe(_f), _form_pattern(_f), _f, _t))
+
 # Yasal uygunluk şartları (D-013): tespit edilir, **skora girmez**, profile yazılmaz.
 LEGAL_ELIGIBILITY_PATTERNS: dict[str, re.Pattern[str]] = {
     "military": re.compile(r"\baskerli\w*|\bmilitary service\b"),
@@ -256,20 +297,40 @@ class Hit:
 def scan(text: str, *, want_years: bool = True) -> list[Hit]:
     """Metni sözlüğe karşı tarar. İlan metni ve CV metni **aynı** fonksiyondan geçer.
 
-    Yıl bilgisi yalnızca eşleşmenin yakınında geçiyorsa alınır; bulunamazsa
-    ``None`` bırakılır — tahmin üretilmez.
+    Metin bir kez taranır; her terim için **ilk** eşleşme tutulur. Yıl bilgisi
+    yalnızca eşleşmenin yakınında geçiyorsa alınır; bulunamazsa ``None``
+    bırakılır — tahmin üretilmez.
     """
     low = fold(text)
-    hits: list[Hit] = []
-    for term in TERMS:
-        best: tuple[int, str] | None = None
-        for pat, form in zip(term.needle_patterns, term.forms):
-            m = pat.search(low)
-            if m and (best is None or m.start() < best[0]):
-                best = (m.start(), form)
-        if best is None:
+    first: dict[str, tuple[int, str]] = {}
+
+    # 1) Metni bir kez kelimelere ayır; her kelimenin ilk konumunu tut.
+    where: dict[str, int] = {}
+    for m in _WORD.finditer(low):
+        where.setdefault(m.group(0), m.start())
+
+    # 2) Tek kelimelik biçimler: sözlük araması, regex yok.
+    for word, pos in where.items():
+        term = _SIMPLE.get(word)
+        if term is not None:
+            prev = first.get(term.key)
+            if prev is None or pos < prev[0]:
+                first[term.key] = (pos, word)
+
+    # 3) Çok kelimeli / simgeli biçimler: yalnızca ön-eleme tutarsa regex.
+    for probe, pattern, form, term in _COMPLEX:
+        if probe is not None and probe not in where:
             continue
-        pos, form = best
+        m = pattern.search(low)
+        if m is None:
+            continue
+        prev = first.get(term.key)
+        if prev is None or m.start() < prev[0]:
+            first[term.key] = (m.start(), form)
+
+    hits: list[Hit] = []
+    for key, (pos, form) in first.items():
+        term = BY_KEY[key]
         years = None
         if want_years and term.asks_years:
             window = low[max(0, pos - 90): pos + 90]
@@ -277,6 +338,10 @@ def scan(text: str, *, want_years: bool = True) -> list[Hit]:
             if ym:
                 years = float(ym.group(1))
         hits.append(Hit(term=term, position=pos, matched_form=form, years=years))
+
+    # Sonuç sırası TERMS sırasını izler; çağıranlar deterministik çıktı bekler.
+    order = {t.key: i for i, t in enumerate(TERMS)}
+    hits.sort(key=lambda h: order[h.term.key])
     return hits
 
 

@@ -20,3 +20,4 @@ out/
 # Editör / işletim sistemi
 .DS_Store
 Thumbs.db
+.cache/
