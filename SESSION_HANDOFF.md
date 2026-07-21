@@ -34,6 +34,34 @@
 
 ---
 
+## 2026-07-21 — LinkedIn kararı (D-025) + ilan yapıştırma
+
+**Bu session'da yapılanlar:**
+- **D-025** — LinkedIn üçüncü kez reddedildi, kanıt yenilendi (doküman 2026-06-03).
+  Yerine `POST /api/jobs/evaluate` + "İlan yapıştır" sekmesi.
+- **D-026** — `missing_duration` ayrı bir bilinmeyen oldu.
+- **163 test.** Detay: [PROGRESS.md](PROGRESS.md).
+
+**Yarım kalanlar:**
+- Kalıcılık yok, Next.js'e taşınmadı, TR hacmi 21 ilan.
+- Tarayıcı eklentisi (kullanıcının kendi oturumundan okuma) **değerlendirilmedi** —
+  LinkedIn kullanıcı sözleşmesi oturum içinden otomatik çıkarımı da kısıtlıyor;
+  ayrı hukuki değerlendirme gerektirir (T-008).
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **LinkedIn tekrar sorulursa baştan araştırma.** İki kez birincil kanıtla
+  yapıldı, üçüncüde yalnızca partner yolu doğrulandı. Cevabı değiştirecek tek
+  şey LinkedIn'in okuma API'si açması ya da partner programını yeniden açmasıdır.
+- **Yapıştırılan ilan korpusa yazılmaz.** `test_pasted_job_is_not_added_to_the_corpus`
+  bunu denetliyor; saklamak kaynak izni çerçevesini bozar.
+- **`unknown` gerekçelerini birleştirme.** Dört ayrı sebep var ve dördü kullanıcıya
+  farklı şey söyler; "profilinde yok" diye özetlemek sahip olunan beceriyi yokmuş
+  gibi gösteriyordu.
+- Yapıştırma için ayrı bir matching yolu yazma — aynı `extract → match → explain`
+  hattı kullanılmalı.
+
+---
+
 ## 2026-07-21 — Sağlamlaştırma: adapter testleri, bölge düzeltmeleri, CI
 
 **Bu session'da yapılanlar:**

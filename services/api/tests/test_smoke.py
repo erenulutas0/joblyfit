@@ -135,3 +135,83 @@ def test_source_policy_is_exposed(client):
     for s in open_sources:
         assert "attribution_required" in s
         assert "redistribution_policy" in s
+
+
+# --------------------------------------------------------------------------
+# Yapıştırılan ilan — kullanıcının kendi getirdiği içerik
+# --------------------------------------------------------------------------
+
+_PASTED = """
+Senior Python Developer
+Acme Teknoloji · İstanbul
+
+Aranan nitelikler:
+- En az 4 yıl Python deneyimi
+- Docker ve Kubernetes bilgisi
+- PostgreSQL ile çalışmış olmak
+- İyi derecede İngilizce
+"""
+
+
+def test_pasted_job_is_evaluated_like_any_other(client):
+    """Yapıştırılan ilan korpustakiyle **aynı** hattan geçmeli.
+
+    Ayrı bir "yapıştırma modu" yazmak iki kod yolunun zamanla sapması demekti;
+    kullanıcı aynı ilan için iki farklı sonuç görebilirdi.
+    """
+    client.post("/api/profile/facts", json={"key": "python", "years": 5})
+    client.post("/api/profile/facts", json={"key": "docker_k8s"})
+
+    r = client.post("/api/jobs/evaluate", json={"text": _PASTED})
+    assert r.status_code == 200
+    d = r.json()
+
+    assert d["title"].startswith("Senior Python Developer")
+    assert any("Python" in m["text"] for m in d["met"])
+    assert d["band"] is not None
+    assert d["disclaimer"]
+
+
+def test_pasted_job_is_not_added_to_the_corpus(client):
+    """Kullanıcının getirdiği içerik korpusa karışmaz.
+
+    Nereden geldiğini ve yeniden yayınlanabilir olup olmadığını bilmiyoruz;
+    saklamak hem veri hijyenini hem kaynak izni çerçevesini bozardı.
+    """
+    before = len(client.get("/api/feed").json()["evaluated"]) + \
+        len(client.get("/api/feed").json()["unevaluated"])
+    client.post("/api/jobs/evaluate", json={"text": _PASTED})
+    after = len(client.get("/api/feed").json()["evaluated"]) + \
+        len(client.get("/api/feed").json()["unevaluated"])
+    assert before == after
+    assert client.get("/api/jobs/pasted").status_code == 404
+
+
+def test_pasted_job_title_falls_back_to_first_line(client):
+    d = client.post("/api/jobs/evaluate", json={"text": _PASTED}).json()
+    assert d["title"] == "Senior Python Developer"
+
+
+def test_pasted_job_rejects_too_short_text(client):
+    r = client.post("/api/jobs/evaluate", json={"text": "kısa"})
+    assert r.status_code == 422
+
+
+def test_pasted_job_keeps_url_without_fetching_it(client):
+    """URL yalnızca kullanıcı geri dönebilsin diye taşınır — çekilmez."""
+    d = client.post("/api/jobs/evaluate", json={
+        "text": _PASTED, "url": "https://www.linkedin.com/jobs/view/123456789",
+    }).json()
+    assert d["url"] == "https://www.linkedin.com/jobs/view/123456789"
+    assert d["source"] == "Yapıştırılan ilan"
+
+
+def test_pasted_job_respects_verification_gate(client):
+    """D-012 yapıştırılan ilanda da geçerli."""
+    client.post("/api/profile/facts", json={"key": "license_ce"})  # doğrulanmamış
+    d = client.post("/api/jobs/evaluate", json={
+        "text": "Ağır Vasıta Şoförü\n\nAranan nitelikler:\n- C+E sınıfı ehliyet zorunludur\n"
+                "- En az 3 yıl ağır vasıta deneyimi",
+    }).json()
+    assert d["band"] != "strong"
+    assert any(l["action_label"] == "Belgeyi doğrula" for l in d["unknown"])

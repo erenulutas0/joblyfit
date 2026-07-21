@@ -536,3 +536,57 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   ilanlar çekim anında ayıklanır.
 - **Denetlenebilirlik:** `test_stale_posting_is_dropped`,
   `test_posting_without_date_is_not_dropped`, `test_unparseable_date_is_unknown_not_old`.
+
+---
+
+## D-025 — LinkedIn üçüncü kez reddedildi; yerine "ilan yapıştır" akışı
+
+- **Status:** Confirmed (2026-07-21) — D-020'nin kapsamını daraltmaz, netleştirir
+- **Date:** 2026-07-21
+- **Decision:** LinkedIn'den ilan çekilmez. Yerine kullanıcının **kendi getirdiği**
+  ilan metnini değerlendiren bir uç eklendi (`POST /api/jobs/evaluate`). Sunucu
+  hiçbir adrese istek atmaz; metni kullanıcı yapıştırır. Sonuç **saklanmaz** ve
+  korpusa eklenmez.
+- **Reason:** Kullanıcı üç kez LinkedIn istedi. Üçüncüsünde cevabı değiştirebilecek
+  tek şey doğrulandı — LinkedIn'in bir iş panosuna partner yolu açıp açmadığı.
+  Microsoft Learn dokümanı (2026-06-03 güncellemesi) iki şeyi netleştiriyor:
+  *"We are currently not accepting new partnerships for LinkedIn's Job Posting API"*
+  ve API'nin yönü — *"to **post jobs directly to LinkedIn** on behalf of customers"*.
+  Okuma/arama API'si yok; aggregator'ların ilan içeri alabileceği bir program yok.
+
+  Ama kullanıcının asıl ihtiyacı LinkedIn değil **kapsam**dı. Ekranındaki bir ilanı
+  kendi eylemiyle sisteme taşıması scraping değildir ve bu ihtiyacı karşılar.
+- **Alternatives:** Tarayıcı eklentisi ile kullanıcının oturumundan okumak
+  (ertelendi — LinkedIn'in kullanıcı sözleşmesi oturum içinden otomatik veri
+  çıkarımını da kısıtlıyor; ayrı bir hukuki değerlendirme gerektirir, T-008).
+  Üçüncü taraf scraper API'leri (reddedildi — ihlali devralmak olurdu).
+- **Consequence:** Yapıştırılan ilan korpustakiyle **aynı** hattan geçer: aynı
+  sözlük, aynı çıkarım, aynı matching, aynı açıklama kuralları. Ayrı bir
+  "yapıştırma modu" yazmak iki kod yolunun zamanla sapması demekti.
+- **Denetlenebilirlik:** `test_pasted_job_is_not_added_to_the_corpus`,
+  `test_pasted_job_keeps_url_without_fetching_it`,
+  `test_pasted_job_respects_verification_gate`.
+
+---
+
+## D-026 — "Beceri var ama süresi yok" ayrı bir bilinmeyendir
+
+- **Status:** Confirmed (2026-07-21) — gerçek kullanımda ortaya çıktı
+- **Date:** 2026-07-21
+- **Decision:** ``UnknownReason`` dördüncü bir varyant kazandı:
+  ``missing_duration``. Profilde beceri **kayıtlı** ama ilanın istediği süre
+  bilgisi yoksa bu durum ``missing_profile_data``'dan ayrılır; kullanıcıya
+  "profilinde yok" değil "kaç yıllık olduğu yazmıyor" denir ve eylem
+  "Süreyi ekle" olur.
+- **Reason:** Yapıştırma akışı ilk denendiğinde sistem **"Python bilgisi
+  profilinde yok"** dedi — oysa profilde Python vardı; ilan 5+ yıl istiyordu ve
+  bilinmeyen yalnızca süreydi. Kullanıcıya sahip olduğu bir beceriyi yokmuş gibi
+  göstermek, `unknown` durumunun taşıdığı bilgiyi kaybetmektir; bu D-011'in
+  varlık sebebine aykırıdır.
+- **Alternatives:** Süresi bilinmeyen beceriyi `met` saymak (reddedildi — ilan
+  açıkça süre istiyor, bunu görmezden gelmek uydurma bir eşleşme üretir).
+  Mesajı serbest metinle yamamak (reddedildi — gerekçe tipte taşınmazsa arayüz
+  ve API farklı şey söyler).
+- **Consequence:** Arayüzde dördüncü bir eylem etiketi var: "Süreyi ekle".
+- **Denetlenebilirlik:** `test_missing_duration_is_not_reported_as_missing_skill`,
+  `test_absent_skill_still_says_missing`.

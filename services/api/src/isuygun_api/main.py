@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -20,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from isuygun_core import build_explanation, match
-from isuygun_core.domain import MatchBand
+from isuygun_core.domain import JobPosting, MatchBand
 from isuygun_ingest import regions, registry
 from isuygun_ingest.pipeline import age_in_days
 
@@ -154,6 +155,22 @@ class OccupationsIn(BaseModel):
     occupation_ids: list[str]
 
 
+class PastedJobIn(BaseModel):
+    """Kullanıcının elle getirdiği ilan metni.
+
+    **Bu bir scraping ucu değildir.** Sunucu hiçbir adrese istek atmaz; metni
+    kullanıcı kendi ekranından kopyalayıp yapıştırır. `url` yalnızca kullanıcının
+    geri dönebilmesi için saklanır ve **çekilmez**.
+    """
+
+    text: str = Field(..., min_length=40,
+                      description="İlanın metni — kullanıcı tarafından yapıştırılır")
+    title: str = ""
+    employer: str = ""
+    city: str = ""
+    url: str = ""
+
+
 class SourceOut(BaseModel):
     source_id: str
     name: str
@@ -212,6 +229,13 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
         elif j.city and j.city not in first.other_locations and j.city != first.city:
             first.other_locations.append(j.city)
     return out
+
+
+def _lines(items) -> list[ExplanationLineOut]:
+    return [
+        ExplanationLineOut(text=l.text, evidence=l.evidence, action_label=l.action_label)
+        for l in items
+    ]
 
 
 def _summary(posting, result, exp) -> JobSummary:
@@ -386,6 +410,57 @@ async def upload_cv(file: UploadFile) -> dict:
     }
 
 
+@app.post("/api/jobs/evaluate", response_model=JobDetail)
+def evaluate_pasted(body: PastedJobIn) -> JobDetail:
+    """Yapıştırılan bir ilanı profile karşı değerlendirir.
+
+    Korpustaki ilanlarla **aynı** hattan geçer: aynı sözlük, aynı çıkarım, aynı
+    matching, aynı açıklama kuralları. Ayrı bir "yapıştırma modu" yazmak, iki
+    kod yolunun zamanla birbirinden sapması demekti.
+
+    Sonuç **saklanmaz**. Kullanıcının getirdiği içerik korpusa karışmaz; bu hem
+    veri hijyeni hem de kaynak izni açısından gereklidir — o metnin nereden
+    geldiğini ve yeniden yayınlanabilir olup olmadığını biz bilemeyiz.
+    """
+    from isuygun_ingest.extract import extract_requirements, infer_occupation
+
+    title = body.title.strip() or _first_line(body.text)
+    reqs = extract_requirements(title, body.text)
+    job = JobPosting(
+        job_id="pasted",
+        title=title,
+        employer=body.employer.strip() or "Belirtilmemiş",
+        city=body.city.strip(),
+        occupation_id=infer_occupation(title, reqs),
+        source="Yapıştırılan ilan",
+        requirements=reqs,
+    )
+    result = match(job, STORE.profile, calibrated_occupation=False)
+    exp = build_explanation(result)
+
+    posting = SimpleNamespace(job=job, url=body.url.strip(), posted_at=None,
+                              job_text=body.text)
+    base = _summary(posting, result, exp)
+    return JobDetail(
+        **base.model_dump(),
+        description=body.text,
+        why=list(exp.why),
+        met=_lines(exp.met), unmet=_lines(exp.unmet), unknown=_lines(exp.unknown),
+        legal_eligibility_notices=list(exp.legal_eligibility_notices),
+        verification_notice=exp.verification_notice,
+        listing_only_note=exp.listing_only_note,
+        insufficient_data_note=exp.insufficient_data_note,
+        disclaimer=exp.disclaimer,
+    )
+
+
+def _first_line(text: str) -> str:
+    for line in text.splitlines():
+        if line.strip():
+            return line.strip()[:120]
+    return "Başlıksız ilan"
+
+
 @app.get("/api/feed", response_model=FeedOut)
 def feed() -> FeedOut:
     evaluated: list[tuple[int, JobSummary]] = []
@@ -430,19 +505,13 @@ def job_detail(job_id: str) -> JobDetail:
     result, exp = _evaluate(posting)
     base = _summary(posting, result, exp)
 
-    def lines(items):
-        return [
-            ExplanationLineOut(text=l.text, evidence=l.evidence, action_label=l.action_label)
-            for l in items
-        ]
-
     return JobDetail(
         **base.model_dump(),
         description=posting.job_text,
         why=list(exp.why),
-        met=lines(exp.met),
-        unmet=lines(exp.unmet),
-        unknown=lines(exp.unknown),
+        met=_lines(exp.met),
+        unmet=_lines(exp.unmet),
+        unknown=_lines(exp.unknown),
         legal_eligibility_notices=list(exp.legal_eligibility_notices),
         verification_notice=exp.verification_notice,
         listing_only_note=exp.listing_only_note,

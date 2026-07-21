@@ -418,3 +418,42 @@ def test_cap_never_lowers_a_weak_band():
     prof = CareerProfile(profile_id="p", facts=(
         ProfileFact(key="a", category="experience", verification="user_asserted", years=1),))
     assert match(job, prof).band.value == "weak"
+
+
+def test_missing_duration_is_not_reported_as_missing_skill():
+    """Beceri var ama süresi yoksa "profilinde yok" DENMEZ.
+
+    Gerçek bir ilanı değerlendirirken sistem "Python bilgisi profilinde yok"
+    dedi — oysa profilde Python vardı, bilinmeyen yalnızca kaç yıllık olduğuydu.
+    Kullanıcıya sahip olduğu bir beceriyi yokmuş gibi göstermek, `unknown`
+    durumunun taşıdığı bilgiyi kaybetmektir.
+    """
+    req = Requirement(key="python", label="Python", kind="required",
+                      category="skill", min_years=5)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="python", category="skill", verification="user_asserted"),
+        ProfileFact(key="docker", category="skill", verification="user_asserted"),
+    ))
+
+    out = evaluate_requirement(req, prof)
+    assert out.state == "unknown"
+    assert out.unknown_reason == "missing_duration"
+    assert "kayıtlı" in out.evidence and "5 yıl" in out.evidence
+
+    # İkinci şart değerlendirilebiliyor; aksi halde ilan `insufficient_data`
+    # olur ve süre mesajına hiç sıra gelmez (D-019).
+    other = Requirement(key="docker", label="Docker", kind="required", category="skill")
+    job = JobPosting(job_id="j", title="Backend", employer="E", city="C",
+                     occupation_id="yazilim", source="test", requirements=(req, other))
+    exp = build_explanation(match(job, prof))
+    assert exp.worth_applying_rule == "unknown_duration"
+    assert "profilinde var" in exp.worth_applying
+    assert exp.unknown[0].action_label == "Süreyi ekle"
+
+
+def test_absent_skill_still_says_missing():
+    """Ayrım korunmalı: gerçekten olmayan beceri için mesaj değişmez."""
+    req = Requirement(key="rust", label="Rust", kind="required",
+                      category="skill", min_years=3)
+    out = evaluate_requirement(req, CareerProfile(profile_id="p"))
+    assert out.unknown_reason == "missing_profile_data"

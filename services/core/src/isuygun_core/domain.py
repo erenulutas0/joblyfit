@@ -28,6 +28,7 @@ RequirementState = Literal["met", "unmet", "unknown"]
 
 UnknownReason = Literal[
     "missing_profile_data",       # profilde bu alan hiç yok
+    "missing_duration",           # alan var ama kaç yıllık olduğu bilinmiyor
     "unverified_gate_field",      # alan var ama doğrulanmamış (D-012)
     "low_confidence_extraction",  # ilandan güvenle çıkarılamadı (FS-4)
 ]
@@ -257,11 +258,17 @@ def evaluate_requirement(
 
     if req.min_years is not None:
         if fact.years is None:
+            # Beceri profilde VAR; bilinmeyen yalnızca süresi. Bunu
+            # "profilinde yok" diye raporlamak kullanıcıya sahip olduğu şeyi
+            # yokmuş gibi göstermek olurdu.
             return RequirementOutcome(
                 requirement=req,
                 state="unknown",
-                unknown_reason="missing_profile_data",
-                evidence="Süre bilgisi profilinde yok.",
+                unknown_reason="missing_duration",
+                evidence=(
+                    f"Profilinde kayıtlı ama kaç yıl olduğu yazmıyor; "
+                    f"ilan en az {req.min_years:g} yıl istiyor."
+                ),
             )
         if fact.years < req.min_years:
             return RequirementOutcome(

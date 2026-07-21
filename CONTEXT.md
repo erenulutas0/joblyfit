@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (sağlamlaştırma: 155 test, CI, iki politika bekçisi)_
+_Last updated: 2026-07-21 (ilan yapıştırma akışı + missing_duration ayrımı; 163 test)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -32,8 +32,11 @@ Python (ingest + matching + API) + TypeScript/Next.js (web) + PostgreSQL/pgvecto
 kendi yayınında kanıtlanan** public ATS API'lerinden (Lever, Greenhouse, Recruitee)
 çekiliyor. Gate'in ikinci maddesi (**beta'ya gerçek kullanıcı alınmaz**) aynen duruyor.
 
-**LinkedIn ve Indeed kapalı kaldı ve kalacak** — LinkedIn'in okuma API'si yok ve
-robots.txt'i otomatik erişimi yasaklıyor; Indeed'in publisher API'si kapatıldı.
+**LinkedIn ve Indeed kapalı kaldı ve kalacak** (D-025) — LinkedIn'in okuma API'si
+yok, robots.txt'i otomatik erişimi yasaklıyor, Job Posting API'si ters yönde çalışır
+ve yeni partner almıyor; Indeed'in publisher API'si kapatıldı. **Yerine:** kullanıcı
+başka bir sitede gördüğü ilanın metnini yapıştırıp aynı değerlendirmeden geçirebilir
+(`POST /api/jobs/evaluate`) — sunucu o adrese istek atmaz, sonuç saklanmaz.
 `registry.assert_fetchable()` hâlâ izinsiz kaynakta exception atar; yeni denetim
 kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
@@ -41,7 +44,7 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 **Gerçek ilanlarla çalışan uygulama** — 70 ATS panosu + 4 public API'den
 **~3330 ilan çekiliyor, 283'ü eski olduğu için eleniyor, ~2650 gösteriliyor**
-(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **155 test geçiyor** ve
+(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **163 test geçiyor** ve
 GitHub Actions'ta üç iş olarak koşuyor (Python testleri · arayüz sözdizimi ·
 kaynak izni denetimi).
 

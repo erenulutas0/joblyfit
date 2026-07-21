@@ -8,6 +8,51 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — LinkedIn kararı (D-025) ve "ilan yapıştır" akışı
+
+Kullanıcı üçüncü kez LinkedIn'den ilan çekmeyi istedi. Baştan araştırma
+tekrarlanmadı — iki kez birincil kanıtla yapılmıştı. Bunun yerine **cevabı
+değiştirebilecek tek şey** doğrulandı: LinkedIn bir iş panosuna partner yolu
+açmış mı?
+
+**Açmamış.** Microsoft Learn dokümanı (2026-06-03 güncellemesi) iki şeyi
+netleştiriyor: *"We are currently not accepting new partnerships for LinkedIn's
+Job Posting API"* ve API'nin yönü — *"to **post jobs directly to LinkedIn** on
+behalf of customers"*. Okuma/arama API'si yok, aggregator'lar için "job wrapping"
+programı yok. Cevap değişmedi.
+
+**Ama kullanıcının asıl ihtiyacı LinkedIn değil kapsamdı.** İki gözlem:
+1. LinkedIn'de görünen ilanların çoğu şirketin kendi ATS'inde de yayında — oradan
+   zaten yasal olarak okunuyor.
+2. Kullanıcı ekranındaki bir ilanı **kendi eylemiyle** sisteme taşıyabilir. Bu
+   scraping değildir.
+
+**D-025 — "ilan yapıştır" akışı.** `POST /api/jobs/evaluate` metni alır, korpustaki
+ilanlarla **aynı** hattan geçirir (aynı sözlük, aynı çıkarım, aynı matching, aynı
+açıklama kuralları) ve sonucu döner. Sunucu hiçbir adrese istek atmaz. Sonuç
+**saklanmaz**, korpusa eklenmez — o metnin nereden geldiğini ve yeniden
+yayınlanabilir olup olmadığını bilmiyoruz. URL yalnızca kullanıcı geri dönebilsin
+diye taşınır.
+
+Ayrı bir "yapıştırma modu" yazmak iki kod yolunun zamanla sapması olurdu; kullanıcı
+aynı ilan için iki farklı sonuç görebilirdi.
+
+**D-026 — ilk denemede bir dürüstlük hatası çıktı.** Gerçek bir ilan metniyle
+denenince sistem **"Python bilgisi profilinde yok"** dedi. Oysa profilde Python
+vardı; ilan 5+ yıl istiyordu ve bilinmeyen yalnızca **süreydi**. Kullanıcıya sahip
+olduğu bir beceriyi yokmuş gibi göstermek, `unknown` durumunun taşıdığı bilgiyi
+kaybetmektir — D-011'in varlık sebebine aykırı.
+
+Düzeltme: `UnknownReason` dördüncü varyant kazandı (`missing_duration`). Mesaj
+artık "Python profilinde **var** ama kaç yıllık olduğu yazmıyor", eylem "Süreyi
+ekle". Gerekçenin tipte taşınması önemliydi; serbest metinle yamamak arayüz ile
+API'nin farklı şey söylemesine yol açardı.
+
+**Doğrulama.** 163 test (core 24, ingest 93, API 46). Arayüzde gerçek bir ilan
+metniyle uçtan uca denendi.
+
+---
+
 ## 2026-07-21 — Sağlamlaştırma: adapter testleri, bölge düzeltmeleri, CI
 
 Kullanıcı "gerekli test ve sağlamlaştırmaları da yapalım" dedi. Önce **gerçek kusur

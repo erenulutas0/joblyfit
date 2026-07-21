@@ -73,11 +73,10 @@ CONF_LABEL = {"high": "Yüksek", "medium": "Orta", "low": "Düşük"}
 def _line(o: RequirementOutcome) -> ExplanationLine:
     action_label = None
     if o.state == "unknown":
-        action_label = (
-            "Belgeyi doğrula"
-            if o.unknown_reason == "unverified_gate_field"
-            else "Profilime ekle"
-        )
+        action_label = {
+            "unverified_gate_field": "Belgeyi doğrula",
+            "missing_duration": "Süreyi ekle",
+        }.get(o.unknown_reason, "Profilime ekle")
     return ExplanationLine(
         text=o.requirement.label,
         evidence=o.evidence,
@@ -111,9 +110,20 @@ def _worth_applying(result: MatchResult) -> tuple[str, str]:
     strong_side = result.band in (MatchBand.STRONG, MatchBand.GOOD)
 
     if result.unknown:
-        first = result.unknown[0].requirement.label
+        first_out = result.unknown[0]
+        first = first_out.requirement.label
         n = len(result.unknown)
         rest = f" (ve {n - 1} şart daha)" if n > 1 else ""
+
+        # "Bilmiyoruz"un üç ayrı sebebi var ve üçü kullanıcıya farklı şey
+        # söyler. Hepsini "profilinde yok" diye özetlemek, sahip olduğu bir
+        # beceriyi yokmuş gibi göstermeye kadar gidiyordu.
+        if first_out.unknown_reason == "missing_duration":
+            return (
+                f"{first} profilinde var ama kaç yıllık olduğu yazmıyor{rest}. "
+                "Süreyi eklersen bu ilana uyup uymadığın netleşir.",
+                "unknown_duration",
+            )
         if strong_side:
             # Bandı olumlu olan bir ilana "değerlendirme eksik kaldı" diye
             # başlamak, kullanıcının kazandığı zemini gizler. Önce ne

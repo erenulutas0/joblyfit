@@ -378,6 +378,7 @@ tr:last-child td{border-bottom:0}
 <nav class="tabs"><div class="tabs-in" role="tablist">
   <button class="tab" role="tab" data-view="feed">İlanlar<span class="pip" id="pipFeed">—</span></button>
   <button class="tab" role="tab" data-view="profile">Profilim<span class="pip" id="pipProf">—</span></button>
+  <button class="tab" role="tab" data-view="paste">İlan yapıştır</button>
   <button class="tab" role="tab" data-view="cv">CV yükle</button>
   <button class="tab" role="tab" data-view="sources">Kaynaklar</button>
 </div></nav>
@@ -851,6 +852,92 @@ function viewCV(){
     <div id="cvOut" style="margin-top:20px"></div>`;
 }
 
+/* ================= İLAN YAPIŞTIR ================= */
+function viewPaste(){
+  return `<div class="sec"><h2>İlan yapıştır</h2></div>
+    <div class="notice" style="margin-bottom:18px">
+      Başka bir sitede — LinkedIn dahil — bir ilan gördüysen metnini buraya
+      yapıştır; aynı değerlendirmeden geçsin. <strong>Sunucu o adrese hiçbir
+      istek atmaz</strong>; içeriği sen getirirsin. Yapıştırdığın metin
+      <strong>saklanmaz</strong>, ilan listesine de eklenmez.
+    </div>
+    <div class="filters">
+      <div class="frow">
+        <div class="search" style="min-width:260px">
+          <input id="pjTitle" type="text" placeholder="Pozisyon (boşsa ilk satır alınır)">
+        </div>
+        <div class="search" style="min-width:200px">
+          <input id="pjEmp" type="text" placeholder="Şirket (isteğe bağlı)">
+        </div>
+        <div class="search" style="min-width:160px">
+          <input id="pjCity" type="text" placeholder="Şehir (isteğe bağlı)">
+        </div>
+      </div>
+      <div class="frow">
+        <div class="search" style="min-width:100%">
+          <input id="pjUrl" type="url" placeholder="İlanın adresi — sadece geri dönebilmen için saklanır, çekilmez">
+        </div>
+      </div>
+    </div>
+    <textarea id="pjText" rows="14" placeholder="İlanın tamamını buraya yapıştır (en az 40 karakter)…"
+      style="width:100%; margin-top:12px; padding:14px; border:1px solid var(--rule-2);
+             border-radius:9px; background:var(--paper); color:var(--ink);
+             font-size:14.5px; line-height:1.6; resize:vertical"></textarea>
+    <p style="margin-top:12px"><button class="btn" id="pjGo">Değerlendir</button></p>
+    <div id="pjOut" style="margin-top:22px"></div>`;
+}
+
+function wirePaste(){
+  const go=$('#pjGo'), out=$('#pjOut');
+  go.onclick=async ()=>{
+    const text=$('#pjText').value.trim();
+    if(text.length<40){
+      out.innerHTML=`<div class="notice warn">İlan metni çok kısa —
+        değerlendirme için en az 40 karakter gerekiyor.</div>`;
+      return;
+    }
+    out.innerHTML=`<p class="muted"><span class="spin"></span> Değerlendiriliyor…</p>`;
+    try{
+      const j=await api('/jobs/evaluate',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text, title:$('#pjTitle').value, employer:$('#pjEmp').value,
+                             city:$('#pjCity').value, url:$('#pjUrl').value})});
+      out.innerHTML=renderVerdict(j);
+    }catch(e){
+      out.innerHTML=`<div class="notice warn"><strong>Değerlendirilemedi:</strong> ${esc(e.message)}</div>`;
+    }
+  };
+}
+
+/** Yapıştırılan ilan için özet karar bloğu — feed kartıyla aynı dili kullanır. */
+function renderVerdict(j){
+  const cls=j.band?BC[j.band]:'b-none';
+  const bandTxt=j.band?esc(j.band_label):'Değerlendirilemedi';
+  const rows=(items,mark,c)=>items.map(l=>`
+    <div class="lr ${c==='unk'?'is-unk':''}">
+      <div class="lm ${c}">${mark}</div>
+      <div><p>${esc(l.text)}</p>${l.evidence?`<div class="ev">${esc(l.evidence)}</div>`:''}</div>
+      <div>${l.action_label?`<button class="btn-2 btn-sm" data-goto="profile">${esc(l.action_label)}</button>`:''}</div>
+    </div>`).join('');
+  return `<div class="panel ${cls}">
+      <span class="band">${bandTxt}</span>
+      ${j.confidence_label?`<span class="conf" style="margin-left:8px">Güven: ${esc(j.confidence_label)}</span>`:''}
+      <p style="font-size:15px; margin:12px 0 0; line-height:1.5">${esc(j.worth_applying)}</p>
+      ${j.insufficient_data_note?`<div class="notice" style="margin-top:13px">${esc(j.insufficient_data_note)}</div>`:''}
+      ${j.verification_notice?`<div class="notice" style="margin-top:13px">${esc(j.verification_notice)}</div>`:''}
+      ${j.url?`<p style="margin-top:15px"><a class="btn btn-sm" href="${esc(j.url)}"
+        target="_blank" rel="noopener noreferrer">İlana git ↗</a></p>`:''}
+    </div>
+    ${j.met.length?`<div class="sec"><h2>Karşılıyorsun</h2><span class="count">${j.met.length}</span></div>
+      <div class="ledger">${rows(j.met,'✓','met')}</div>`:''}
+    ${j.unmet.length?`<div class="sec"><h2>Karşılamıyorsun</h2><span class="count">${j.unmet.length}</span></div>
+      <div class="ledger">${rows(j.unmet,'✕','unmet')}</div>`:''}
+    ${j.unknown.length?`<div class="sec"><h2>Bilinmiyor</h2><span class="count">${j.unknown.length}</span></div>
+      <div class="ledger">${rows(j.unknown,'?','unk')}</div>`:''}
+    ${j.legal_eligibility_notices.map(n=>`<div class="notice" style="margin-top:13px">${esc(n)}</div>`).join('')}
+    <p class="disclaimer">${esc(j.disclaimer)}</p>`;
+}
+
 /* ================= KAYNAKLAR ================= */
 function viewSources(){
   const perm=p=>`<span class="perm p-${p}">${
@@ -864,8 +951,13 @@ function viewSources(){
     </div>
     <div class="notice warn" style="margin-top:11px">
       <strong>LinkedIn ve Indeed çekilmiyor ve çekilmeyecek.</strong> LinkedIn'in
-      okuma API'si yok, robots.txt'i otomatik erişimi açıkça yasaklıyor; Indeed'in
-      eski publisher API'si kapatıldı. Bunları aşmanın yolu aranmıyor.
+      okuma API'si yok, robots.txt'i otomatik erişimi açıkça yasaklıyor; Job Posting
+      API'si ters yönde çalışır (ilan <em>yazmak</em> için) ve yeni partner almıyor.
+      Indeed'in eski publisher API'si kapatıldı. Bunları aşmanın yolu aranmıyor.
+      <br><br>
+      Orada gördüğün bir ilanı değerlendirmek istersen
+      <a href="#" data-goto="paste">metnini yapıştır</a> — içeriği sen getirirsin,
+      sunucu o adrese istek atmaz.
     </div>
     <div class="tw"><table>
       <thead><tr><th>Kaynak</th><th>İzin</th><th>Risk</th><th>Durum</th>
@@ -892,6 +984,7 @@ async function render(){
     if(VIEW==='feed'){ await refresh(); app.innerHTML=viewFeed(); wireFeed(); }
     else if(VIEW==='profile'){ await refresh(); app.innerHTML=viewProfile(); wireProfile(); }
     else if(VIEW==='cv'){ app.innerHTML=viewCV(); wireCV(); }
+    else if(VIEW==='paste'){ app.innerHTML=viewPaste(); wirePaste(); }
     else if(VIEW==='sources'){ SOURCES=SOURCES||await api('/sources'); app.innerHTML=viewSources(); }
     else if(VIEW.startsWith('job:')){ app.innerHTML=await viewJob(VIEW.slice(4)); wireJob(); }
     paintChrome();
