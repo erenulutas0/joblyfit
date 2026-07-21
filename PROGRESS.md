@@ -8,6 +8,44 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — T-003: Türkiye source landscape araştırması (Done)
+
+15 aday kaynak, birincil kanıta (robots.txt, public ToS/sözleşme sayfaları, sitemap'ler,
+public listing sayfaları) dayanarak incelendi. Kanıt dosyası:
+[TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md); registry kayıtları
+[SOURCE_REGISTRY.md](docs/architecture/SOURCE_REGISTRY.md) §5.
+
+**Tavsiye: CONDITIONAL GO.** Wave 1 = isinolsun.com (iki cluster'ı tek başına taşıyor,
+robots tam izinli, sitemap'li, adapter karmaşıklığı düşük). Wave 2 = İŞKUR e-Şube (farklı
+işveren havuzu → gerçek cross-source dedupe testi) + Kamu İlan/SBB (D-015 listing-only
+davranışını gerçek veriyle test eder). Fallback: SecretCV, Boğaziçi Kariyer Merkezi,
+ATS tenant'ları.
+
+**En önemli bulgu — izin belirsizliği kaynak yokluğundan daha bağlayıcı:** MVP'ye aday
+hiçbir kaynak koşulsuz `allowed` değil. isinolsun robots açısından tam izinli ama üyelik
+sözleşmesi §4.12 veri kopyalamayı yazılı izne bağlıyor; kariyer.net'in ToS sayfası
+otomatik erişime 403 dönüyor; yenibiris.com'un robots.txt'i bile 403; Indeed ve LinkedIn
+iş ilanı path'lerini açıkça yasaklıyor (LinkedIn ayrıca dosya başında açık ifadeyle).
+Kamu kaynaklarında robots izinli ama hiçbirinde yeniden kullanım lisansı yok.
+
+**Rejected:** Indeed, LinkedIn, eleman.net (robots ilan path'lerini kapatıyor),
+yenibiris.com (robots okunamıyor), ODTÜ KPM (login wall), iskur.gov.tr kurumsal host
+(`/is-arama?*` disallow — e-şube host'undan ayrı kayıt). Hiçbiri için bypass
+araştırılmadı, önerilmedi veya tasarlanmadı.
+
+**Tasarımı doğrulayan iki bulgu:** (1) FS-12 access-change detection spekülatif değil —
+araştırma sırasında üç canlı 403 örneği görüldü. (2) Tek source ile core loop
+doğrulaması teknik olarak mümkün (isinolsun iki cluster'ı taşıyor) → ROADMAP M2 ve
+T-017'nin düzeltilmiş dependency yapısı destekleniyor.
+
+**Acceptance sapması (bilinçli):** "cluster başına asgari ilan hacmi doğrulandı" kriteri
+niceliksel karşılanamadı; hacim tahminleri niteliksel kaldı. Nicel ölçüm T-021'e
+devredildi ve T-021 acceptance'ı buna göre genişletildi (çapraz yayın, işveren gizleme,
+posted_at görünürlük oranları da aynı örneklemden ölçülecek).
+
+**Yeni açık sorular:** OPEN-18 (§4.12 kapsamı), OPEN-19 (yazılı izin talebi — kullanıcı
+kararı), OPEN-20 (healthcare cluster zayıflığı). OPEN-09 M1-blocker'a yükseltildi.
+
 ## 2026-07-21 — Audit ve hedefli documentation revision
 
 **Audit (12 bağımsız reviewer, 35 dosya):** 134 bulgu üretildi ve yüksek-severity

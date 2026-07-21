@@ -56,7 +56,17 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   permission / policy risk değerlendirmesi yazıldı; **her MVP cluster'ı için asgari ilan
   hacmi doğrulandı**; MVP için 2-3 source önerildi; her aday için tahmini onboarding
   eforu ve aylık bakım eforu yazıldı.
-- **Status:** Todo
+- **Status:** **Done** *(2026-07-21)*
+- **Sonuç:** 15 aday incelendi, kanıtlar
+  [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) içinde; registry
+  kayıtları [SOURCE_REGISTRY.md](docs/architecture/SOURCE_REGISTRY.md) §5'te.
+  **Tavsiye: CONDITIONAL GO.** Wave 1 = isinolsun.com (conditional), Wave 2 = İŞKUR
+  e-Şube + Kamu İlan (SBB). Hiçbir kaynak koşulsuz `allowed` değil; crawl başlatılması
+  ya yazılı izne ya da T-008'in OPEN-09 rubriğine bağlı.
+  **Acceptance sapması:** "cluster başına asgari ilan hacmi doğrulandı" kriteri
+  **niceliksel olarak karşılanamadı** — hacim tahminleri niteliksel kaldı; nicel ölçüm
+  T-021'in örneklem denetimine devredildi (plan: araştırma dosyası §9). Bu sapma
+  bilinçlidir ve T-021 acceptance'ında kapanır.
 
 #### T-004 — Taxonomy standardı seçimi (ESCO vs O*NET)
 - **Objective:** Türkiye pazarına göre taxonomy çekirdeğinin seçilmesi ve D-004'ün
@@ -106,13 +116,18 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
 #### T-021 — Source coverage validation
 - **Objective:** A-3'ün doğrulanması: Türkiye'de MVP meslekleri için bağımsız derlenen
   gerçek açık pozisyonların ne kadarına compliant source'lardan erişilebiliyor?
-- **Dependency:** T-003
-- **Acceptance Criteria:** Cluster başına 50-70 ilanlık örneklem elle derlendi; her ilan
-  "aday source'lardan erişilebilir mi" diye işaretlendi; coverage yüzdesi cluster başına
-  raporlandı. **Calibration target: ≥%60.** Eşik altında kalınırsa önceden tanımlı karar
-  uygulanır: source seti genişletme, cluster değişikliği veya value proposition dilinin
-  coverage'dan kalite/explainability eksenine kaydırılması.
-- **Status:** Todo
+- **Dependency:** T-003 ✔
+- **Acceptance Criteria:** Cluster başına 50-70 ilanlık örneklem **aday source'lardan
+  bağımsız olarak** derlendi (döngüsel ölçümü önlemek için); her ilan "aday source'lardan
+  erişilebilir mi" diye işaretlendi; coverage yüzdesi cluster başına raporlandı.
+  Aynı örneklemden **çapraz yayın oranı**, **işveren gizleme oranı** ve **`posted_at`
+  görünürlük oranı** da ölçüldü (T-003'ün nicel olarak kapatamadığı kalemler).
+  **Calibration target: ≥%60.** Eşik altında kalınırsa önceden tanımlı karar uygulanır:
+  source seti genişletme, cluster değişikliği veya value proposition dilinin coverage'dan
+  kalite/explainability eksenine kaydırılması.
+- **Hazır plan:** [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) §9
+  (örneklem tasarımı, kaydedilecek 10 alan, türetilecek metrikler).
+- **Status:** Todo — **T-003 tamamlandı, başlatılabilir**
 
 #### T-022 — User interview ve problem validation
 - **Objective:** A-2, A-10 ve R-04'ün doğrulanması: hedef segmentler bu problemi yaşıyor

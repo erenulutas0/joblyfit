@@ -34,6 +34,44 @@
 
 ---
 
+## 2026-07-21 — T-003 Türkiye source landscape araştırması
+
+**Bu session'da yapılanlar:**
+- T-003 tamamlandı: 15 aday kaynak birincil kanıtla incelendi, `docs/research/`
+  altında kanıt dosyası oluşturuldu, Source Registry §5'e aday kayıtları eklendi.
+- Tavsiye **CONDITIONAL GO**; Wave 1/Wave 2/fallback/rejected ayrımı yapıldı.
+- Detay: [PROGRESS.md](PROGRESS.md) → 2026-07-21 T-003 girdisi.
+
+**Yarım kalanlar (dosya/konum ile):**
+- Yok. T-003 kapandı. Ancak **nicel hacim ölçümü bilinçli olarak T-021'e devredildi**
+  (TASKS.md T-003 sonuç notu + T-021 acceptance).
+
+**Bir sonraki session'ın ilk adımı:**
+- [TASKS.md](TASKS.md) → **T-021** (Source Coverage Validation). Örneklem planı hazır:
+  [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) §9.
+  T-022 (user interview) paralel yürütülebilir ve T-021'in bağımsız örneklem derlemesine
+  girdi verir ("son başvurduğun ilanı nereden buldun" sorusu).
+
+**Bu session'da alınan kararlar / yeni assumption'lar:**
+- Yeni karar (D-) **yok** — T-003 bir araştırma task'ıdır, karar üretmez; öneri sunar.
+- Yeni assumption'lar TR-A1…TR-A5 araştırma dosyası §10'da işaretlendi ✔
+
+**Yeni open question'lar:**
+- OPEN-18 (isinolsun §4.12 kapsamı), OPEN-19 (yazılı izin talebi — **kullanıcı kararı**),
+  OPEN-20 (healthcare cluster zayıflığı) → [CONTEXT.md](CONTEXT.md) index'ine eklendi ✔
+- OPEN-09 `pre-build` → **M1-blocker**'a yükseltildi (bütün adaylar `conditional` çıktığı
+  için artık crawl'ın önündeki tek kapı).
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **Hiçbir kaynak için crawl başlatılmamalıdır.** Registry'deki bütün kayıtlar
+  `candidate`/`under_review`; `allowed` yok. Bu, D-002 ve SCRAPING_SYSTEM §4 gri alan
+  kuralının doğrudan sonucudur.
+- Araştırmadaki policy değerlendirmeleri **hukuki görüş değildir**; hepsi T-008 girdisi.
+- `Unknown` işaretli alanlar (structured data varlığı, salary alanı, gerçek hacimler,
+  ilan.gov.tr ve Kariyer Kapısı erişimi) **tahminle doldurulmamalıdır**.
+- İŞKUR'un iki host'u (esube / kurumsal) **farklı policy taşıyor** ve registry'de ayrı
+  kayıtlar — birleştirilmemeli.
+
 ## 2026-07-21 — Audit sonrası hedefli documentation revision
 
 **Bu session'da yapılanlar:**
