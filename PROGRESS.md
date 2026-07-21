@@ -8,6 +8,65 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — Sağlamlaştırma: adapter testleri, bölge düzeltmeleri, CI
+
+Kullanıcı "gerekli test ve sağlamlaştırmaları da yapalım" dedi. Önce **gerçek kusur
+arandı**, sonra bulunanlar düzeltildi ve testle kilitlendi — sırası bilinçli:
+neyi koruyacağını bilmeden test yazmak, mevcut davranışı doğru varsaymaktır.
+
+**Veri kalitesi denetimi temiz çıktı.** 3003 canonical ilanda boş URL, boş başlık,
+boş işveren, boş şehir ve yinelenen kimlik: sıfır.
+
+**Bölge sınıflandırmada dört gerçek hata bulundu.**
+- "Vienna, VA, United States" hem **ABD hem Avrupa** sayılıyordu (Viyana sanıldı).
+- "Reading, PA" **Avrupa** sayılıyordu (Reading aynı zamanda İngiliz şehri).
+- "South America" **ABD** sayılıyordu — "america" hecesi eşleşiyordu.
+- "Remote (UK)" **Avrupa değildi** — listede "uk" kısaltması yoktu.
+
+Kök neden: şehir adları ile ülke adları eşit ağırlıktaydı. Şehir adları ülkeler
+arasında tekrar eder. Düzeltme: **ülke sinyali şehir tahminini ezer**; ülke bulunursa
+şehre hiç bakılmaz. Ayrıca "us"/"uk" yalnızca tam kelime olarak, ABD eyalet
+kısaltmaları yalnızca virgülden sonra ve **belirsiz olmayanlar** kabul ediliyor
+(IN, OR, OK, ME, DE, CA bilinçli olarak dışarıda — hepsi normal kelime).
+
+**Bir tutarsızlık daha:** Lever epoch'u UTC, Arbeitnow yerel saat olarak
+çözüyordu. Saat dilimine göre tarih bir gün kayıyor ve tazelik filtresi sınırdaki
+ilanlarda yanlış karar veriyordu. İkisi de UTC oldu.
+
+**Yeni test dosyaları (81 → 155 test).**
+- `test_adapters.py` (16) — yedi kaynağın parse sözleşmesi, sabit örnek yanıtlar
+  üzerinden; ağa çıkmaz. Her adapter için aynı asgari sözleşme doğrulanıyor:
+  **kullanılabilir URL, dolu başlık, dolu işveren, kaynak referansı**. Boş URL
+  "İlana git" düğmesini sessizce ölü yapar; bu artık testle yakalanıyor.
+  Ayrıca: eksik alanda çökmeme, beklenmeyen şekilde **sessizce boş dönmeme**,
+  pano sınırında en yenileri tutma, Himalayas'ın süresi geçmiş ilanı atması.
+- `test_regions.py` (24) — yukarıdaki dört hata dahil regresyon koruması.
+- `test_lexicon.py` (16) — yinelenen anahtar/biçim, tanınmayan kategori, çok kısa
+  yüzey biçimi, kelime sınırı, üç dilde tarama, determinizm.
+- `test_smoke.py` (18) — uygulama ayağa kalkıyor mu: her uç 200 dönüyor mu, feed'deki
+  **her ilanın detayı açılabiliyor mu**, **her ilanın başvuru linki kullanılabilir mi**,
+  profil yaşam döngüsü, OpenAPI'de her yol var mı.
+
+**CI kuruldu** (`.github/workflows/ci.yml`) — üç iş: Python testleri, arayüz
+sözdizimi, kaynak izni denetimi.
+
+**İki bekçi script'i.**
+- `scripts/check_web_syntax.py` — inline script'i `node --check`'ten geçirir. Bu
+  projede iki kez, bütün testler geçerken arayüz tamamen bozuldu; belirti yanıltıcı:
+  sayfa "Yükleniyor…"da donar, **konsola hata düşmez**, API 200 döner.
+- `scripts/check_source_policy.py` — testlerden **ayrı** bir adım olarak koşar,
+  çünkü kaynak izni bir kod kalitesi konusu değil uyum taahhüdüdür. Denetlediği:
+  kanıtsız izin, LinkedIn/Indeed'in kapalı kalması, ağa açık kaynağın yalnızca
+  `api`/`feed` olması, her panonun izinli kayda bağlı olması, API kaynaklarının
+  atıf/gecikme/yeniden-yayın şartlarını taşıması.
+
+**Bekçiler ihlal enjekte edilerek sınandı** — bir bekçinin değeri, hiç düşmemesiyle
+değil, düşmesi gerektiğinde düşmesiyle ölçülür. Dördü de yakalandı: LinkedIn'in
+açılması, izin kanıtının silinmesi, HTML erişimli kaynağın açılması, arayüze
+sözdizimi hatası sokulması.
+
+---
+
 ## 2026-07-21 — 4 public API + mavi yaka + tazelik (D-023, D-024)
 
 Kullanıcı üç şey istedi: hesap gerektirmeyen kaynaklarla devam, mavi yaka işleri,

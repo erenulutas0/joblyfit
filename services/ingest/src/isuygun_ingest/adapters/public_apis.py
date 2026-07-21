@@ -24,7 +24,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..pipeline import RawPosting
 from .ats import USER_AGENT, FetchError, _throttle, html_to_text
@@ -137,8 +137,13 @@ def fetch_arbeitnow(source_id: str, *, pages: int = 3) -> list[RawPosting]:
                     city=j.get("location") or "",
                     arrangement="Uzaktan" if j.get("remote") else "",
                     occupation_id="",
+                    # Epoch **UTC** olarak çözülür. Yerel saat kullanmak, saat
+                    # dilimine göre tarihi bir gün kaydırır ve tazelik filtresi
+                    # sınırdaki ilanlarda yanlış karar verir (D-024).
                     posted_at=_date(
-                        datetime.fromtimestamp(j["created_at"]).isoformat()
+                        datetime.fromtimestamp(
+                            j["created_at"], tz=timezone.utc
+                        ).isoformat()
                         if isinstance(j.get("created_at"), (int, float))
                         else j.get("created_at")
                     ),

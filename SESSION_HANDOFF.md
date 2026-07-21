@@ -34,6 +34,35 @@
 
 ---
 
+## 2026-07-21 — Sağlamlaştırma: adapter testleri, bölge düzeltmeleri, CI
+
+**Bu session'da yapılanlar:**
+- Bölge sınıflandırmada 4 gerçek hata düzeltildi (ülke sinyali artık şehri ezer).
+- Lever/Arbeitnow arasındaki UTC-yerel saat tutarsızlığı giderildi.
+- **81 → 155 test**: `test_adapters.py`, `test_regions.py`, `test_lexicon.py`,
+  `test_smoke.py`.
+- **CI** (`.github/workflows/ci.yml`) + iki bekçi script'i (`scripts/`).
+- Detay: [PROGRESS.md](PROGRESS.md) → "Sağlamlaştırma".
+
+**Yarım kalanlar:**
+- Kalıcılık yok (PostgreSQL). Next.js'e taşınmadı. TR hacmi 21 ilan (OPEN-19).
+- Adapter testleri **ağa çıkmıyor**; gerçek uç bir alanı değiştirirse testler
+  geçmeye devam eder. Canlı sözleşme testi ayrı bir iş (nightly olabilir).
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **Bekçileri değiştirirken ihlal enjekte ederek sına.** Hiç düşmeyen bekçi
+  koruma sağlamaz; bu turda dördü de kasten bozularak doğrulandı.
+- **Bölgeye şehir eklerken ülke listesine ekleme.** Ülke sinyali şehri ezer;
+  ikisini karıştırmak "Vienna, VA" hatasını geri getirir.
+- **ABD eyalet kısaltmalarına IN/OR/OK/ME/DE/CA ekleme** — hepsi normal kelime,
+  Almanca/İngilizce metinde yanlış eşleşir.
+- Yeni adapter yazarken `_assert_contract` sözleşmesini karşıla: kullanılabilir
+  URL, dolu başlık, dolu işveren, kaynak referansı.
+- Beklenmeyen yanıt şeklinde **sessizce boş dönme** — `FetchError` yükselt;
+  sessiz boşluk kaynağın kapandığını gizler.
+
+---
+
 ## 2026-07-21 — 4 public API + mavi yaka + tazelik
 
 **Bu session'da yapılanlar:**

@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (4 public API + mavi yaka + tazelik filtresi; ~2650 ilan)_
+_Last updated: 2026-07-21 (sağlamlaştırma: 155 test, CI, iki politika bekçisi)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -41,7 +41,9 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 **Gerçek ilanlarla çalışan uygulama** — 70 ATS panosu + 4 public API'den
 **~3330 ilan çekiliyor, 283'ü eski olduğu için eleniyor, ~2650 gösteriliyor**
-(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **81 test geçiyor.**
+(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **155 test geçiyor** ve
+GitHub Actions'ta üç iş olarak koşuyor (Python testleri · arayüz sözdizimi ·
+kaynak izni denetimi).
 
 Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
 **yayın tarihi (son 7/14/30 gün)** · sıralama (uygunluk / en yeni / işveren).
@@ -53,7 +55,7 @@ kaynakçı ilanları geliyor. Sözlüğe Almanca yüzey biçimleri eklendi.
 (OPEN-19). Arbeitsagentur liste ucu açıklama metni vermiyor; şart çıkarımı başlıkla
 sınırlı. Kalıcılık yok (açılış ~35 sn, `.cache/` 6 saat TTL).
 
-Sıradaki: kalıcılık (PostgreSQL) · CI · Next.js'e taşıma · TR kaynakları (OPEN-19).
+Sıradaki: kalıcılık (PostgreSQL) · Next.js'e taşıma · TR kaynakları (OPEN-19).
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.

@@ -12,6 +12,8 @@ birden fazla bölgeye düşebilir ve hiçbirine düşmeyebilir. Eşleşme buluna
 
 from __future__ import annotations
 
+import re
+
 from .pipeline import fold
 
 TR = "Türkiye"
@@ -22,21 +24,31 @@ OTHER = "Diğer"
 
 ALL = (TR, EU, US, REMOTE, OTHER)
 
-_TR = (
-    "turkiye", "turkey", "istanbul", "ankara", "izmir", "bursa", "antalya",
+# Sinyaller iki güçte tutulur.
+#
+# **Ülke adı şehir adını ezer.** Şehir adları ülkeler arasında tekrar eder:
+# Vienna hem Avusturya'da hem Virginia'da, Reading hem İngiltere'de hem
+# Pennsylvania'da vardır. Hepsini eşit ağırlıkta aramak "Vienna, VA, United
+# States" ilanını hem ABD hem Avrupa yapıyordu. Bu yüzden önce ülke/bölge
+# işaretleri aranır; biri tutarsa şehir tahminlerine hiç bakılmaz.
+
+_TR_COUNTRY = ("turkiye", "turkey")
+_TR_CITY = (
+    "istanbul", "ankara", "izmir", "bursa", "antalya",
     "kocaeli", "adana", "konya", "gaziantep", "eskisehir", "kayseri", "samsun",
     "denizli", "mersin", "sakarya", "tekirdag", "trabzon", "maslak", "atasehir",
 )
 
-_EU = (
-    # ülkeler / bölgeler
+_EU_COUNTRY = (
     "united kingdom", "germany", "france", "spain", "italy", "netherlands",
     "ireland", "poland", "portugal", "sweden", "denmark", "norway", "finland",
     "switzerland", "belgium", "austria", "czech", "czechia", "hungary", "greece",
     "romania", "bulgaria", "croatia", "slovenia", "slovakia", "estonia",
     "latvia", "lithuania", "luxembourg", "cyprus", "malta", "iceland",
     "england", "scotland", "wales", "europe", "emea", "deutschland",
-    # şehirler
+)
+
+_EU_CITY = (
     "london", "berlin", "munich", "munchen", "hamburg", "frankfurt", "cologne",
     "koln", "dusseldorf", "stuttgart", "leipzig", "dresden", "magdeburg",
     "amsterdam", "rotterdam", "utrecht", "eindhoven", "the hague", "den haag",
@@ -56,8 +68,9 @@ _EU = (
     "milton keynes", "reading", "brighton",
 )
 
-_US = (
-    "united states", "usa", "u.s.", "u.s.a", "america",
+_US_COUNTRY = ("united states", "usa", "u.s.a", "u.s.")
+
+_US_CITY = (
     "san francisco", "new york", "nyc", "brooklyn", "seattle", "austin",
     "boston", "chicago", "los angeles", "denver", "atlanta", "miami", "dallas",
     "houston", "portland", "san diego", "san jose", "palo alto", "mountain view",
@@ -67,14 +80,25 @@ _US = (
     "kansas city", "st. louis", "orlando", "tampa", "sacramento", "bellevue",
     "redmond", "boulder", "ann arbor", "madison", "irvine", "santa monica",
     "aurora, il", "california", "texas", "florida", "colorado", "illinois",
-    "massachusetts", "washington, dc", "new jersey", "virginia", "georgia, us",
+    "massachusetts", "washington, dc", "new jersey", "virginia",
 )
 
 _REMOTE = ("remote", "anywhere", "distributed", "work from home", "wfh", "hybrid/remote")
 
-# "US" tek başına bir konum olarak geçiyor ama "us" hecesi başka kelimelerin
-# içinde de var (russia, belarus, austin…). Yalnızca tam kelime kabul edilir.
+# Kısaltmalar yalnızca **tam kelime** olarak kabul edilir: "us" hecesi
+# russia/belarus/austin içinde, "uk" hecesi ukraine içinde geçiyor.
+# "america" bilinçli olarak listede YOK — "South America" ilanını ABD yapıyordu.
 _US_TOKENS = {"us", "usa"}
+_EU_TOKENS = {"uk", "eu"}
+
+# ABD eyalet kısaltmaları — yalnızca virgülden sonra ve **belirsiz olmayanlar**.
+# Kasıtlı olarak dışarıda bırakılanlar: IN, OR, OK, ME, HI, DE, ID, LA, MS, MT,
+# AL, AR, CA — hepsi İngilizce/Almanca/Türkçe bir kelime ya da ülke kısaltması
+# ("CA" Kanada sanılabilir). Kapsamı dar tutmak, yanlış sınıflandırmadan iyidir.
+_US_STATE_CODE = re.compile(
+    r",\s*(pa|tx|ny|il|ma|wa|ga|nc|sc|va|md|mn|mi|mo|nj|nv|az|co|ct|ut|wi|ks|ky|"
+    r"ne|nh|nm|ri|sd|nd|tn|vt|wv|wy|ak|ia|oh|fl)\b"
+)
 
 
 def classify(location: str) -> set[str]:
@@ -82,18 +106,35 @@ def classify(location: str) -> set[str]:
 
     Bir ilan birden fazla bölgeye ait olabilir: "Cardiff, London or Remote (UK)"
     hem :data:`EU` hem :data:`REMOTE`'tur. Hiçbiri tutmuyorsa :data:`OTHER`.
+
+    Uzaktan çalışma coğrafyadan bağımsızdır ve her zaman ayrıca işaretlenir.
     """
     s = fold(location or "")
     if not s.strip():
         return {OTHER}
 
+    words = set(_tokens(s))
     out: set[str] = set()
-    if any(m in s for m in _TR):
+
+    # 1) Güçlü sinyal: ülke / bölge adı.
+    if any(m in s for m in _TR_COUNTRY):
         out.add(TR)
-    if any(m in s for m in _EU):
+    if any(m in s for m in _EU_COUNTRY) or (_EU_TOKENS & words):
         out.add(EU)
-    if any(m in s for m in _US) or (_US_TOKENS & set(_tokens(s))):
+    if (any(m in s for m in _US_COUNTRY) or (_US_TOKENS & words)
+            or _US_STATE_CODE.search(s)):
         out.add(US)
+
+    # 2) Ülke bulunamadıysa şehir adına düşülür. Ülke varken şehre bakmak,
+    #    "Vienna, VA, United States" gibi ilanları iki bölgeye birden sokar.
+    if not out:
+        if any(m in s for m in _TR_CITY):
+            out.add(TR)
+        if any(m in s for m in _EU_CITY):
+            out.add(EU)
+        if any(m in s for m in _US_CITY):
+            out.add(US)
+
     if any(m in s for m in _REMOTE):
         out.add(REMOTE)
 
@@ -101,8 +142,6 @@ def classify(location: str) -> set[str]:
 
 
 def _tokens(folded: str) -> list[str]:
-    import re
-
     return re.findall(r"[a-z]+", folded)
 
 

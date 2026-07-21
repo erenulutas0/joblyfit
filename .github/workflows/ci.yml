@@ -1,0 +1,70 @@
+name: CI
+
+# Testler bu ana kadar yalnızca elle koşuyordu. İki kez, geçen bir test kümesiyle
+# birlikte bozuk kod işlendi (arayüzde JS sözdizimi hatası — sayfa "Yükleniyor…"da
+# donuyor ve konsola hata düşmüyordu). Bu iş akışının varlık sebebi budur.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    name: Python testleri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Bağımlılıklar
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest fastapi "uvicorn[standard]" python-multipart pypdf httpx
+
+      # Her paket kendi pyproject'indeki pythonpath ile koşar; editable install yok.
+      # Testler AĞA ÇIKMAZ — korpus fixture'dan yüklenir (bkz. test_api.py).
+      - name: core
+        working-directory: services/core
+        run: python -m pytest tests -q
+
+      - name: ingest
+        working-directory: services/ingest
+        run: python -m pytest tests -q
+
+      - name: api
+        working-directory: services/api
+        run: python -m pytest tests -q
+
+  web:
+    name: Arayüz sözdizimi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # web/index.html içindeki inline script parse edilemezse sayfa sessizce
+      # boş kalır: konsola hata düşmez, API 200 döner, sorun backend'de sanılır.
+      - name: index.html içindeki script'i doğrula
+        run: python scripts/check_web_syntax.py
+
+  guards:
+    name: Politika denetimleri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # Bu denetim testlerden ayrı tutulur: kaynak izni bir kod kalitesi konusu
+      # değil, ürünün uyum taahhüdüdür (D-002 / D-020 / D-023).
+      - name: Kaynak izni denetimi
+        run: python scripts/check_source_policy.py
