@@ -34,6 +34,59 @@
 
 ---
 
+## 2026-07-21 — T-022A interview hazırlığı + OPEN-19 izin taslakları
+
+**Bu session'da yapılanlar:**
+- T-003 kabul edildi; `fb3bf17` final baseline olarak CONTEXT'e kaydedildi.
+- T-022 → **T-022A (Done)** ve **T-022B (Pending Fieldwork)** olarak ayrıldı.
+- Saha materyalleri + response CSV + OPEN-19 izin taslakları hazırlandı.
+- Detay: [PROGRESS.md](PROGRESS.md) → 2026-07-21 T-022A girdisi.
+
+**Yarım kalanlar (dosya/konum ile):**
+- **T-022B saha çalışması** — bu bir eksiklik değil, tasarım gereği kullanıcıya ait iş.
+
+**🔴 KULLANICININ GERÇEK HAYATTA YAPMASI GEREKENLER (bu olmadan ilerlenemez):**
+1. **Görüşmeleri yürütmek.** 12-18 katılımcı, cluster başına en az 4
+   (Logistics & Operations / Office & Commercial / Healthcare).
+   Script: [USER_INTERVIEW_VALIDATION_PLAN.md](docs/research/USER_INTERVIEW_VALIDATION_PLAN.md) §9.
+   Görüşme başına 25-35 dk. **Bölüm A ve B'de ürün anlatılmaz** — bu kural bozulursa
+   o görüşmenin kanıt değeri düşer.
+2. **Cevapları template'e girmek.**
+   [USER_INTERVIEW_RESPONSE_TEMPLATE.csv](docs/research/USER_INTERVIEW_RESPONSE_TEMPLATE.csv)
+   — her satır bir görüşme. İzinli değerler: plan §19.1 kod defteri.
+   **Gerçek isim/telefon/e-posta yazılmaz**; `P-01` gibi takma kimlik kullanılır.
+3. **Her görüşmeden sonra 10 dk içinde** plan §20 özetini doldurmak (hafıza tazeyken).
+4. **İzin taslakları için karar vermek:** gönderilecek mi, hangi kimlikle (PQ-1)?
+   Gönderilecekse **önce iletişim kanalını doğrulamak** — taslaklardaki adresler
+   bilinçli olarak `Unknown` bırakıldı, uydurulmadı.
+
+**Bir sonraki session'ın ilk adımı:**
+- CSV'de **en az 12 satır** (cluster başına ≥4) varsa: sentez — plan §21 şablonu,
+  §19 kodlama kuralı, §22 Go/Revise/Stop çerçevesi. T-022B ancak o zaman Done olur.
+- CSV boş veya eksikse: **sentez yapılmaz**, T-022B `Pending Fieldwork` kalır.
+- İzin yanıtı geldiyse: Source Registry §5 güncellemesi —
+  [SOURCE_PERMISSION_REQUESTS_TR.md](docs/research/SOURCE_PERMISSION_REQUESTS_TR.md) §6
+  tablosuna göre.
+
+**Bu session'da alınan kararlar / yeni assumption'lar:**
+- Yeni karar (D-) **yok** — T-022A hazırlık task'ıdır, karar üretmez.
+- Yeni assumption yok; test edilecek olanlar zaten A-2, A-4, A-10 (+A-9/A-13 ön sinyal).
+
+**Yeni open question'lar:**
+- OPEN-21 (teşvik / ses kaydı / kayıt saklama süresi) → CONTEXT index'ine eklendi ✔
+- Plan §25'te TQ-1…TQ-6, izin dosyası §7'de PQ-1…PQ-4 (dosya-içi açık sorular).
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **T-022B hiçbir koşulda hayali cevapla kapatılmaz.** Claude görüşme yapmadı ve
+  yapmayacak; sentez yalnızca kullanıcının girdiği gerçek veriyle üretilir.
+- Plan §23'teki calibration target'lar **eşik değil**; bir hedefin kıl payı kaçırılması
+  otomatik "Stop" değildir (METRICS §5 hedef revizyon kuralı).
+- **T-021 başlatılmadı** ve kullanıcı onayı olmadan başlatılmayacak.
+- **T-003 final** (`fb3bf17`): üzerinde yeni audit/enum/cross-reference kontrolü veya ek
+  araştırma yapılmaz.
+- İzin taslakları **gönderilmedi**; hiçbir kaynağa erişim başlatılmadı, Registry'de
+  `allowed` kayıt yok.
+
 ## 2026-07-21 — T-003 Türkiye source landscape araştırması
 
 **Bu session'da yapılanlar:**

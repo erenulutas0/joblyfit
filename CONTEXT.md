@@ -33,13 +33,26 @@ Implementation code yok, technology stack seçilmedi (D-001). Build'e geçiş
 ve mevcut Faz 1 task'ları tamamlanıp **go / revise / stop** kararı verilene kadar
 implementation başlamaz.
 
-**T-003 tamamlandı (2026-07-21).** Sonuç: 15 aday incelendi, tavsiye **CONDITIONAL GO** —
+**T-003 tamamlandı ve kullanıcı tarafından kabul edildi (2026-07-21).** Commit `fb3bf17`
+**T-003 final baseline'ıdır** — bu task üzerinde yeni audit, enum/cross-reference kontrolü
+veya ek araştırma yapılmaz. Sonuç: 15 aday incelendi, tavsiye **CONDITIONAL GO** —
 Wave 1 = isinolsun.com, Wave 2 = İŞKUR e-Şube + Kamu İlan (SBB). **Kritik bulgu: MVP'ye
 aday hiçbir kaynak koşulsuz `allowed` değil**; crawl başlatılması yazılı izne (OPEN-19)
 veya T-008'in `Conditional` rubriğine (OPEN-09) bağlı. Detay:
 [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md).
 
-Sıradaki iş: [TASKS.md](TASKS.md) → T-021 (coverage validation; planı hazır) ve T-022.
+**T-022A tamamlandı (2026-07-21).** Saha materyalleri hazır:
+[USER_INTERVIEW_VALIDATION_PLAN.md](docs/research/USER_INTERVIEW_VALIDATION_PLAN.md) +
+[response template CSV](docs/research/USER_INTERVIEW_RESPONSE_TEMPLATE.csv).
+**T-022B saha çalışması bekliyor — görüşmeleri kullanıcı yürütür**; gerçek katılımcı
+verisi olmadan tamamlanamaz ve hayali sonuç üretilmez.
+
+**OPEN-19 için izin talebi taslakları hazırlandı** (gönderilmedi):
+[SOURCE_PERMISSION_REQUESTS_TR.md](docs/research/SOURCE_PERMISSION_REQUESTS_TR.md).
+İletişim kanalları **doğrulanmadı (`Unknown`)** — gönderim öncesi teyit gerekir.
+
+Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslaklarının gönderim kararı
+(kullanıcı) · ardından T-021. **T-021 başlatılmadı.**
 
 ## Karara Bağlanmış Temeller (2026-07-21)
 
@@ -89,7 +102,8 @@ Sıradaki iş: [TASKS.md](TASKS.md) → T-021 (coverage validation; planı hazı
 | OPEN-08 | Log / backup / analytics retention süreleri | pre-build | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
 | OPEN-09 | `Conditional` source'lar için karar rubriği | **M1-blocker (yükseldi)** | [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md) | T-008 | **Open — aciliyet arttı:** T-003 sonucunda MVP'ye aday **bütün** kaynaklar `conditional` çıktı; bu rubrik kapanmadan hiçbir crawl başlatılamaz |
 | OPEN-18 | isinolsun üyelik sözleşmesi §4.12 (veri kopyalama yasağı) üye olmayan otomatik erişime uygulanır mı? | M1-blocker | [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) | T-008 | Open — Wave 1'in başlayabilmesi buna bağlı |
-| OPEN-19 | Kariyer.net grubuna ve İŞKUR'a **yazılı izin / resmi feed talebi** yapılacak mı? | M1-blocker | [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) | — | Open — **kullanıcı kararı**; SCRAPING_SYSTEM §4/5'in tercih ettiği yol |
+| OPEN-19 | Kariyer.net grubuna ve İŞKUR'a **yazılı izin / resmi feed talebi** yapılacak mı? | M1-blocker | [SOURCE_PERMISSION_REQUESTS_TR.md](docs/research/SOURCE_PERMISSION_REQUESTS_TR.md) | — | Open — **taslaklar hazır, gönderilmedi.** Gönderim kararı ve iletişim kanalı doğrulaması (`Unknown`) **kullanıcıya ait** |
+| OPEN-21 | T-022 görüşmelerinde teşvik verilecek mi, ses kaydı alınacak mı, kayıt saklama süresi ne olacak? | pre-build | [USER_INTERVIEW_VALIDATION_PLAN.md](docs/research/USER_INTERVIEW_VALIDATION_PLAN.md) | T-022B, T-008 | Open — **kullanıcı kararı** (plan §25 TQ-1, TQ-4) |
 | OPEN-20 | Healthcare cluster'ının compliant coverage zayıflığı D-008 cluster seçimini değiştirir mi? | pre-build | [PRD.md](docs/product/PRD.md) | T-021 | Open — **kullanıcı kararı**, T-021 ölçümünden sonra |
 | OPEN-10 | Ayrımcı/hukuken belirsiz şart içeren ilanlar gizlensin mi, uyarıyla mı gösterilsin? | pre-build | [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md) | T-008 | Kısmen kapandı (D-013: uyarı + Manual Review; gizleme kararı hukuki görüşe bağlı) |
 | OPEN-11 | Minimum kullanıcı yaşı ve reşit olmayan kullanıcı politikası | pre-build | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |

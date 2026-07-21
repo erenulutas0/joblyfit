@@ -8,6 +8,43 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — T-022A: Interview hazırlığı + OPEN-19 izin taslakları (Done)
+
+T-003 kullanıcı tarafından kabul edildi; `fb3bf17` T-003 final baseline'ı olarak
+sabitlendi. Ardından T-022 ikiye ayrıldı ve hazırlık aşaması tamamlandı.
+
+**T-022A — saha materyalleri (Done).**
+[USER_INTERVIEW_VALIDATION_PLAN.md](docs/research/USER_INTERVIEW_VALIDATION_PLAN.md):
+25 bölüm + CSV kod defteri. Tasarımın çekirdeği, görüşmenin ilk iki bölümünde ürünün
+**hiç anlatılmaması** ve yalnızca geçmiş davranışın sorulması; konsept ancak Bölüm C'de
+tek bir kartla gösteriliyor. Hipotetik olumluluk ("kullanırdım", "güzelmiş") açıkça
+**kanıt sayılmıyor**; kanıt gücü dört kademeli kodlanıyor (strong/moderate/weak/invalid)
+ve yalnızca ilk ikisi sentezde sayılıyor. Yönlendirici soru kaçınma rehberi, red flag
+listesi ve "bizi yanlışlayan bulgular" bölümü zorunlu tutulan sentez şablonu eklendi.
+Kota: 12-18 katılımcı, cluster başına en az 4.
+
+[USER_INTERVIEW_RESPONSE_TEMPLATE.csv](docs/research/USER_INTERVIEW_RESPONSE_TEMPLATE.csv):
+34 alanlı, **yalnızca başlık satırı** — hiçbir örnek/hayali yanıt yok. İsim, telefon,
+e-posta ve doğrudan kimlik alanı **bilinçli olarak yok**; katılımcılar `P-01` gibi
+takma kimlikle kaydediliyor.
+
+**T-022B — Pending Fieldwork / Blocked (External Input).** Görüşmeleri kullanıcı yürütür.
+Gerçek katılımcı verisi olmadan tamamlanamaz; hayali görüşme cevabı veya validation
+sonucu üretilmedi ve üretilmeyecek.
+
+**OPEN-19 — izin talebi taslakları (gönderilmedi).**
+[SOURCE_PERMISSION_REQUESTS_TR.md](docs/research/SOURCE_PERMISSION_REQUESTS_TR.md):
+İşin Olsun/Kariyer.net grubu ve İŞKUR için ayrı taslaklar; her biri kısa + detaylı
+sürüm, teknik ek bilgi listesi, net sorular, takip mesajı ve **gelen cevabın Source
+Registry'ye nasıl işleneceği** tablosu içeriyor. Taslaklar hukuki pozisyon almıyor,
+karşı tarafın şartlarını kendi lehimize yorumlamıyor; yalnızca izin ve uygun entegrasyon
+yöntemini soruyor. Restriction bypass edilmeyeceği, verinin satılmayacağı, kaynak ve
+orijinal URL'in korunacağı, başvurunun orijinal kaynaktan yapılacağı açıkça yazılı.
+**İletişim adresleri uydurulmadı — `Unknown` bırakıldı** ve gönderim öncesi doğrulama
+şartı kondu.
+
+**Yeni açık soru:** OPEN-21 (teşvik, ses kaydı ve kayıt saklama süresi — kullanıcı kararı).
+
 ## 2026-07-21 — T-003: Türkiye source landscape araştırması (Done)
 
 15 aday kaynak, birincil kanıta (robots.txt, public ToS/sözleşme sayfaları, sitemap'ler,

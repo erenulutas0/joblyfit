@@ -127,16 +127,39 @@ olmaz. Bu kural, dosyanın Faz 2 bölünmesinden sonra yönetilemez hale gelmesi
   kalite/explainability eksenine kaydırılması.
 - **Hazır plan:** [TURKEY_SOURCE_LANDSCAPE.md](docs/research/TURKEY_SOURCE_LANDSCAPE.md) §9
   (örneklem tasarımı, kaydedilecek 10 alan, türetilecek metrikler).
-- **Status:** Todo — **T-003 tamamlandı, başlatılabilir**
+- **Status:** **Todo — başlatılmadı.** T-003 tamamlandı (dependency karşılandı) ancak
+  kullanıcı önceliği T-022 hazırlığına verdi; T-021 kullanıcı onayı olmadan başlatılmaz.
 
-#### T-022 — User interview ve problem validation
-- **Objective:** A-2, A-10 ve R-04'ün doğrulanması: hedef segmentler bu problemi yaşıyor
-  mu, mevcut platformlar yerine bunu tercih eder mi, dijital kanalla erişilebilir mi?
+#### T-022A — User interview hazırlığı (saha materyalleri)
+- **Objective:** T-022B'nin saha çalışması için tarafsız görüşme materyallerinin
+  hazırlanması: katılımcı kriterleri, kota, script, rıza metni, kanıt kodlama ve sentez
+  çerçevesi.
 - **Dependency:** T-001
-- **Acceptance Criteria:** ≥15 görüşme, ≥3 farklı cluster'dan ve en az yarısı
-  white-collar dışı; mevcut kanal memnuniyetsizliği, switching nedeni ve konsepte ilgi
-  raporlandı. **Calibration target: ≥%50 kullanım niyeti + belirgin memnuniyetsizlik.**
-- **Status:** Todo
+- **Acceptance Criteria:** Üç cluster için recruitment kotası belirlendi ✔;
+  leading olmayan interview script hazırlandı ✔; consent ve privacy metni yazıldı ✔;
+  yapılandırılmış response template oluşturuldu ✔; evidence coding ve synthesis yöntemi
+  tanımlandı ✔; Go/Revise/Stop çerçevesi hazırlandı ✔; **hayali response veya sonuç
+  üretilmedi** ✔.
+- **Status:** **Done** *(2026-07-21)*
+- **Çıktılar:** [USER_INTERVIEW_VALIDATION_PLAN.md](docs/research/USER_INTERVIEW_VALIDATION_PLAN.md)
+  (25 bölüm + CSV kod defteri) ·
+  [USER_INTERVIEW_RESPONSE_TEMPLATE.csv](docs/research/USER_INTERVIEW_RESPONSE_TEMPLATE.csv)
+  (yalnızca başlık satırı; PII alanı yok)
+
+#### T-022B — User interview saha çalışması ve sentez
+- **Objective:** A-2, A-10 ve R-04'ün gerçek katılımcılarla doğrulanması: hedef segmentler
+  bu problemi yaşıyor mu, mevcut platformlar yerine bunu tercih eder mi, dijital kanalla
+  erişilebilir mi?
+- **Dependency:** T-022A ✔
+- **Acceptance Criteria:** 12-18 görüşme tamamlandı (cluster başına ≥4); cevaplar response
+  template'ine işlendi; sentez şablonu (plan §21) dolduruldu — **"bizi yanlışlayan
+  bulgular" bölümü dahil**; A-2/A-4/A-10 için değerlendirme yazıldı; Go/Revise/Stop kararı
+  gerekçesiyle verildi.
+- **Status:** **Pending Fieldwork — Blocked (External Input)**
+- **Neden bloke:** Görüşmeleri **kullanıcı yürütür.** Bu task gerçek katılımcı verisi
+  olmadan tamamlanamaz; hayali görüşme cevabı veya validation sonucu üretilmez.
+- **Not:** Plan §23'teki calibration target'lar başarı/başarısızlık eşiği değildir
+  ([METRICS.md](docs/product/METRICS.md) §5 hedef revizyon kuralına tabidir).
 
 #### T-023 — Wizard-of-Oz explanation validation
 - **Objective:** A-9'un doğrulanması: explainable Match Score karar netliği ve güven
