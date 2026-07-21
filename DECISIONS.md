@@ -485,3 +485,54 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   *değerlendirilebildiğidir*.
 - **Denetlenebilirlik:** `test_single_requirement_cannot_produce_strong_band`,
   `test_three_requirements_may_reach_strong`, `test_cap_never_lowers_a_weak_band`.
+
+---
+
+## D-023 — Kayıt gerektirmeyen public iş ilanı API'leri eklendi
+
+- **Status:** Confirmed (2026-07-21 kullanıcı onayı: "hesap gerektirmeyenlerle devam et")
+- **Date:** 2026-07-21
+- **Decision:** Dört kaynak eklendi: **Arbeitsagentur** (Almanya İş Ajansı — mavi
+  yaka kapsamı için ana kaynak), **Arbeitnow** (DE/AB), **The Muse** (ABD),
+  **Himalayas** (uzaktan). Dördü de kimlik doğrulaması istemeyen, yayıncının kendi
+  belgelediği JSON uçlarıdır.
+- **Reason:** ATS panoları teknoloji/kurumsal ağırlıklıydı; ürünün "her meslek
+  dalı" iddiası karşılanmıyordu. Arbeitsagentur bu boşluğu doğrudan kapatıyor —
+  depo, şoför, kaynakçı, aşçı, bakım gibi meslekler.
+- **Alternatives:** JobTechDev (İsveç açık verisi) — **eklenmedi**, sözlük İsveççe
+  konuşmuyor, eklense ilanlar eşleşmezdi. Adzuna/USAJOBS/Reed — ücretsiz ama kayıt
+  gerektiriyor, kullanıcı "hesap gerektirmeyenler" dedi. RemoteOK/Jobicy/Remotive —
+  sert atıf veya çok düşük istek limiti; Remotive'in ToS'u kullanıcı hesabı ardında
+  ilan göstermeyi kısıtlıyor ve ürün modeliyle çelişiyor.
+- **Consequence:** Kaynaklar artık **aynı şartlarla gelmiyor**. Registry kayıt
+  başına `attribution_required`, `min_poll_hours` ve `redistribution_policy`
+  taşıyor (OPEN-25 kapandı). Arbeitsagentur liste ucu **açıklama metni vermez**;
+  şart çıkarımı başlık + meslek adıyla sınırlıdır ve bu sınır kayıtta yazılıdır.
+  Sözlüğe Almanca mavi yaka yüzey biçimleri eklendi (Lagerhelfer, Staplerschein,
+  Berufskraftfahrer, Schweisser, Pflegehelfer…).
+- **Denetlenebilirlik:** `test_api_sources_are_registered_with_policy`,
+  `test_attribution_required_sources_are_marked`, `test_every_api_source_has_a_fetcher`.
+
+---
+
+## D-024 — Süresi geçmiş ilan gösterilmez; tarihi bilinmeyen elenmez
+
+- **Status:** Confirmed (2026-07-21 kullanıcı isteği: "geçmiş işler çıkmasın")
+- **Date:** 2026-07-21
+- **Decision:** Yayın tarihi `MAX_AGE_DAYS`'ten (varsayılan 45) eski olan ilan
+  ingest'te **düşürülür**. Yayın tarihi **bilinmeyen** ilan düşürülmez; "tarih
+  bilinmiyor" olarak işaretlenir ve tarihe göre sıralamada sona konur.
+  Arayüzde "Son 7 / 14 / 30 gün" filtresi ve ilan yaşı göstergesi vardır.
+- **Reason:** Kullanıcıyı kapanmış bir ilana yönlendirmek, ona hiç ilan
+  göstermemekten daha kötüdür — güveni doğrudan kırar. Kaynakların çoğu kapanan
+  ilanı listeden düşürür ama hepsi düşürmez ve düşürme gecikir.
+- **Alternatives:** Tarihi bilinmeyen ilanı da elemek (**reddedildi** — D-011'in
+  aynı mantığı: "bilmiyoruz", "kötü" demek değildir; bazı kaynaklar tarih hiç
+  vermiyor ve bu ilanları atmak kullanıcıdan gerçek fırsat gizlerdi). İlanın hâlâ
+  açık olup olmadığını kaynağa tek tek sormak (ertelendi — istek maliyeti yüksek,
+  `min_poll_hours` şartlarını zorlar).
+- **Consequence:** Eleme **sessiz değildir**: `stale_dropped` ingest raporunda ve
+  arayüzde görünür. Himalayas `expiryDate` verdiği için orada süresi geçmiş
+  ilanlar çekim anında ayıklanır.
+- **Denetlenebilirlik:** `test_stale_posting_is_dropped`,
+  `test_posting_without_date_is_not_dropped`, `test_unparseable_date_is_unknown_not_old`.

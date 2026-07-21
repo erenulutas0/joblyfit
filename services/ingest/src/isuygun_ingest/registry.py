@@ -47,6 +47,16 @@ class SourceRecord:
     # `allowed` işaretlemenin dayanağı. İzin iddiası kanıtsız yazılamaz (D-020);
     # `audit()` bunu denetler.
     permission_evidence: str = ""
+    # --- kaynak başına kullanım şartları (D-023) ---
+    # Kaynaklar aynı şartlarla gelmiyor: kimi geri bağlantı ister, kimi saatte
+    # tek istek, kimi yeniden yayına hiç izin vermez. Bunlar kod dışında bir
+    # yerde tutulursa ihlal sessizce olur.
+    #: Arayüzde kaynağa görünür atıf zorunlu mu
+    attribution_required: bool = False
+    #: Aynı kaynağa iki çekim arasındaki asgari süre (saat)
+    min_poll_hours: float = 6.0
+    #: İçeriğin yeniden yayınına dair kaynağın kendi kuralı
+    redistribution_policy: str = "link-only"
 
     @property
     def may_fetch_network(self) -> bool:
@@ -152,6 +162,66 @@ REGISTRY: dict[str, SourceRecord] = {
                 "<firma>.recruitee.com/robots.txt → yalnızca '/v/' disallow; "
                 "'/api/offers/' serbest (doğrulandı 2026-07-21)."
             ),
+        ),
+        # ------------------------------------------------------------------
+        # D-023 — kayıt gerektirmeyen public iş ilanı API'leri.
+        # Her birinin şartı farklıdır; farklar aşağıdaki alanlarda tutulur.
+        # ------------------------------------------------------------------
+        SourceRecord(
+            source_id="src-api-arbeitsagentur",
+            name="Arbeitsagentur Jobsuche (Almanya İş Ajansı)",
+            source_type="government_portal",
+            base_url="https://rest.arbeitsagentur.de", access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "Resmî açık API; jobsuche.api.bund.dev'de dokümante. Kimlik "
+                "doğrulaması yerine yayınlanmış statik anahtar kullanılır "
+                "(kullanıcıya özel değildir). Yanıt ilanın kendi sayfasına giden "
+                "externeUrl / jobdetail bağlantısı taşır (doğrulandı 2026-07-21)."
+            ),
+            min_poll_hours=6.0, redistribution_policy="link-only",
+            note="Mavi yaka kapsamı en geniş kaynak. Liste ucu açıklama metni "
+                 "vermez; şart çıkarımı başlık + meslek adıyla sınırlıdır.",
+        ),
+        SourceRecord(
+            source_id="src-api-arbeitnow", name="Arbeitnow Job Board API",
+            source_type="aggregator", base_url="https://www.arbeitnow.com",
+            access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "arbeitnow.com/blog/job-board-api — public, auth'suz, kullanım "
+                "için yayınlanmış; karşılığında ilana geri bağlantı isteniyor "
+                "(doğrulandı 2026-07-21)."
+            ),
+            attribution_required=True, min_poll_hours=6.0,
+            redistribution_policy="link-back-required",
+        ),
+        SourceRecord(
+            source_id="src-api-themuse", name="The Muse Public Jobs API",
+            source_type="job_board", base_url="https://www.themuse.com",
+            access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "themuse.com/developers/api/v2 — key'siz saatte 500 istek. "
+                "ToS §3.4 ilana geri bağlantıyı ZORUNLU kılar (doğrulandı "
+                "2026-07-21). Not: yaygın kopyalanan api.themuse.com adresi ölü; "
+                "doğrusu www.themuse.com/api/public/jobs."
+            ),
+            attribution_required=True, min_poll_hours=6.0,
+            redistribution_policy="link-back-required",
+        ),
+        SourceRecord(
+            source_id="src-api-himalayas", name="Himalayas (uzaktan çalışma)",
+            source_type="job_board", base_url="https://himalayas.app",
+            access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "himalayas.app/jobs/api — public, auth'suz; atıf isteniyor. "
+                "Yanıt expiryDate taşır, süresi geçmiş ilanlar çekimde ayıklanır "
+                "(doğrulandı 2026-07-21)."
+            ),
+            attribution_required=True, min_poll_hours=6.0,
+            redistribution_policy="link-back-required",
         ),
     ]
 }
@@ -284,6 +354,12 @@ def allowed_without_evidence() -> list[SourceRecord]:
         and r.access_method != "fixture"
         and not r.permission_evidence.strip()
     ]
+
+
+def api_sources() -> list[SourceRecord]:
+    """Pano tabanlı olmayan, doğrudan sorgulanan izinli API kaynakları."""
+    return [r for r in REGISTRY.values()
+            if r.source_id.startswith("src-api-") and r.may_fetch_network]
 
 
 def audit() -> dict[str, int]:

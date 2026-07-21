@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (Avrupa/ABD kapsamı: ~2450 ilan, 70 pano, bölge filtresi)_
+_Last updated: 2026-07-21 (4 public API + mavi yaka + tazelik filtresi; ~2650 ilan)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -39,17 +39,21 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 ## Aktif Hedef
 
-**Gerçek ilanlarla çalışan uygulama** — **70 ATS panosundan ~2450 gerçek ilan**
-(ABD 1065 · Avrupa 812 · Uzaktan 435 · Türkiye 62), sözlük tabanlı çıkarımdan
-geçiyor, profille eşleşiyor, kullanıcı ilanın **kendi sayfasına** yönlendiriliyor.
-**73 test geçiyor.** Bölge/şehir/işveren/alan/durum filtreleri var.
+**Gerçek ilanlarla çalışan uygulama** — 70 ATS panosu + 4 public API'den
+**~3330 ilan çekiliyor, 283'ü eski olduğu için eleniyor, ~2650 gösteriliyor**
+(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **81 test geçiyor.**
 
-**Bilinen kapsam sınırı:** ATS panoları ağırlıklı olarak **teknoloji ve kurumsal**
-ilan içerir. Ürünün "her meslek dalı" iddiasını tek başına karşılamaz. Türkiye
-hacmi düşük (62) çünkü TR'de bu sistemleri kullanan şirket az.
+Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
+**yayın tarihi (son 7/14/30 gün)** · sıralama (uygunluk / en yeni / işveren).
 
-Sıradaki: mavi yaka / TR hacmi için yeni kaynak (OPEN-24, **kullanıcı kararı**) ·
-kalıcılık (PostgreSQL — şu an bellekte, açılış 16 sn) · CI · Next.js'e taşıma.
+**Mavi yaka kapsamı açıldı** (D-023): Arbeitsagentur'dan depo, şoför, aşçı, bakım,
+kaynakçı ilanları geliyor. Sözlüğe Almanca yüzey biçimleri eklendi.
+
+**Bilinen sınırlar:** Türkiye hacmi çok düşük (21) — TR kaynakları hâlâ izne bağlı
+(OPEN-19). Arbeitsagentur liste ucu açıklama metni vermiyor; şart çıkarımı başlıkla
+sınırlı. Kalıcılık yok (açılış ~35 sn, `.cache/` 6 saat TTL).
+
+Sıradaki: kalıcılık (PostgreSQL) · CI · Next.js'e taşıma · TR kaynakları (OPEN-19).
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.
@@ -136,8 +140,8 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | **Kapandı (D-001 / ADR-001, 2026-07-21)** — Python + TypeScript hibrit |
 | OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı. **Geçici çözüm:** ayrı bölümde, bant sırasına sokulmadan |
 | OPEN-23 | Profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne zaman ve nasıl kurulacak? | pre-build | [lexicon.py](services/ingest/src/isuygun_ingest/lexicon.py) | T-016 | Open — **kısmen azaltıldı:** elle yazılmış 82 terimlik paylaşılan sözlük kuruldu; ilan ve CV aynı sözlüğe eşleniyor. Serbest metin anlaşılmıyor |
-| OPEN-24 | Hangi ek ilan kaynakları eklenecek? | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** Doğrulanmış adaylar: Arbeitsagentur (DE, auth'suz), JobTechDev (SE, açık veri), The Muse (ABD, 500/saat), Himalayas + Arbeitnow (auth'suz), Adzuna/USAJOBS/Reed (ücretsiz kayıt). TR ve mavi yaka için Careerjet/Jooble |
-| OPEN-25 | Registry, kaynak başına `attribution_required` / `min_poll_interval` / `redistribution_policy` alanlarını taşımalı mı? | pre-build | [registry.py](services/ingest/src/isuygun_ingest/registry.py) | OPEN-24 | Open — yeni kaynakların atıf ve gecikme şartları birbirinden farklı; mevcut D-020 yapısı bunları modellemiyor |
+| OPEN-24 | Hangi ek ilan kaynakları eklenecek? | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** **Kısmen kapandı (D-023):** Arbeitsagentur, Arbeitnow, The Muse, Himalayas eklendi. **Açık kalan:** ücretsiz kayıt gerektirenler (Adzuna, USAJOBS, Reed) ve TR için Careerjet/Jooble |
+| OPEN-25 | Registry, kaynak başına atıf / gecikme / yeniden-yayın şartlarını taşımalı mı? | pre-build | [registry.py](services/ingest/src/isuygun_ingest/registry.py) | OPEN-24 | **Kapandı (D-023, 2026-07-21)** — alanlar eklendi, testle denetleniyor |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
 değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın

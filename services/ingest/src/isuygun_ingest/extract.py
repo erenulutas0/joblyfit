@@ -37,6 +37,9 @@ _BENEFIT_SECTION = re.compile(
     r"neler sunuyoruz|why join|our culture)", re.I
 )
 
+#: Başlıkta geçen terimler için kullanılan sözde bölüm.
+_TITLE_SECTION = "title"
+
 # Zorunluluk vurgusu taşıyan kalıplar.
 _MUST = re.compile(r"\b(zorunlu|sart(?:tir)?|gerekli|must have|required|mandatory)\b", re.I)
 
@@ -72,6 +75,9 @@ def _kind_and_confidence(term, section: str, near_text: str) -> tuple[str, float
     """
     gate = term.category in ("license", "work_authorization", "legally_required_certificate")
 
+    if section == _TITLE_SECTION:
+        # Başlıktaki terim işin tanımıdır; "tercih edilir" değildir.
+        return ("hard" if gate else "required"), 0.9
     if section == "preferred":
         return "preferred", 0.8
     if section == "required":
@@ -83,13 +89,23 @@ def _kind_and_confidence(term, section: str, near_text: str) -> tuple[str, float
 
 
 def extract_requirements(title: str, description: str) -> tuple[Requirement, ...]:
-    """İlan metnini şartlara çevirir."""
+    """İlan metnini şartlara çevirir.
+
+    Metin ``başlık + açıklama`` olarak birleştirilir; başlıkta geçen terimler
+    ayrıca işaretlenir (bkz. :data:`_TITLE_SECTION`).
+    """
     text = f"{title}\n{description}"
     folded = fold(text)
+    title_len = len(fold(title))
     out: list[Requirement] = []
 
     for hit in lexicon.scan(text):
-        section = _section_of(folded, hit.position)
+        # Başlıkta geçen terim, gövdede geçenden çok daha güvenilirdir: başlık
+        # işin ne olduğunu söyler. Bazı kaynaklar (ör. Arbeitsagentur liste ucu)
+        # açıklama metni hiç vermiyor; başlığı gövde gibi saymak o ilanların
+        # **tamamını** değerlendirilemez yapıyordu — 229 ilan hiç eşleşmiyordu.
+        in_title = hit.position < title_len
+        section = _TITLE_SECTION if in_title else _section_of(folded, hit.position)
         if section == "benefits":
             continue  # yan hak, şart değil
         near = folded[max(0, hit.position - 120): hit.position + 120]

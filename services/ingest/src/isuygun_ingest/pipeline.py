@@ -15,7 +15,7 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from itertools import combinations
 from pathlib import Path
 
@@ -412,6 +412,38 @@ def run_fixture_ingest(source_id: str = "src-fixture-001", root: Path | None = N
 
 LIVE_ADAPTER_VERSION = "ats-0.1.0"
 
+# --------------------------------------------------------------------------
+# Tazelik (D-024)
+# --------------------------------------------------------------------------
+#
+# Bir iş ilanı, yayınlandıktan sonra süresiz geçerli değildir. Kaynakların çoğu
+# kapanan ilanı listeden düşürür ama hepsi düşürmez ve düşürme gecikebilir.
+# Yayın tarihi eskiyen ilan **gösterilmez**: kullanıcıyı kapanmış bir ilana
+# yönlendirmek, ona hiç ilan göstermemekten daha kötüdür.
+#
+# Tarihi **bilinmeyen** ilan atılmaz — bu bir `unknown` durumudur ve D-011'in
+# aynı mantığı burada da geçerlidir: bilmemek, kötü olduğunu varsaymak için
+# gerekçe değildir. Böyle ilanlar gösterilir ama "tarih bilinmiyor" olarak
+# işaretlenir ve tarihe göre sıralamada sona düşer.
+MAX_AGE_DAYS = 45
+
+
+def age_in_days(posted_at: str | None, *, today: date | None = None) -> int | None:
+    """İlanın yaşı (gün). Tarih yoksa veya ayrıştırılamıyorsa None."""
+    if not posted_at:
+        return None
+    try:
+        d = date.fromisoformat(str(posted_at)[:10])
+    except ValueError:
+        return None
+    return max(0, ((today or date.today()) - d).days)
+
+
+def is_fresh(posting: NormalizedPosting, max_age_days: int = MAX_AGE_DAYS) -> bool:
+    """İlan hâlâ gösterilecek kadar taze mi? Tarihi bilinmeyen ilan **elenmez**."""
+    age = age_in_days(posting.posted_at)
+    return age is None or age <= max_age_days
+
 def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
     """Panoları çeker. Aynı host'a ait istekler sıralı, farklı host'lar paralel.
 
@@ -451,6 +483,27 @@ def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
             raws.extend(r); fetched.extend(f); errors.extend(e)
 
     return raws, fetched, errors
+
+
+def _fetch_api_sources() -> tuple[list, list[dict], list[dict]]:
+    """Pano tabanlı olmayan izinli API kaynakları (D-023)."""
+    from .adapters.public_apis import FETCHERS
+
+    raws, meta, errors = [], [], []
+    for rec in registry.api_sources():
+        fetch = FETCHERS.get(rec.source_id)
+        if fetch is None:
+            continue
+        try:
+            registry.assert_fetchable(rec.source_id)
+            items = fetch(rec.source_id)
+        except Exception as e:
+            errors.append({"board": rec.name, "error": str(e)[:160]})
+            continue
+        raws.extend(items)
+        meta.append({"board": rec.source_id, "employer": rec.name,
+                     "count": len(items), "truncated": 0})
+    return raws, meta, errors
 
 
 def _cache_path(root: Path | None = None) -> Path:
@@ -494,6 +547,7 @@ def run_live_ingest(
     include_fixtures: bool = False,
     cache_hours: float = 6.0,
     force_refresh: bool = False,
+    max_age_days: int = MAX_AGE_DAYS,
 ) -> dict:
     """Registry'de izinli ATS panolarından **gerçek** ilanları çeker.
 
@@ -512,11 +566,20 @@ def run_live_ingest(
         raws, fetched_boards, errors = cached, [], []
     else:
         raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
+        api_raws, api_meta, api_errors = _fetch_api_sources()
+        raws.extend(api_raws)
+        fetched_boards.extend(api_meta)
+        errors.extend(api_errors)
         if raws:
             _write_cache(raws, {"boards": fetched_boards, "errors": errors})
 
     normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
     fetched_total = len(normalized)
+
+    # D-024: süresi geçmiş ilan gösterilmez. Eleme sessiz değildir.
+    fresh = [p for p in normalized if is_fresh(p, max_age_days)]
+    stale_dropped = len(normalized) - len(fresh)
+    normalized = fresh
 
     if include_fixtures:
         normalized.extend(run_fixture_ingest()["postings"])
@@ -530,6 +593,8 @@ def run_live_ingest(
         "errors": errors,
         "from_cache": from_cache,
         "fetched": fetched_total,
+        "stale_dropped": stale_dropped,
+        "max_age_days": max_age_days,
         "truncated": sum(b.get("truncated", 0) for b in fetched_boards),
         "canonical": len(clusters),
         "duplicates_merged": len(normalized) - len(clusters),

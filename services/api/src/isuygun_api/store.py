@@ -47,10 +47,10 @@ class Store:
             except Exception as e:  # ağ tamamen kapalıysa fixture'a düş
                 result = run_fixture_ingest()
                 result = {**result, "errors": [{"board": "canlı ingest", "error": str(e)}],
-                          "boards": [], "filtered_out_of_market": 0}
+                          "boards": [], "stale_dropped": 0}
         else:
             result = run_fixture_ingest()
-            result = {**result, "errors": [], "boards": [], "filtered_out_of_market": 0}
+            result = {**result, "errors": [], "boards": [], "stale_dropped": 0}
 
         self.postings = {
             p.job.job_id: p for p in result["canonical_postings"].values()
@@ -61,7 +61,10 @@ class Store:
             "fetched": result["fetched"],
             "canonical": result["canonical"],
             "duplicates_merged": result["duplicates_merged"],
-            "filtered_out_of_market": result.get("filtered_out_of_market", 0),
+            "stale_dropped": result.get("stale_dropped", 0),
+            "max_age_days": result.get("max_age_days", 45),
+            "truncated": result.get("truncated", 0),
+            "from_cache": result.get("from_cache", False),
             "boards": result.get("boards", []),
             "errors": result.get("errors", []),
         }

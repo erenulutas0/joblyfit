@@ -34,6 +34,34 @@
 
 ---
 
+## 2026-07-21 — 4 public API + mavi yaka + tazelik
+
+**Bu session'da yapılanlar:**
+- **D-023** — Arbeitsagentur, Arbeitnow, The Muse, Himalayas eklendi (auth'suz).
+  Registry artık kaynak başına atıf/gecikme/yeniden-yayın şartı taşıyor (OPEN-25 ✔).
+- **D-024** — 45 günden eski ilan gösterilmiyor; tarihi bilinmeyen elenmiyor.
+- Mavi yaka kapsamı açıldı (Almanca sözlük + Arbeitsagentur meslek sorguları).
+- Arama yapısı: tarih filtresi, sıralama, filtre temizleme.
+- **81 test.** Detay: [PROGRESS.md](PROGRESS.md).
+
+**Yarım kalanlar:**
+- Türkiye hacmi hâlâ çok düşük (21 ilan). TR kaynakları izne bağlı (OPEN-19);
+  Careerjet/Jooble kullanıcı kaydı ister (OPEN-24).
+- Kalıcılık yok. Açılış ~35 sn (önbellekten), önbellek yoksa ~2 dk.
+- Adzuna/USAJOBS/Reed eklenmedi — ücretsiz ama kayıt gerektiriyor.
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **Yeni kaynak eklerken `permission_evidence` + politika alanlarını doldur.**
+  `test_api_sources_are_registered_with_policy` boş bırakılırsa düşer.
+- **Açıklama metni vermeyen kaynaklarda başlık tek sinyaldir.** `_TITLE_SECTION`
+  mantığını kaldırırsan Arbeitsagentur'un 229 ilanı sessizce değerlendirilemez olur.
+- **Tarihi bilinmeyen ilanı eleme.** D-024 bunu açıkça yasaklıyor; arayüz filtresi
+  de `age_days == null` olanları geçiriyor.
+- Sözlüğe terim eklerken **hem TR hem EN hem DE** biçim ver; kaynaklar üç dilde.
+- `.cache/ats_postings.json` ~20 MB, git'te değil. Silinirse ilk açılış ~2 dk.
+
+---
+
 ## 2026-07-21 — Avrupa/ABD kapsamı (70 pano) + performans + D-022
 
 **Bu session'da yapılanlar:**

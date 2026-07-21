@@ -8,6 +8,46 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — 4 public API + mavi yaka + tazelik (D-023, D-024)
+
+Kullanıcı üç şey istedi: hesap gerektirmeyen kaynaklarla devam, mavi yaka işleri,
+ve **güncel ilanlar — geçmiş işler çıkmasın**.
+
+**D-023 — dört kaynak eklendi.** Arbeitsagentur (Almanya İş Ajansı), Arbeitnow,
+The Muse, Himalayas. Dördü de auth'suz, yayıncının kendi belgelediği JSON uçları.
+JobTechDev (İsveç) **eklenmedi**: sözlük İsveççe konuşmuyor, ilanlar eşleşmezdi —
+eklemek hacmi artırır ama kullanıcıya işe yaramaz ilan gösterirdi.
+
+Kaynaklar artık aynı şartlarla gelmiyor. Registry kayıt başına
+`attribution_required`, `min_poll_hours`, `redistribution_policy` taşıyor
+(OPEN-25 kapandı). The Muse'un ToS'u geri bağlantıyı zorunlu kılıyor, Arbeitnow ve
+Himalayas atıf istiyor — bunlar kod içinde işaretli ve testle denetleniyor.
+
+**Mavi yaka kapsamı açıldı.** Arbeitsagentur 13 meslek terimi üzerinden sorgulanıyor
+(Lagerhelfer, Berufskraftfahrer, Koch, Pflegehelfer, Schweisser…) ve 229 ilan
+getiriyor. Sözlüğe 14 terimin Almanca yüzey biçimleri eklendi.
+
+**Bulunan hata: 229 ilanın hiçbiri eşleşemiyordu.** Arbeitsagentur liste ucu
+açıklama metni vermiyor; her terim "gövde" sayılıp 0.45 güvenle işaretleniyordu ve
+0.5 altı güven `unknown` üretiyor. Yani kaynak çalışıyordu ama çıktısı ölüydü.
+Düzeltme: **başlıkta geçen terim `required` + 0.9 güven** sayılır — başlık işin
+tanımıdır, "tercih edilir" değildir. 229/229 ilan artık şartlı.
+
+**D-024 — tazelik.** 45 günden eski ilan gösterilmiyor (283 ilan elendi). Yayın
+tarihi **bilinmeyen** ilan elenmiyor: "bilmiyoruz", "eski" demek değildir — D-011'in
+aynı mantığı. Arayüzde ilan yaşı ("bugün", "3 gün önce", "tarih bilinmiyor"),
+"Son 7/14/30 gün" filtresi ve tarihe göre sıralama var. Himalayas `expiryDate`
+verdiği için orada süresi geçmişler çekim anında ayıklanıyor.
+
+**Arama yapısı tamamlandı.** Serbest metin (başlık + şirket + şehir + şart), bölge,
+şehir, işveren, meslek alanı, durum, yayın tarihi; sıralama uygunluk/en yeni/işveren;
+"Filtreleri temizle".
+
+**Doğrulama.** 81 test (core 22, ingest 37, API 22). 3330 çekildi → 283 eski elendi
+→ ~2650 gösteriliyor; 1740 ilan değerlendirilebilir şart taşıyor.
+
+---
+
 ## 2026-07-21 — Avrupa/ABD kapsamı: 70 pano, ~2450 ilan, bölge filtresi
 
 Kullanıcı LinkedIn'den ilan istedi ve daha fazla ilan (Avrupa/ABD) istedi.

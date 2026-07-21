@@ -193,6 +193,10 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
   flex-wrap:wrap; align-items:center}
 .card-meta b{color:var(--ink-2); font-weight:600}
 .card-meta .dot{color:var(--ink-4)}
+.age{font-size:11.5px; color:var(--ink-3)}
+.age.new{color:var(--match); font-weight:600}
+.age.old{color:var(--ink-4)}
+.age.unk{color:var(--unknown)}
 .rgn{font-size:10.5px; letter-spacing:.04em; padding:1px 7px; border-radius:4px;
   background:var(--accent-soft); color:var(--accent); font-weight:600}
 .card-right{flex:none; text-align:right; display:flex; flex-direction:column;
@@ -383,7 +387,7 @@ tr:last-child td{border-bottom:0}
 <script>
 const API='/api';
 let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
-const F={q:'', city:'', cluster:'', band:'', employer:'', region:''};  // filtre durumu
+const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match'};
 let PQ='', OPEN=new Set();                                    // profil arama + açık gruplar
 
 const $=(s,r=document)=>r.querySelector(s);
@@ -429,10 +433,20 @@ function paintChrome(){
 
 /* ================= FEED ================= */
 const BC={strong:'b-strong',good:'b-good',cond:'b-cond',weak:'b-weak'};
+function ageLabel(j){
+  if(j.age_days==null) return `<span class="age unk" title="Kaynak yayın tarihi vermedi">tarih bilinmiyor</span>`;
+  if(j.age_days<=1) return `<span class="age new">bugün</span>`;
+  if(j.age_days<=7) return `<span class="age new">${j.age_days} gün önce</span>`;
+  if(j.age_days<=30) return `<span class="age">${j.age_days} gün önce</span>`;
+  return `<span class="age old">${j.age_days} gün önce</span>`;
+}
 const mono=s=>esc(String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase());
 
 function matches(j){
   if(F.region && !(j.regions||[]).includes(F.region)) return false;
+  // Tarihi bilinmeyen ilan tazelik filtresiyle ELENMEZ — "bilmiyoruz",
+  // "eski" demek değildir (D-011'in aynı mantığı, D-024).
+  if(F.age && j.age_days!=null && j.age_days>Number(F.age)) return false;
   if(F.city && j.city!==F.city) return false;
   if(F.cluster && j.occupation_id!==F.cluster) return false;
   if(F.employer && j.employer!==F.employer) return false;
@@ -461,7 +475,7 @@ function card(j){
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
           ${(j.other_locations||[]).length?`<span class="rgn" title="${
             esc(j.other_locations.join(', '))}">+${j.other_locations.length} konum</span>`:''}
-          ${j.posted_at?`<span class="dot">·</span>${esc(j.posted_at)}`:''}
+          <span class="dot">·</span>${ageLabel(j)}
           ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
           ${(j.regions||[]).filter(r=>r!=='Diğer').map(r=>
             `<span class="rgn">${esc(r)}</span>`).join('')}
@@ -513,13 +527,40 @@ function filterBar(){
       <span class="fl-label">Durum</span>
       ${bands.map(([v,l])=>
         `<button class="chip" data-band="${v}" aria-pressed="${F.band===v}">${l}</button>`).join('')}
-      <span class="fcount" id="fcount"></span>
+    </div>
+    <div class="frow">
+      <span class="fl-label">Yayın</span>
+      ${[['','Tümü'],['7','Son 7 gün'],['14','Son 14 gün'],['30','Son 30 gün']].map(([v,l])=>
+        `<button class="chip" data-age="${v}" aria-pressed="${F.age===v}">${l}</button>`).join('')}
+      <span class="fl-label" style="margin-left:14px">Sırala</span>
+      <select id="fsort">
+        <option value="match"${F.sort==='match'?' selected':''}>Uygunluğa göre</option>
+        <option value="date"${F.sort==='date'?' selected':''}>Önce en yeni</option>
+        <option value="employer"${F.sort==='employer'?' selected':''}>İşverene göre</option>
+      </select>
+      <button class="chip" data-clear="1" style="margin-left:auto">Filtreleri temizle</button>
+    </div>
+    <div class="frow" style="border-top:0; padding-top:0; margin-top:6px">
+      <span class="fcount" id="fcount" style="margin-left:0"></span>
     </div>
   </div>`;
 }
 
+function sortRows(rows){
+  if(F.sort==='date'){
+    // Tarihi bilinmeyenler sona; "bilinmiyor" en eski demek değil.
+    return [...rows].sort((a,b)=>
+      (a.age_days??9e9)-(b.age_days??9e9) || a.title.localeCompare(b.title,'tr'));
+  }
+  if(F.sort==='employer'){
+    return [...rows].sort((a,b)=>
+      a.employer.localeCompare(b.employer,'tr') || a.title.localeCompare(b.title,'tr'));
+  }
+  return rows;   // API zaten bant sırasında gönderiyor
+}
+
 function viewFeed(){
-  const ev=FEED.evaluated.filter(matches), un=FEED.unevaluated.filter(matches);
+  const ev=sortRows(FEED.evaluated.filter(matches)), un=sortRows(FEED.unevaluated.filter(matches));
   const i=FEED.ingest||{};
   const anyFilter=F.q||F.city||F.cluster||F.band||F.employer;
 
@@ -552,7 +593,6 @@ function viewFeed(){
     ${evBlock}${unBlock}
     <p class="disclaimer">
       <strong>Kaynak:</strong> ${esc(i.source||'')} — ${i.fetched||0} ilan okundu,
-      ${i.filtered_out_of_market||0} tanesi Türkiye dışı olduğu için elendi,
       ${i.duplicates_merged||0} kopya birleştirildi, <b>${i.canonical||0}</b> gösteriliyor.
       ${(i.errors||[]).length?`<br><b style="color:var(--unmet)">Çekilemeyen:</b> ${
         i.errors.map(e=>esc(e.board)).join(', ')}`:''}
@@ -562,7 +602,8 @@ function viewFeed(){
       Ağırlıklı olarak <strong>teknoloji ve kurumsal</strong> ilan; Avrupa ve ABD
       kapsamı geniş, Türkiye'de bu sistemleri kullanan şirket az olduğu için TR
       hacmi düşük. Mavi yaka kapsamı için Careerjet/Jooble entegrasyonu gerekiyor.
-      Her panodan yalnızca en yeni ilanlar alınıyor${(i.truncated||0)
+      ${(i.stale_dropped||0)?`<b>${i.stale_dropped}</b> ilan ${i.max_age_days||45} günden
+      eski olduğu için gösterilmiyor. ` : ''}Her panodan yalnızca en yeni ilanlar alınıyor${(i.truncated||0)
         ? ` — ${i.truncated} daha eski ilan kırpıldı` : ''}.
       Birkaç sentetik test ilanı da korpusta (<code>example.invalid</code> adresli).
       <a href="#" data-goto="sources">Kaynak listesi →</a>
@@ -613,7 +654,7 @@ async function viewJob(id){
         <h1>${esc(j.title)}</h1>
         <div class="card-meta"><b>${esc(j.employer)}</b>
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
-          ${j.posted_at?`<span class="dot">·</span>${esc(j.posted_at)}`:''}</div>
+          <span class="dot">·</span>${ageLabel(j)}</div>
       </div>
 
       ${j.verification_notice?`<div class="notice" style="margin-bottom:16px">${esc(j.verification_notice)}</div>`:''}
@@ -873,6 +914,7 @@ function wireFeed(){
   }
   const c=$('#fcity'); if(c) c.onchange=()=>{F.city=c.value; repaintFeed()};
   const e=$('#femp'); if(e) e.onchange=()=>{F.employer=e.value; repaintFeed()};
+  const s=$('#fsort'); if(s) s.onchange=()=>{F.sort=s.value; repaintFeed()};
   const fc=$('#fcount');
   if(fc){
     const n=FEED.evaluated.filter(matches).length+FEED.unevaluated.filter(matches).length;
@@ -897,8 +939,13 @@ function wireJob(){
 }
 
 document.addEventListener('click',async ev=>{
-  const chip=ev.target.closest('[data-cluster],[data-band],[data-region]');
+  const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-clear]');
   if(chip){
+    if(chip.dataset.clear!==undefined){
+      Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:''});
+      return repaintFeed();
+    }
+    if(chip.dataset.age!==undefined) F.age=chip.dataset.age;
     if(chip.dataset.cluster!==undefined) F.cluster=chip.dataset.cluster;
     if(chip.dataset.band!==undefined) F.band=chip.dataset.band;
     if(chip.dataset.region!==undefined){

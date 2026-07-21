@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from isuygun_core import build_explanation, match
 from isuygun_core.domain import MatchBand
 from isuygun_ingest import regions, registry
+from isuygun_ingest.pipeline import age_in_days
 
 from .cv import read_cv
 from .store import STORE
@@ -85,6 +86,8 @@ class JobSummary(BaseModel):
     #: Aynı rolün diğer konumları. Bunlar **ayrı ilanlardır** (her birinin kendi
     #: URL'i var) ve birleştirilmez; yalnızca listede tek satır olarak gösterilir.
     other_locations: list[str] = []
+    #: İlanın yaşı (gün). null = yayın tarihi bilinmiyor (D-024).
+    age_days: int | None = None
 
 
 class JobDetail(JobSummary):
@@ -161,6 +164,8 @@ class SourceOut(BaseModel):
     may_fetch_network: bool
     note: str
     permission_evidence: str = ""
+    attribution_required: bool = False
+    redistribution_policy: str = ""
 
 
 # --------------------------------------------------------------------------
@@ -237,6 +242,7 @@ def _summary(posting, result, exp) -> JobSummary:
         ][:5],
         matched_requirements=[o.requirement.label for o in result.met][:5],
         regions=sorted(regions.classify(posting.job.city)),
+        age_days=age_in_days(posting.posted_at),
     )
 
 
@@ -259,6 +265,8 @@ def sources() -> list[SourceOut]:
             scraping_permission=r.scraping_permission, policy_risk=r.policy_risk,
             status=r.status, may_fetch_network=r.may_fetch_network, note=r.note,
             permission_evidence=r.permission_evidence,
+            attribution_required=r.attribution_required,
+            redistribution_policy=r.redistribution_policy,
         )
         for r in registry.REGISTRY.values()
     ]

@@ -260,3 +260,76 @@ def test_public_sector_flag_survives_ingestion():
     public = [p for p in postings if p.job.is_public_sector]
     assert len(public) == 1
     assert public[0].job.title == "Sözleşmeli Şoför Alımı"
+
+
+# --------------------------------------------------------------------------
+# D-024 — tazelik
+# --------------------------------------------------------------------------
+
+from datetime import date, timedelta
+
+from isuygun_ingest.pipeline import age_in_days, is_fresh
+
+
+def test_age_in_days_counts_from_publication():
+    today = date(2026, 7, 21)
+    assert age_in_days("2026-07-21", today=today) == 0
+    assert age_in_days("2026-07-01", today=today) == 20
+    assert age_in_days("2026-07-01T09:30:00Z", today=today) == 20
+
+
+def test_unparseable_date_is_unknown_not_old():
+    assert age_in_days(None) is None
+    assert age_in_days("bilinmiyor") is None
+
+
+def test_stale_posting_is_dropped():
+    p = normalize(_raw(source_posting_ref="old"), adapter_version=V)
+    p.posted_at = (date.today() - timedelta(days=200)).isoformat()
+    assert not is_fresh(p), "200 günlük ilan gösterilmemeli"
+
+
+def test_fresh_posting_is_kept():
+    p = normalize(_raw(source_posting_ref="new"), adapter_version=V)
+    p.posted_at = (date.today() - timedelta(days=3)).isoformat()
+    assert is_fresh(p)
+
+
+def test_posting_without_date_is_not_dropped():
+    """Tarihi bilinmeyen ilan **elenmez**.
+
+    "Bilmiyoruz", "eski" demek değildir — D-011'in aynı mantığı. Kaynakların bir
+    kısmı yayın tarihi vermiyor; onları atmak kullanıcıdan gerçek ilan gizlerdi.
+    """
+    p = normalize(_raw(source_posting_ref="nodate"), adapter_version=V)
+    p.posted_at = None
+    assert is_fresh(p)
+
+
+# --------------------------------------------------------------------------
+# D-023 — public API kaynakları
+# --------------------------------------------------------------------------
+
+
+def test_api_sources_are_registered_with_policy():
+    """Her API kaynağı kendi kullanım şartlarını **taşımak zorunda**."""
+    srcs = registry.api_sources()
+    assert srcs, "kayıtlı API kaynağı yok"
+    for r in srcs:
+        assert r.permission_evidence.strip(), r.source_id
+        assert r.min_poll_hours > 0, r.source_id
+        assert r.redistribution_policy, r.source_id
+
+
+def test_attribution_required_sources_are_marked():
+    """Atıf isteyen kaynaklar işaretli olmalı; arayüz buna göre davranır."""
+    by_id = {r.source_id: r for r in registry.api_sources()}
+    for sid in ("src-api-themuse", "src-api-arbeitnow", "src-api-himalayas"):
+        assert by_id[sid].attribution_required is True, sid
+
+
+def test_every_api_source_has_a_fetcher():
+    from isuygun_ingest.adapters.public_apis import FETCHERS
+
+    for r in registry.api_sources():
+        assert r.source_id in FETCHERS, r.source_id
