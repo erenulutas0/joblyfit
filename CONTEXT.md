@@ -1,50 +1,94 @@
 # CONTEXT.md — Projenin Güncel Durumu
 
 > **Purpose:** Her session başında okunacak tek dosya. Projenin şu anki durumunu, aktif
-> hedefi ve kritik kısıtları özetler. Tarihçe için [PROGRESS.md](PROGRESS.md), detay için
-> ilgili dokümanlara bakılır. **Bu dosya her anlamlı değişiklikten sonra güncellenir.**
+> hedefi, kritik kısıtları ve **bütün açık soruların indeksini** tutar. Tarihçe için
+> [PROGRESS.md](PROGRESS.md), kararlar için [DECISIONS.md](DECISIONS.md), scope için
+> [PRD.md](docs/product/PRD.md).
+>
+> **Güncelleme tetiği:** Her session sonunda ([CLAUDE.md](CLAUDE.md) → Session Sonunda
+> adım 4; [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) → Bookkeeping). Proje durumu
+> değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
+> tarih yenilenir.
 
-_Last updated: 2026-07-20_
+_Last updated: 2026-07-21_
 
 ## Ne İnşa Ediyoruz?
 
 Her meslek dalına hitap eden AI-powered job discovery and matching platform:
 CV/profil → normalize edilmiş Career Profile; public source'lardan toplanan ilanlar →
-normalize edilmiş Job Posting'ler; ikisi arasında hybrid + explainable matching.
+normalize edilmiş Job Posting; ikisi arasında hybrid + explainable matching.
 Detay: [PRODUCT.md](docs/product/PRODUCT.md), [PRD.md](docs/product/PRD.md).
 
 ## Şu Anki Faz
 
-**Faz 0 — Product Design & Architecture Documentation.**
-Implementation code yok, technology stack seçilmedi (bilinçli karar: D-001,
-[DECISIONS.md](DECISIONS.md)). Bütün documentation seti 2026-07-20 tarihinde oluşturuldu.
+**Faz 1 — Doğrulama & Hazırlık.** (Faz 0 documentation 2026-07-20'de tamamlandı;
+2026-07-21'de 12 reviewer'lı audit yapıldı ve bulgular dokümanlara işlendi.)
+
+Implementation code yok, technology stack seçilmedi (D-001). Build'e geçiş
+[ROADMAP.md](docs/product/ROADMAP.md) → M1 validation gate'ine bağlıdır.
 
 ## Aktif Hedef
 
-Documentation setinin kullanıcı tarafından review edilmesi ve open question'ların
-kapatılması. Sonraki adımlar: [TASKS.md](TASKS.md) → T-001'den itibaren.
+**M1 validation gate'ini kapatmak** (D-010): yedi validation çalışması (T-021…T-027)
+ve mevcut Faz 1 task'ları tamamlanıp **go / revise / stop** kararı verilene kadar
+implementation başlamaz. Sıradaki iş: [TASKS.md](TASKS.md) → T-003 ve T-021.
 
-## Kritik Kısıtlar (özet)
+## Karara Bağlanmış Temeller (2026-07-21)
 
-- **Compliance-first ingestion:** Login wall / CAPTCHA / bot-detection bypass yok;
-  robots ve ToS'a saygı. → [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md)
-- **Fairness:** Sensitive attribute'lar matching score'a giremez.
-  → [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md)
-- **Explainability:** Her recommendation gerekçeli olmak zorunda; Match Score kullanıcıya
-  kesin gerçek/garanti olarak sunulmaz.
-- **Meslek genişliği:** Sistem yalnızca white-collar için değil; blue-collar, healthcare,
-  education, retail, logistics, hospitality, manufacturing, finance, creative, public
-  sector ve freelance meslekler de birinci sınıf kullanıcı.
-- **Regulated profession güvenliği:** License eksikse kullanıcı açıkça bilgilendirilir,
-  yanlış yönlendirme yapılmaz.
+| Konu | Karar |
+|---|---|
+| MVP kapsamı | 3 cluster, ~6 first-class occupation, 2-3 source (D-008) |
+| Launch pazarı | Türkiye — **core architecture market-neutral kalır** (D-009) |
+| Validation | Implementation öncesi zorunlu, M1 go/revise/stop kapısı (D-010) |
+| Requirement durumu | met / unmet / **unknown** üçlüsü (D-011) |
+| Gate alanları | verified olmadan `met` sayılmaz (D-012) |
+| Legal eligibility | sensitive attribute'tan ayrı; health matching'e girmez (D-013) |
+| Manual Review Queue | minimal mod, ~2 saat/hafta kapasite (D-014) |
+| Public sector | listing-only / guidance mode (D-015) |
+| Notification | sabit haftalık e-posta digest + opt-out (D-016) |
+| Matching | ~8 MVP faktörü; semantic ≤ ~%10 reranking (D-017) |
 
-## Açık Konular (en kritik 5)
+## Kritik Kısıtlar (özet — sahibi dokümanlar linklerde)
 
-Tam liste ilgili dokümanlarda `❓ OPEN:` olarak işaretli; risk boyutu için
-[RISK_REGISTER.md](docs/security/RISK_REGISTER.md).
+- **Compliance-first ingestion:** login wall / CAPTCHA / bot-detection bypass yok;
+  robots ve ToS'a saygı (D-002 → [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md)).
+- **Fairness:** sensitive attribute'lar matching'e giremez; listedeki alanlar hiç
+  saklanmaz (D-006 → [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md)).
+- **Explainability:** her recommendation gerekçeli; Match Score kesinlik veya işe alınma
+  olasılığı olarak sunulmaz (D-005).
+- **Meslek genişliği:** vision universal; MVP'de 6 occupation first-class, diğerleri
+  generic matching + coverage limitation açıklaması (D-008).
+- **Regulated dürüstlüğü:** license eksikse veya doğrulanmamışsa kullanıcı açıkça
+  bilgilendirilir; "uygunsun" izlenimi verilmez (D-012, FR-408).
+- **Türkiye ≠ core:** TR'ye özgü her şey extension/policy katmanında (D-009).
 
-1. ❓ Hedef launch pazarı/ülkesi hangisi? (taxonomy, dil, compliance önceliğini belirler)
-2. ❓ MVP'de hangi 3-5 job source ile başlanacak?
-3. ❓ Business model (kullanıcıya ücretsiz mi, employer-side gelir mi?)
-4. ❓ Occupation Taxonomy için ESCO/O*NET'ten hangisi baz alınacak?
-5. ❓ Technology stack kararının (D-001) hedef tarihi ne?
+## Open Question Index
+
+> Setteki **bütün** `❓ OPEN` kalemlerinin tek envanteri. Sahibi dosyada işaret kalır,
+> envanter burada tutulur. Severity: **M1-blocker** (validation gate'i kapatmadan
+> çözülmeli) · **pre-build** (implementation başlamadan) · **later** (V1 veya sonrası).
+> Yeni bir `❓ OPEN` eklendiğinde bu tabloya da satır eklenir.
+
+| ID | Soru | Severity | Sahip dosya | Bağlı task | Durum |
+|---|---|---|---|---|---|
+| OPEN-01 | Analitik veri toplama izin modeli (opt-in kapsamı) nedir? | M1-blocker | [METRICS.md](docs/product/METRICS.md) | T-008, T-011 | Open |
+| OPEN-02 | Taxonomy çekirdeği ESCO mu O*NET mi? | M1-blocker | [OCCUPATION_TAXONOMY.md](docs/architecture/OCCUPATION_TAXONOMY.md) | T-004 | Open |
+| OPEN-03 | Harici AI servisi kullanılacak mı; hangi veri sınıflarıyla? | M1-blocker | [AI_SYSTEM.md](docs/architecture/AI_SYSTEM.md) | T-009 (+T-008 doğrulaması) | Open |
+| OPEN-04 | CV dosyasının retention süresi ve gerekçesi | M1-blocker | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-05 | Deletion SLA'sı ve geri alma penceresi | M1-blocker | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-06 | İlan içeriğinin gösterim sınırı (telif) ve `description_raw` retention'ı | M1-blocker | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-07 | Expired posting arşiv süresi | pre-build | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-08 | Log / backup / analytics retention süreleri | pre-build | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-09 | `Conditional` source'lar için karar rubriği | M1-blocker | [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md) | T-003, T-008 | Open |
+| OPEN-10 | Ayrımcı/hukuken belirsiz şart içeren ilanlar gizlensin mi, uyarıyla mı gösterilsin? | pre-build | [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md) | T-008 | Kısmen kapandı (D-013: uyarı + Manual Review; gizleme kararı hukuki görüşe bağlı) |
+| OPEN-11 | Minimum kullanıcı yaşı ve reşit olmayan kullanıcı politikası | pre-build | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) | T-008 | Open |
+| OPEN-12 | MVP-required test katmanları alt kümesi | pre-build | [TEST_STRATEGY.md](docs/quality/TEST_STRATEGY.md) | T-011 | Open |
+| OPEN-13 | MVP-required observability/alert alt kümesi | pre-build | [OBSERVABILITY.md](docs/quality/OBSERVABILITY.md) | T-011 | Open |
+| OPEN-14 | Hedef erişilebilirlik düzeyi (ör. WCAG seviyesi) | later | [REQUIREMENTS.md](docs/product/REQUIREMENTS.md) | T-007 | Open |
+| OPEN-15 | Public sector sınav puanı/kadro mekaniği ne zaman modellenecek? | later | [PRD.md](docs/product/PRD.md) | — (V1 değerlendirmesi) | Ertelendi (D-015: MVP'de listing-only) |
+| OPEN-16 | Business model / gelir yolu (A-5) | later | [PRD.md](docs/product/PRD.md) | — | Open |
+| OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | Open — M1 sonrası |
+
+**Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
+değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın
+durumu `Kapandı (D-0XX)` yapılır — satır silinmez.

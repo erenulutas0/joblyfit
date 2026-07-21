@@ -1,8 +1,10 @@
 # AGENTS.md — Bütün Coding Agent'lar İçin Ortak Kurallar
 
 > **Purpose:** Bu dosya, projede çalışan **her** coding agent'ın (Claude, Copilot, Cursor,
-> diğerleri) uyacağı ortak kuralları tanımlar. Claude-spesifik ek kurallar
-> [CLAUDE.md](CLAUDE.md) dosyasındadır.
+> diğerleri) uyacağı kuralların **tek normatif kaynağıdır**: yasaklar, çalışma sırası,
+> çakışma otoritesi ve dosya hijyeni yalnızca burada tanımlanır ve başka dosyada tekrar
+> edilmez. [CLAUDE.md](CLAUDE.md) yalnızca Claude'a özgü session adımlarını içerir ve bu
+> dosyaya referans verir; çelişki halinde **bu dosya kazanır**.
 
 ## Temel İlkeler
 
@@ -17,9 +19,14 @@
    (ör. "Job Posting", "Career Profile", "Source Adapter").
 4. **Assumption ≠ Decision.** Varsayımları açıkça "Assumption" olarak işaretle.
    Kararlar yalnızca [DECISIONS.md](DECISIONS.md) + ADR ile "confirmed" olur.
-5. **İzlenebilirlik.** Yaptığın her anlamlı değişikliği [PROGRESS.md](PROGRESS.md) ve
-   [CHANGELOG.md](CHANGELOG.md) dosyalarına işle; task status'unu
-   [TASKS.md](TASKS.md) içinde güncelle.
+5. **İzlenebilirlik.** Yaptığın işi [PROGRESS.md](PROGRESS.md) dosyasına işle, task
+   status'unu [TASKS.md](TASKS.md) içinde güncelle ve proje durumu değiştiyse
+   [CONTEXT.md](CONTEXT.md)'yi tazele. [CHANGELOG.md](CHANGELOG.md) **yalnızca
+   milestone/release kapanışında** güncellenir — her session'da değil.
+6. **Dosya hijyeni.** Var olan dosyayı sebepsiz silme veya baştan yazma; değiştirmeden
+   önce oku ve targeted edit yap. Geçici dosyalar repository'ye değil scratchpad'e yazılır.
+   Yeni documentation dosyası eklemeyi minimumda tut; eklenen her dosyanın gerekçesi
+   yazılır. Bulunan bug/tutarsızlık [BUGS.md](BUGS.md) dosyasına kaydedilir.
 
 ## Yasaklar (bütün agent'lar için geçerli)
 
@@ -32,8 +39,16 @@
   [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md) → Fairness Constraints.
 - Kullanıcı verisini [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md)
   içinde tanımlanan lifecycle dışında saklamak veya üçüncü tarafa aktarmak.
-- Kullanıcı onayı olmadan technology stack seçmek veya scope değiştirmek.
 - Var olan dokümanları sebepsiz silmek veya baştan yazmak.
+- Legal değerlendirmeyi kesin hukuki görüş gibi yazmak; hukuki doğrulama bekleyen bir
+  konuyu (T-008) confirmed fact olarak sunmak.
+- Match Score'u işe alınma olasılığı, garanti veya objektif gerçek gibi sunmak (D-005).
+
+**Kullanıcı onayı olmadan verilemeyecek kararlar:** technology stack seçimi; scope
+değişikliği (MVP'ye feature ekleme/çıkarma, occupation veya source kapsamının
+değiştirilmesi); yeni bir external source'a scraping başlatılması; privacy, compliance
+veya fairness politikasında değişiklik; onaylanmış bir kararın (DECISIONS.md → Confirmed)
+revize edilmesi.
 
 ## Çalışma Sırası
 
@@ -42,8 +57,32 @@
 3. İşi yap; [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) kriterlerini karşıla.
 4. Status'u güncelle, PROGRESS ve HANDOFF kayıtlarını yaz.
 
-## Çakışma Durumu
+## Çakışma Durumu — Otorite Tablosu
 
-- İki doküman birbiriyle çelişiyorsa: GLOSSARY.md terminoloji için, DECISIONS.md kararlar
-  için, PRD.md scope için otoritedir. Çelişkiyi düzelt ve PROGRESS.md'ye not düş.
-- Emin olamadığın durumda değişikliği yapma; open question olarak işaretle ve kullanıcıya sor.
+İki doküman çelişiyorsa aşağıdaki sahibi esas al, çelişkiyi düzelt ve PROGRESS.md'ye
+not düş. Emin olamadığın durumda değişikliği yapma; `❓ OPEN` olarak işaretle,
+[CONTEXT.md](CONTEXT.md) → Open Question Index'e ekle ve kullanıcıya sor.
+
+| Alan | Otorite |
+|---|---|
+| Terminoloji | [GLOSSARY.md](docs/product/GLOSSARY.md) |
+| Kararlar ve statüleri | [DECISIONS.md](DECISIONS.md) |
+| Scope (MVP/V1/Future, feature listesi) | [PRD.md](docs/product/PRD.md) |
+| Requirement ifadesi ve MoSCoW seviyesi | [REQUIREMENTS.md](docs/product/REQUIREMENTS.md) |
+| Bileşen sorumlulukları, sınırlar, data flow | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) |
+| Entity alanları ve şemalar | [DATA_MODEL.md](docs/architecture/DATA_MODEL.md) |
+| Matching davranışı, faktörler, fairness | [MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md) |
+| Ingestion davranışı, source policy | [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md) |
+| Metrik tanımı ve hedefi | [METRICS.md](docs/product/METRICS.md) |
+| Privacy, retention, security sınırları | [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md) |
+| ADR yazma tetiği ve süreci | [docs/adr/README.md](docs/adr/README.md) |
+
+Tablo dışı bir çelişkide: ilgili dosyaların `Purpose` satırları sahipliği belirler;
+yine de belirsizse kullanıcıya sor.
+
+## Türkiye Kuralı (D-009)
+
+Launch pazarı Türkiye'dir, **ama core architecture market-neutral kalır.** TR'ye özgü
+job source, legal requirement, license, denklik, dil, lokasyon yapısı, public sector
+davranışı ve retention kararları country-specific extension/policy katmanında modellenir.
+Bir TR ayrıntısını core model varsayımı haline getirmek architecture review bulgusudur.

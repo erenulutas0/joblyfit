@@ -3,8 +3,25 @@
 > **Purpose:** Tasarım ve önceliklendirme kararlarında referans alınacak temsili
 > kullanıcılar. Her persona, [PRODUCT.md](PRODUCT.md) → Target User Groups içindeki bir
 > segmenti somutlaştırır ve en az bir tasarım gerilimini görünür kılar. Personas
-> kurgusaldır; pazar araştırmasıyla doğrulanmaları beklenir (Assumption A-2, A-4 —
-> [PRD.md](PRD.md)).
+> **kurgusaldır**; doğrulamaları T-022 (user interview) kapsamındadır
+> (Assumption A-2, A-4, A-10 — [PRD.md](PRD.md)).
+>
+> **Pazar notu:** Launch pazarı Türkiye'dir (D-009), bu yüzden personalar ve
+> qualification örnekleri TR bağlamındadır. Bunlar **country extension katmanına**
+> aittir; core tasarım varsayımı değildir.
+>
+> **MVP kapsamı notu (D-008):** MVP'de first-class desteklenen occupation'lar Driver,
+> Warehouse Worker, Accountant, Sales Representative, Nurse ve Health Technician'dır.
+> Aşağıdaki personalardan **P1 (hemşire), P2 (şoför), P3 (muhasebeci) ve P7 (satış
+> danışmanı) MVP kapsamındadır**; P4 (tasarımcı), P5 (öğretmen→eğitmen) ve P6 (yeni mezun
+> yazılımcı) generic tier'da hizmet alır — tasarım gerilimlerini göstermeye devam ederler
+> ama MVP'de derin destek almazlar.
+>
+> **Eksik persona uyarısı (audit XP-07):** Bu set başarı-yolu ağırlıklıdır ve modele en
+> zor oturan iki grubu (kamu ataması bekleyen aday, sezonluk hospitality çalışanı)
+> içermez. Ayrıca ürünü terk edecek "gerilim personası" (mevcut platformdan memnun
+> kullanıcı, AI şüphecisi) yoktur. T-022 görüşmeleri bu boşluğu kapatacak veriyi
+> üretmelidir.
 
 ## P1 — Elif, 29, Registered Nurse (Healthcare, regulated)
 

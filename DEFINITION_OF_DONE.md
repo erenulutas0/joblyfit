@@ -15,8 +15,14 @@ Bir documentation task'ı şu şartların tümü sağlanınca Done'dır:
    ile tutarlı; yeni terim gerekiyorsa glossary'ye eklendi.
 4. **Assumption/Decision ayrımı:** Yeni varsayımlar "Assumption" olarak, kararlar
    [DECISIONS.md](DECISIONS.md)/ADR olarak işaretlendi.
-5. **Open questions:** Cevaplanamayan konular `❓ OPEN:` ile görünür şekilde işaretlendi.
-6. **Bookkeeping:** TASKS.md status'u, PROGRESS.md ve (anlamlıysa) CHANGELOG.md güncellendi.
+5. **Open questions:** Cevaplanamayan konular `❓ OPEN-NN:` ile işaretlendi **ve**
+   [CONTEXT.md](CONTEXT.md) → Open Question Index'e satır olarak eklendi (ID, soru,
+   severity, sahip dosya, bağlı task, durum).
+6. **Bookkeeping:** TASKS.md status'u, PROGRESS.md ve SESSION_HANDOFF.md güncellendi;
+   **proje durumu değiştiyse CONTEXT.md** (Şu Anki Faz / Aktif Hedef / Open Question
+   Index + `Last updated`) tazelendi; iş bir milestone kapatıyorsa CHANGELOG.md'ye kayıt
+   düşüldü (CHANGELOG session bazlı değil, milestone bazlıdır).
+7. **Versiyon kontrolü:** Değişiklikler commit'lendi (remote yok, push yok).
 
 ## Implementation Fazları İçin (stack seçildikten sonra geçerli)
 
@@ -37,13 +43,22 @@ Bir implementation task'ı şu şartların tümü sağlanınca Done'dır:
 ### Security & Privacy
 - [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md)
   sınırları ihlal edilmedi (data lifecycle, sensitive attribute yasağı, source policy).
-- Yeni PII alanı eklendiyse data inventory güncellendi.
+- Yeni PII alanı eklendiyse **veri envanterine satır eklendi** ve deletion/export kapsamı
+  ile test kapsamı buna göre güncellendi.
+- **Bypass yasağı kontrolü (D-002):** değişiklik kimlik doğrulama taşıma, CAPTCHA çözme,
+  bot-detection kaçınma veya paywall aşma amacı taşımıyor; erişim engeliyle karşılaşan
+  kod yeniden deneme veya alternatif yol aramıyor, durup source'u `Suspended` yapıyor.
+- **Gate koruması (D-012):** gate-relevant alanla ilgili değişiklik, `unverified` verinin
+  hard requirement'ı `met` yapamayacağı kuralını korumuş.
 - Secrets kod içine yazılmadı.
 
 ### Observability
 - Yeni component/flow için [OBSERVABILITY.md](docs/quality/OBSERVABILITY.md) uyarınca
-  log ve metric eklendi; kritik hata yolu alert'e bağlandı.
+  log ve metric eklendi. **Yeni alert bir runbook girdisine bağlanmadan Done olmaz**
+  (NFR-602 ile hizalama).
 - Scraper değişikliklerinde Scraper Health Monitor metrikleri çalışıyor.
+- Rollback yeteneği etkileyen değişikliklerde RB-5 ön şartları hâlâ sağlanıyor
+  (eski versiyon çalıştırılabilir, yeniden hesaplama tetikleniyor).
 
 ### Acceptance
 - Task'taki acceptance criteria'nın tamamı doğrulandı (nasıl doğrulandığı task notuna yazıldı).

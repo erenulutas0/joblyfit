@@ -92,7 +92,7 @@ flowchart TB
 | **Source Discovery** | Yeni aday source'ların bulunması (manuel öneri, kullanıcı önerisi, sistematik tarama). Adaylar **doğrudan crawl edilmez**; policy değerlendirmesi için Manual Review Queue'ya gider |
 | **Source Adapter** | Bir source için: giriş noktaları, listing→detail gezinme kuralı, alan çıkarma konfigürasyonu, source'a özgü tuhaflıklar. Adapter'lar versiyonludur |
 | **Crawl Scheduler** | Registry'deki aktif source'lar için crawl planı: frekans (source'un yayın temposuna göre adaptif), öncelik, yük dağılımı |
-| **Fetcher** | HTTP erişimi: robots kurallarını okuma ve uygulama, tanımlanabilir user-agent, timeout, cache/conditional request kullanımı |
+| **Fetcher** | HTTP erişimi: robots kurallarını okuma ve uygulama, tanımlanabilir user-agent, timeout, cache/conditional request kullanımı. **Access-change detection:** yanıt login/auth yönlendirmesi, CAPTCHA sayfası veya erişim engeli imzası taşıyorsa crawl durdurulur, source `Suspended` yapılır ve Manual Review'a düşer — **bypass hiçbir koşulda denenmez** (D-002, FS-12) |
 | **Rate Limiter** | Source başına istek hızı sınırı (registry'deki değer; bilinmiyorsa muhafazakâr varsayılan). İhlal = compliance bug'ı, metrik sıfır toleranslı ([METRICS.md](../product/METRICS.md)) |
 | **Retry & Backoff** | Geçici hatalarda exponential backoff + jitter; kalıcı hata sınıflandırması (4xx policy sinyalleri retry edilmez, source review'a düşer) |
 | **Failure Queue** | Retry'ı tükenen işlerin bekletildiği kuyruk; yaş metriği izlenir; insan kararına veya koşul düzelince yeniden planlamaya gider |
@@ -100,15 +100,16 @@ flowchart TB
 | **Structured Data Extractor** | Sayfa içi yapılandırılmış veri (schema.org JobPosting benzeri işaretlemeler, embedded JSON) çıkarımı — HTML parsing'e göre her zaman önceliklidir (daha dayanıklı) |
 | **Pagination Handler** | Listing sayfalarında sayfalama/sonsuz kaydırma desenlerinin gezilmesi; döngü ve tekrar koruması |
 | **Job Detail Collector** | Listing'de bulunan ilanların detay sayfalarının toplanması; değişmemiş detaylar için gereksiz fetch'ten kaçınma (Change Detector ile) |
-| **Normalizer** | Alanların platform şemasına dönüştürülmesi: lokasyon çözümleme, salary/period normalizasyonu, work type/employment type eşleme, dil tespiti, title normalizasyonu |
+| **Normalizer** | Alanların platform şemasına dönüştürülmesi: lokasyon çözümleme, salary/period normalizasyonu, work type/employment type eşleme, dil tespiti, title normalizasyonu, **shift_info yapılandırması**, **sektör normalizasyonu** |
+| **Employer Identity Resolver** *(Normalizer içinde)* | `employer.name_raw` → Employer entity çözümlemesi: legal form varyantları ("A.Ş." ↔ "Anonim Şirketi"), alias'lar, ATS subdomain eşlemeleri. Çıktı `employer_ref` + `resolution_confidence`. **Duplicate blocking anahtarı, cluster temsilci seçimi ve `excluded_employers` bu adıma bağımlıdır**; çözümlenemezse dedupe employer'sız fallback anahtara düşer (§6) |
 | **Duplicate Detector** | Aynı gerçek ilanın kopyalarını cluster'lama (strateji: §6) |
 | **Expiration Detector** | İlanın yayından kalktığının tespiti (strateji: §7) |
 | **Change Detector** | Var olan ilanın içeriğinin değişip değişmediği (content fingerprint); değişiklikte yeniden extraction tetiklenir |
 | **Data Quality Validator** | Zorunlu alan kontrolü, tutarlılık kuralları (ör. salary aralığı mantıklı mı), spam/dolandırıcılık işaretleri; eşik altı → Manual Review Queue |
 | **Source Provenance Tracker** | Her kayda fetch zamanı, URL, adapter/parser/extractor versiyonlarının işlenmesi |
 | **Freshness Scorer** | Freshness Score hesabı (strateji: §8) |
-| **Scraper Health Monitor** | Source başına success rate'ler, lag'ler, hata sınıfları; Registry'deki health/quality alanlarını günceller; alert üretir ([OBSERVABILITY.md](../quality/OBSERVABILITY.md)) |
-| **Manual Review Queue** | Policy değerlendirmesi bekleyen aday source'lar, eşik altı kayıtlar, kullanıcı raporları (F-25) için insan inceleme kuyruğu |
+| **Scraper Health Monitor** | Source başına success rate'ler, lag'ler, hata sınıfları; **yield/hacim anomali tespiti** (§5.1) ve **yapısal şema-değişim tespiti** — bu sinyalin sahibi Change Detector değil, bu bileşendir (FS-11); Registry'deki health/quality alanlarını günceller; alert üretir ([OBSERVABILITY.md](../quality/OBSERVABILITY.md)) |
+| **Manual Review Queue** | **Minimal mod (D-014).** Yalnızca §5.2'deki altı tetikleyici için insan inceleme kuyruğu |
 
 ## 4. Compliant Source Strategy
 
@@ -126,7 +127,7 @@ Her source, ingest edilmeden önce şu değerlendirmeden geçer (sonuçlar Sourc
    ve ATS sağlayıcıları) resmi feed/API anlaşması her zaman tercih edilen yoldur.
 
 **Gri alan kuralı:** Policy belirsizse source `Conditional` işaretlenir ve insan kararı
-olmadan crawl başlamaz. ❓ OPEN: Conditional source'lar için karar rubriği hukuki
+olmadan crawl başlamaz. ❓ OPEN-09: Conditional source'lar için karar rubriği hukuki
 doğrulamayla (T-008) netleşecek — riskler:
 [PRIVACY_SECURITY_COMPLIANCE.md](../security/PRIVACY_SECURITY_COMPLIANCE.md) → Source Policy.
 
@@ -142,7 +143,68 @@ doğrulamayla (T-008) netleşecek — riskler:
   eşik altına düşen source otomatik askıya alınır ve Manual Review'a düşer.
 - **İnsan döngüsü:** Kullanıcı raporları (F-25) ve örneklem denetimleri (rastgele seçilen
   kayıtların elle kontrolü) kalite ölçümünü besler.
+- **"Veri var ama yanlış" boyutu:** Data Quality Score tamlık/biçim ölçer; source'un
+  yanlış salary/location/requirement beyanı ayrı bir **field accuracy** boyutudur.
+  Kullanıcının "yanlış bilgi" raporları (Flow 8) ve örneklem denetimi bu boyutu besler;
+  düşük field accuracy Match Confidence'a yansır (source güvenilirliği girdisi).
 - Hedef değerler: [METRICS.md](../product/METRICS.md) → Scraper Health.
+
+### 5.1 Yield / coverage anomali izlemesi (FS-11)
+
+Crawl "başarılı" ve parser "başarılı" görünürken keşfedilen ilan sayısının düşmesi
+sessiz bir kapsam kaybıdır ve mevcut success-rate metrikleriyle görünmez. Bu yüzden
+source başına şunlar izlenir:
+
+- **Postings discovered per crawl** — hareketli medyandan anlamlı sapma alert üretir.
+- **Listing yield** — listing sayfasında görülen ilan sayısı ÷ başarıyla çıkarılan kayıt.
+- **Parser success (kayıt düzeyi)** — sayfa düzeyi orana ek olarak; 20 ilanlık listing'den
+  10 kayıt çıkaran parse sayfa düzeyinde "başarılı" görünür, kayıt düzeyinde görünmez.
+
+Eşikler ilk kalibrasyondur ([METRICS.md](../product/METRICS.md)); anlamlı sapma → RB-1 ve
+(kalıcıysa) Manual Review tetikleyicisi "coverage anomaly".
+
+### 5.2 Manual Review Queue — minimal mod (D-014)
+
+MVP'de kuyruk **yalnızca** şu altı durum için kullanılır:
+
+| # | Tetikleyici | Öncelik |
+|---|---|---|
+| 1 | Source permission uncertainty (aday source policy kararı, `Conditional` değerlendirmesi) | compliance |
+| 2 | Critical low-confidence extraction (gate-relevant alanda belirsizlik) | quality |
+| 3 | Regulated requirement ambiguity | compliance |
+| 4 | Potansiyel ayrımcı / hukuken hassas requirement (D-013) | compliance |
+| 5 | Anlamlı source coverage/yield anomalisi (§5.1) | quality |
+| 6 | Veri kaldırma veya source suspension talebi | compliance |
+
+**Kuyruğa girmeyenler** (otomatik/batch davranışa bağlandı): unmapped occupation
+(→ generic matching + coverage limitation, D-008), possible-duplicate belirsiz bölge
+(→ ayrı gösterim, örneklem denetimi), rutin kalite örneklemleri, failure queue kalıntıları.
+
+**Kapasite:** haftada en fazla **~2 saat insan incelemesi** varsayılır. SLA hedefi
+konulmaz; bunun yerine kapasite aşımında uygulanacak davranış tanımlıdır:
+
+1. İlgili source geçici olarak **suspend** edilir,
+2. İlgili occupation **limited support**'a alınır,
+3. Problemli extraction otomatik recommendation'dan **çıkarılır** (ilan listelenmeye
+   devam edebilir ama skor üretilmez).
+
+Compliance öncelikli kalemler (1, 3, 4, 6) hiçbir koşulda quality kalemleri için
+bekletilmez.
+
+### 5.3 Source emergency takedown (FS-13)
+
+`Suspended` durumuna geçiş varsayılan olarak yalnızca **crawl'ı** durdurur; mevcut
+ilanlar normal expiration akışıyla düşer. Hukuki kaldırma talebi veya toplu scam tespiti
+gibi durumlarda bu yeterli değildir. Bu yüzden `Suspended` geçişi opsiyonel bir
+**`immediate de-index`** bayrağı alabilir:
+
+- Source'un bütün member posting'leri **anında** feed, arama ve digest dışına alınır;
+- Canonical cluster'lar yeniden değerlendirilir (başka source'tan üyesi varsa canonical
+  yaşamaya devam eder);
+- Arşiv ve provenance kaydı **korunur** (silme ayrı bir karardır);
+- Olay `source_suspended` olarak yayılır ([API_CONTRACTS.md](API_CONTRACTS.md) C-1).
+
+Prosedür: [RUNBOOK.md](../operations/RUNBOOK.md) → RB-1 / RB-9.
 
 ## 6. Duplicate Detection Strategy
 
@@ -150,9 +212,19 @@ Aynı ilan birden çok source'ta (şirket sayfası + 2 job board + agency) gör�
 
 - **Aşama 1 — kesin eşleşme:** aynı source içinde source_posting_ref; source'lar arası
   aynı canonical URL / aynı ATS ilan kimliği.
-- **Aşama 2 — güçlü sinyal bileşimi:** normalize (employer + title + location) anahtar
-  bloklaması içinde içerik benzerliği (metin fingerprint/near-duplicate karşılaştırma).
-  Eşik üstü → aynı cluster.
+- **Aşama 2 — güçlü sinyal bileşimi (çoklu blocking):** tek anahtara bağlı kalınmaz;
+  aday çiftleri **iki bağımsız blocking geçidinden** üretilir ve birleştirilir:
+  - *Geçit A:* normalize (employer_ref + title + location) — Employer Identity Resolver
+    çıktısına dayanır.
+  - *Geçit B:* (location + occupation) + içerik fingerprint — **employer'dan bağımsız**.
+  Herhangi bir geçitten gelen çift için içerik benzerliği hesaplanır; eşik üstü → aynı
+  cluster.
+
+  > **Neden iki geçit:** recruitment agency'ler ilanı işvereni gizleyip başlığı
+  > değiştirerek yeniden yayımlar. Böyle bir kopya Geçit A'ya **hiç giremez** (iki alan da
+  > değişmiştir) ve tek anahtarlı bir tasarımda hiç karşılaştırılmadan feed'e sızar.
+  > Geçit B bu sınıfı yakalamak içindir. Bu vaka
+  > [TEST_STRATEGY.md](../quality/TEST_STRATEGY.md)'de zorunlu fixture senaryosudur.
 - **Aşama 3 — belirsiz bölge:** orta benzerlik → `possible duplicate` işareti, Manual
   Review örneklemine girer; kullanıcıya ayrı gösterilmeye devam eder (yanlış birleştirme,
   ilan kaçırtmaktan daha maliyetli — FS-3).
@@ -160,6 +232,12 @@ Aynı ilan birden çok source'ta (şirket sayfası + 2 job board + agency) gör�
   yerine işverenin kendi ilanı tercih edilir. Merge kararları loglanır ve geri alınabilir.
 - **Zaman boyutu:** expired olup yeniden yayınlanan ilan (repost) yeni cluster açar ama
   `repost_of` ilişkisiyle bağlanır (kullanıcı "bunu daha önce gördüm" bilgisini alabilir).
+- **Geç birleştirme (late merge) semantiği:** İki canonical sonradan aynı ilan çıkarsa
+  veya bir merge geri alınırsa, kullanıcıya dönük bütün referanslar korunur:
+  MatchResult'lar invalidate edilir (MATCHING_ENGINE §2.3), feedback / application /
+  saved kayıtları **hayatta kalan canonical'a taşınır**, bildirim deduplication'ı merge
+  geçmişini dikkate alır. Olaylar: `canonical_merged` / `canonical_split`
+  ([API_CONTRACTS.md](API_CONTRACTS.md) C-1).
 
 ## 7. Expiration Detection Strategy
 

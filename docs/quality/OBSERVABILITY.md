@@ -40,20 +40,45 @@
 
 ## 3. Alert Koşulları (başlangıç seti)
 
-| Alert | Koşul (öneri) | Runbook |
-|---|---|---|
-| Source down | Bir source'ta art arda 3 crawl başarısız | RB-1 |
-| Parser kırıldı | Parser success rate < %70 (tek crawl) veya şema-değişim tespiti | RB-1 |
-| Rate limit ihlali | Sayaç > 0 | RB-2 (compliance — anında) |
-| Freshness bozuldu | Ingestion lag hedefin 2 katını aştı | RB-1 |
-| Failure queue yaşlandı | En eski kayıt > 48 saat | RB-3 |
-| Duplicate anomalisi | Yeni cluster oranında ani sapma | RB-4 |
-| Matching drift | Skor/confidence dağılımında ani kayma veya golden-set canary düşüşü | RB-5 |
-| Bildirim taşması | Kullanıcı başına gönderim limitine takılma oranında sıçrama | RB-6 |
-| Data rights SLA | Deletion/export talebi SLA eşiğine yaklaşıyor | RB-7 |
-| Güvenlik | Vault erişim anomalisi, yetkisiz erişim denemeleri | RB-8 (incident) |
+Anomali tabanlı eşikler "ani sapma" gibi ölçülemez ifadelerle bırakılmaz; hepsi bir
+baseline ve pencere ile tanımlanır. Değerler ilk kalibrasyondur (Assumption) ve gerçek
+veriyle ayarlanır.
 
-Eşikler ilk kalibrasyondur; beta verisiyle ayarlanır.
+| Alert | Koşul | Aciliyet | Runbook |
+|---|---|---|---|
+| Source down | Son 24 saatte hiç başarılı crawl yok *(crawl frekansından bağımsız olsun diye süre bazlı)* | günlük | RB-1 |
+| Parser kırıldı | Parser success rate < %70 (tek crawl) | günlük | RB-1 |
+| Parser sessiz bozulma | Parser success 7 gün üst üste < %90 (hedef altı ama alert eşiği üstü bant) | günlük | RB-1 |
+| **Yield çöküşü (FS-11)** | Source'un keşfettiği ilan sayısı, 7 günlük hareketli medyanın **%50'sinin altına** düştü | günlük | RB-1 |
+| **Access-change tespiti (FS-12)** | Fetch yanıtında login/CAPTCHA/erişim engeli imzası | **acil** | RB-1 → RB-2 |
+| Rate limit ihlali | Sayaç > 0 | **acil** | RB-2 (compliance) |
+| Freshness bozuldu | Ingestion lag hedefin 2 katını aştı | günlük | RB-1 |
+| **Source otomatik askıya alındı** | Data Quality Score eşiği aşıldı ve sistem `Suspended` yaptı | günlük (bilgilendirme) | RB-1 |
+| Failure queue yaşlandı | En eski kayıt > 48 saat | günlük | RB-3 |
+| Duplicate anomalisi | Yeni cluster oranı, 7 günlük hareketli medyandan ±%40 saptı | günlük | RB-4 |
+| Matching drift | Skor/confidence dağılımının medyanı 7 günlük baseline'dan ±%20 saptı **veya** golden-set canary'de koruma metriği baseline'ın X puan altına düştü | günlük | RB-5 |
+| **Feed bayatladı (FS-5)** | Son başarılı feed hesaplama yaşı > 24 saat, veya yeniden hesaplama kuyruğu büyümeye devam ediyor | **acil** | RB-5 |
+| **CV parsing arızası (FS-6)** | Parsing failure rate > %30 (son 1 saat) | günlük | RB-10 |
+| **API hata oranı / availability** | 5xx oranı > %2 (5 dk) veya sağlık kontrolü başarısız | **acil** | RB-11 |
+| Bildirim taşması | Kullanıcı başına gönderim limitine takılma oranı, haftalık baseline'ın 3 katı | **acil** | RB-6 |
+| **Rapor oranı sıçraması** | Report rate, 7 günlük baseline'ın 3 katı (scam dalgası sinyali) | günlük | RB-9 |
+| **Unmapped oranı** | Yeni ilanlarda unmapped occupation oranı > %25 (24 saat) | günlük | RB-5 |
+| **Policy reevaluation gecikti** | Bir source'un `reevaluation_due` tarihi geçti | günlük | RB-1 |
+| Data rights SLA | Deletion/export talebi SLA eşiğinin %75'ine ulaştı | günlük | RB-7 |
+| Güvenlik | Yetkisiz erişim denemeleri, vault erişimi (MVP'de olmamalı) | **acil** | RB-8 (incident) |
+
+**Aciliyet modeli (tek kişilik ekip gerçeğiyle):** `acil` = hedef tepki ≤4 saat;
+`günlük` = ≤1 iş günü. Bu değerler Assumption'dır. Formal on-call beklenmez; ulaşılamama
+durumunda `acil` sınıfı alert'lerin tetiklediği otomatik davranış (crawl durdurma,
+bildirim kill-switch) insan müdahalesi olmadan da koruma sağlar.
+
+**Alert korelasyonu:** Aynı source'un eşzamanlı alert'leri (source down + parser kırıldı +
+freshness bozuldu) tek olay altında gruplanır; üçü de RB-1'e gider ve tek bildirim üretir.
+
+**Golden-set canary:** Matching drift alert'inin dayanağı olan canary, golden set'in sabit
+bir alt kümesinin **planlı aralıklarla (günlük) güncel engine ile çalıştırılmasıdır.**
+Bu, TEST_STRATEGY'deki versiyon-değişimi regression kapısından ayrı bir operasyonel
+görevdir ve MVP-required alt kümesinde değerlendirilir (T-011).
 
 ## 4. Dashboards (asgari)
 

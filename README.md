@@ -23,9 +23,14 @@ düzenli olarak iş ilanı toplar, normalize eder ve kullanıcının profiline g
    olmayan, source policy'lere saygılı ingestion mimarisi.
    → [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md)
 
-> ⚠️ **Not:** Bu repository şu anda yalnızca product design ve system architecture
-> documentation içerir. Implementation code ve technology stack seçimi henüz yapılmamıştır
-> (bkz. [DECISIONS.md](DECISIONS.md) → D-001).
+> ⚠️ **Durum:** Bu repository yalnızca product design ve system architecture documentation
+> içerir. Implementation code ve technology stack seçimi henüz yapılmamıştır (D-001).
+> **Build'e geçiş, M1 validation gate'inin `go` kararıyla kapanmasına bağlıdır** (D-010);
+> güncel durum [CONTEXT.md](CONTEXT.md) dosyasındadır.
+>
+> **MVP kapsamı:** Türkiye launch pazarı, 3 occupation cluster / ~6 first-class occupation,
+> 2-3 compliant source (D-008, D-009). Platform vision universal kalır — kapsam dışı
+> meslekler generic matching ile hizmet alır ve coverage limitation açıklaması görür.
 
 ## Documentation Haritası
 
@@ -85,5 +90,6 @@ düzenli olarak iş ilanı toplar, normalize eder ve kullanıcının profiline g
 ## Nereden Başlamalı?
 
 1. Yeni katılan biri: [PRODUCT.md](docs/product/PRODUCT.md) → [PRD.md](docs/product/PRD.md) → [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
-2. Coding agent: [CLAUDE.md](CLAUDE.md) → [CONTEXT.md](CONTEXT.md) → [TASKS.md](TASKS.md)
+2. Coding agent: [AGENTS.md](AGENTS.md) (normatif kurallar) → [CLAUDE.md](CLAUDE.md) (Claude'a özgü adımlar) → [CONTEXT.md](CONTEXT.md) → [SESSION_HANDOFF.md](SESSION_HANDOFF.md) → [TASKS.md](TASKS.md)
 3. Terminoloji sorusu olan herkes: [GLOSSARY.md](docs/product/GLOSSARY.md)
+4. "Neden böyle karar verilmiş?" sorusu: [DECISIONS.md](DECISIONS.md)

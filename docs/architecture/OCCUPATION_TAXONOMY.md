@@ -23,13 +23,51 @@ Taxonomy üç işi görür:
 ## 2. Temel Karar: Standarttan Türet (D-004)
 
 Çekirdek olarak açık bir occupation standardı (ESCO veya O*NET) alınır; üzerine
-platform extension katmanı eklenir. ❓ OPEN: standart seçimi hedef pazara bağlı (T-004).
+platform extension katmanı eklenir. ❓ OPEN-02: standart seçimi (T-004); §2.1'deki bağımlılık matrisi bu kararın zorunlu girdisidir.
 
 | Katman | İçerik | Değişim hızı |
 |---|---|---|
-| **Core (standarttan)** | Occupation hiyerarşisi, standart skill kavramları, occupation-skill ilişkileri, çok dilli etiketler | Yavaş; standart sürümüyle güncellenir |
-| **Extension (platform)** | Lokal meslekler, lokal license/certification türleri (ör. SRC, SMMM), pazar-özgü qualification'lar, Occupation Profile template'leri | Kontrollü süreçle (bkz. §6) |
-| **Alias katmanı** | Piyasa dilindeki title varyantları → occupation eşlemeleri ("yazılım geliştirici", "software developer", "SW engineer") | Sık; extraction geri beslemesiyle büyür |
+| **Core (standarttan)** | Occupation hiyerarşisi, standart skill kavramları, occupation-skill ilişkileri | Yavaş; standart sürümüyle güncellenir |
+| **Country extension (TR)** | TR'ye özgü meslekler, license/certification türleri (ör. SRC, psikoteknik, SMMM ruhsatı), lokasyon yapısı, denklik kuralları, **Türkçe label'lar** | Kontrollü süreçle (bkz. §6) |
+| **Platform extension** | Occupation Profile template'leri, qualification slot'ları, transition ilişkileri | Kontrollü süreçle |
+| **Alias katmanı** | Piyasa dilindeki title varyantları → occupation eşlemeleri | Sık; §6.1 governance'ına tabi |
+
+> **D-009 kuralı:** Country extension katmanı **değiştirilebilir bir katmandır**; core
+> katman TR varsayımı taşımaz. İkinci bir pazar eklendiğinde core ve platform extension
+> aynı kalır, yalnızca yeni bir country extension eklenir.
+
+### 2.1 Özellik → standart bağımlılığı (T-004'ün zorunlu girdisi)
+
+Model, iki standardın özelliklerinin **birleşimini varsaymamalıdır**. Aşağıdaki matris
+T-004 kararının girdisidir; hangi standart seçilirse seçilsin **açıkta kalan iş** vardır:
+
+| Model özelliği | ESCO'da | O*NET'te | Seçilmezse platformun yapacağı iş |
+|---|---|---|---|
+| Occupation hiyerarşisi | var | var | — |
+| Occupation–skill ilişkileri | var | var | — |
+| Çok dilli label (AB dilleri) | var | yok (EN) | O*NET seçilirse tam çeviri |
+| **Türkçe label** | **yok** | **yok** | **Her iki durumda da platform üretir** (country extension) |
+| Occupation transition / related occupations | zayıf | var (Related Occupations) | ESCO seçilirse elle kürasyon (§6 adım 5) |
+| TR license/qualification türleri | yok | yok | Her iki durumda da country extension |
+
+**Sonuç:** Türkçe label üretimi ve TR-özgü qualification'lar standart seçiminden
+bağımsız olarak platformun işidir; standart seçimi yalnızca transition verisi ve
+çeviri yükünü değiştirir. A-6 assumption'ı bu ayrıma göre okunmalıdır.
+
+## 2.5 Support Tiers (D-008)
+
+Platform vision universal'dır; ancak MVP'de her occupation aynı derinlikte desteklenmez.
+
+| Tier | Kapsam | Davranış |
+|---|---|---|
+| **First-class** | MVP'nin 6 occupation'ı (§4.1) | Occupation-specific template + soru seti + kalibre ağırlık + golden set kapsamı |
+| **Generic** | Core taxonomy'de karşılığı olan diğer occupation'lar | Jenerik varsayılan ağırlıklarla matching yapılır; **Match Confidence düşürülür** ve kullanıcıya **coverage limitation** açıklaması gösterilir |
+| **Limited** | Mapping'i düşük confidence'lı veya kapasite aşımı nedeniyle kısıtlanan occupation'lar (D-014) | İlanlar listelenir, otomatik recommendation üretilmez |
+| **Listing-only** | Public sector ilanları (D-015) | Listelenir + kaynağa yönlendirilir; Match Score üretilmez |
+
+Kullanıcı hiçbir tier'da engellenmez; tier yalnızca **ne kadar iddialı** davranıldığını
+belirler. Coverage limitation metni kullanıcıya sade dille sunulur ("mesleğin için
+ayrıntılı eşleştirme henüz hazır değil; sonuçlar genel değerlendirmeye dayanıyor").
 
 ## 3. Model
 
@@ -39,12 +77,22 @@ classDiagram
       id, canonical_name
       labels[lang][]        %% çok dilli ad + alias'lar
       parent_id             %% hiyerarşi
-      regulated : bool
+      seniority_axis        %% bkz. Notlar: seviye occupation'ı çoğaltmaz
+      support_tier          %% first_class | generic | limited | listing_only
       description
       version_info
     }
+    class OccupationRegulation {
+      occupation_id
+      jurisdiction          %% regulation pazar/bağlam bağımlıdır
+      context?              %% ör. "kamu" — aynı meslek bağlama göre regulated olabilir
+      is_regulated : bool
+      required_license_type
+      recognition_note      %% denklik/tanıma durumu (varsa)
+    }
     class OccupationProfile {
       occupation_id
+      jurisdiction?         %% pazar başına farklı template mümkün
       qualification_slots[]
     }
     class QualificationSlot {
@@ -66,39 +114,86 @@ classDiagram
       barrier_note          %% ör. "hedef meslek regulated: X license şart"
     }
 
-    Occupation "1" --> "1" OccupationProfile
+    Occupation "1" --> "*" OccupationRegulation
+    Occupation "1" --> "*" OccupationProfile
     OccupationProfile "1" --> "*" QualificationSlot
     QualificationSlot "*" --> "1" Qualification
     Occupation "*" --> "*" TransitionLink
 ```
 
 Notlar:
-- **`regulated` bayrağı** occupation seviyesindedir; regulated occupation'ın profile'ında
-  en az bir `license_type` slotu `typical_hard` olmalıdır (tutarlılık kuralı, testlenir).
+- **Regulation jurisdiction-bağlamlıdır, bool değil.** Aynı meslek bir pazarda regulated,
+  başkasında değil olabilir; hatta aynı pazarda bağlama göre değişebilir (ör. öğretmenlik
+  kamuda regulated). Bu yüzden `regulated: bool` yerine `OccupationRegulation`
+  (occupation × jurisdiction × context) kullanılır. Tutarlılık kuralı (testlenir):
+  `is_regulated = true` olan her kayıt için ilgili OccupationProfile'da en az bir
+  `license_type` slotu `typical_hard` olmalıdır. MVP'de yalnızca `jurisdiction: TR`
+  kayıtları doldurulur.
+- **Denklik (recognition):** Profil license'ının jurisdiction'ı ile ilanın jurisdiction'ı
+  farklıysa MVP kuralı: **tam eşleşme aranır**, denklik otomatik varsayılmaz. Eşleşmeyen
+  durumda sonuç `unmet` değil `unknown`'dır ve explanation "denklik durumunu
+  doğrulayamıyoruz, kaynaktan kontrol et" der. Otomatik denklik eşlemesi V1 konusudur.
+- **Seniority occupation'ı çoğaltmaz.** "Senior X" ayrı bir occupation node'u **açılmaz**;
+  seviye bilgisi (a) ilan tarafında `requirements[].min_years` / `level` alanlarında,
+  (b) kullanıcı tarafında `work_experience[]` süresinden türetilerek taşınır. Alias
+  eşlemesi title'daki seviye ifadesini ("kıdemli", "senior") ayırıp occupation'a değil
+  seniority sinyaline yazar.
+- **Specialization kuralı.** "ICU nurse" gibi uzmanlıklar için: core standartta ayrı node
+  olarak varsa o node kullanılır; yoksa **yeni node açılmaz** — parent occupation
+  (Nurse) + ayırt edici qualification (department/equipment/certification) ile temsil
+  edilir. Yeni child node yalnızca §6 sürecinde ve "kendine özgü license veya qualification
+  template gerektiriyor" gerekçesiyle açılır.
 - **Occupation Profile "şablon"dur, ilanın yerine geçmez:** gerçek requirement'lar her
-  ilandan çıkarılır; profile, extraction'a rehber (ne aranacağını bilme) ve eksik veri
-  durumunda makul varsayılan sağlar.
-- **Versiyonlama:** taxonomy değişiklikleri versiyonludur; matching sonuçları hangi
-  taxonomy versiyonuyla üretildiğini bilir (reproducibility, FS-10).
+  ilandan çıkarılır. **Template default'u tek başına gate üretmez** — istisnası aşağıdaki
+  kuraldır.
+- **Hard requirement'ın kaynağı (iki kaynak, tek kural):**
+  1. *Occupation seviyesinden gelen gate:* `OccupationRegulation.is_regulated = true` ise
+     ilgili license gate'i **ilan metninde yazmasa da** uygulanır (regulated dürüstlüğü,
+     FR-408). Bu, kullanıcıyı korumak içindir.
+  2. *İlan seviyesinden gelen gate:* extraction'ın `kind: hard` olarak çıkardığı şartlar.
+  3. *Regulated olmayan `typical_hard` slot'ları* **asla eleme üretmez**; yalnızca
+     explanation'da "ilan belirtmemiş ama bu meslekte genelde beklenir" notu üretir.
+  Her requirement'ın kaynağı MatchResult evidence'ında işaretlenir
+  (`posting_extracted` / `occupation_rule`) ki explanation dürüst kalsın.
+- **Versiyonlama:** taxonomy değişiklikleri versiyonludur; MatchResult `taxonomy_version`
+  taşır (reproducibility ve invalidation — FS-10, MATCHING_ENGINE §2.3).
 
-## 4. Örnek Occupation Profile'lar (şablonun kullanımı)
+## 4. Occupation Profile'lar
 
-| Occupation | typical_hard | typical_required | typical_preferred |
-|---|---|---|---|
-| Registered Nurse (regulated) | Nursing license (jurisdiction) | Nursing degree, department experience | Ek sertifikalar (ör. yoğun bakım), yabancı dil |
-| Heavy Vehicle Driver | Driving license kategori (ör. CE), zorunlu mesleki belgeler | Rota/bölge deneyimi | Tehlikeli madde belgesi, esnek vardiya |
-| Accountant | (pazar bağlı: ruhsat gerektiren roller regulated işaretlenir) | Accounting degree/software, mevzuat bilgisi | Certification (ör. SMMM/CPA), İngilizce |
-| Teacher (regulated, kamu) | Teaching certificate, branş yeterliliği | Degree, deneyim | Ek pedagojik sertifikalar |
-| UX Designer | — | Portfolio, design tools | Sektör deneyimi, design system deneyimi |
-| Sales Representative | — | Sektör deneyimi, iletişim | Driving license, yabancı dil |
-| CNC Technician | — (bazı belgeler pazara göre hard olabilir) | Vocational certification, makine bilgisi | Vardiya uygunluğu, ek makine tipleri |
-| Software Engineer | — | Programming languages/frameworks, project experience | System knowledge, domain deneyimi |
+### 4.1 MVP first-class seti (D-008)
+
+Üç cluster, altı occupation. Cluster'lar extraction desenlerini paylaştığı için seçildi
+(aynı cluster içindeki occupation'lar benzer qualification yapısına sahiptir).
+
+| Cluster | Occupation | typical_hard | typical_required | typical_preferred |
+|---|---|---|---|---|
+| **Logistics & Operations** | Driver | Driving license + kategori (TR: ör. C/CE/D); mesleki yeterlilik belgeleri (TR: SRC), psikoteknik — *TR extension* | Rota/bölge deneyimi, araç tipi deneyimi | Tehlikeli madde belgesi, esnek vardiya |
+| | Warehouse Worker | — | Depo/stok sistemi deneyimi, fiziksel iş uygunluğu beyanı | Forklift operatör belgesi, vardiya esnekliği |
+| **Office & Commercial** | Accountant | *(TR: ruhsat gerektiren roller `OccupationRegulation` ile işaretlenir)* | Muhasebe eğitimi, muhasebe yazılımı, mevzuat bilgisi | Certification (TR: SMMM ruhsatı), İngilizce |
+| | Sales Representative | — | Sektör deneyimi, iletişim becerisi | Driving license (B), yabancı dil, CRM deneyimi |
+| **Healthcare** | Nurse | Hemşirelik lisansı/tescili (jurisdiction: TR) — **regulated** | Hemşirelik eğitimi, departman deneyimi | Yoğun bakım vb. ek sertifikalar, yabancı dil |
+| | Health Technician | Alanına göre yetki belgesi (jurisdiction: TR) — **regulated (alan bazlı)** | Meslek yüksekokulu/teknisyenlik eğitimi, cihaz deneyimi | Ek cihaz sertifikaları, vardiya uygunluğu |
+
+> Bu tablo bir **taslaktır**; T-005'te her occupation için tam Occupation Profile
+> doldurulacak ve TR-özgü belge adları hukuki/pazar doğrulamasından (T-003, T-008)
+> geçtikten sonra kesinleşecektir. Belge adları burada **örnek** olarak verilmiştir,
+> confirmed legal fact değildir.
+
+### 4.2 First-class olmayan occupation örnekleri (generic tier)
+
+Aşağıdakiler MVP'de first-class **değildir** ama kullanıcı bunları seçebilir ve generic
+matching alır (Support Tiers, §2.5): Teacher, UX Designer, Software Engineer, CNC
+Technician, Chef, Receptionist ve core taxonomy'deki diğer bütün occupation'lar. Bunlar
+için template doldurulmaz, ağırlık kalibre edilmez ve coverage limitation açıklaması
+gösterilir.
 
 ## 5. Mapping Kullanımı
 
 - **İlan → Occupation:** title + içerik sinyalleriyle, alias katmanı üzerinden; sonuç
-  `{occupation_id, confidence}`. Düşük confidence → `unmapped`, Manual Review
-  (invariant #7).
+  `{occupation_id, confidence}`. Düşük confidence → `unmapped`: ilan **limited tier**
+  davranışıyla listelenir (otomatik recommendation üretilmez), Manual Review'a
+  **düşmez** (D-014 minimal mod). Toplu/sistematik unmapped artışı ise coverage
+  anomalisi olarak izlenir.
 - **Profil → Occupation:** kullanıcı seçimi esastır (F-05); CV'den öneri yapılır ama
   kullanıcı onaylar.
 - **Requirement/Qualification → kavram:** extraction serbest metni Qualification
@@ -111,24 +206,56 @@ Notlar:
    extraction'ın sık `unmapped` üretmesi, source coverage analizi.
 2. **Standart kontrolü:** kavram core standartta var mı? Varsa etkinleştir + alias ekle
    (yeni node açılmaz).
-3. **Tanım:** yoksa extension'da yeni Occupation: canonical name, çok dilli label'lar,
-   parent (hiyerarşide yeri), `regulated` değerlendirmesi (regulated ise hangi license —
-   hukuki kaynak notuyla).
-4. **Occupation Profile:** qualification slot'ları doldurulur; gerekiyorsa yeni
+3. **Tanım:** yoksa extension'da yeni Occupation: canonical name, label'lar (TR dahil),
+   parent (hiyerarşide yeri), `support_tier`. Specialization ise §3'teki kural uygulanır
+   (yeni node yerine parent + qualification).
+4. **Regulation değerlendirmesi:** ilgili jurisdiction/context için `OccupationRegulation`
+   kaydı — regulated ise hangi license, hangi hukuki kaynağa dayanarak. *Hukuki dayanak
+   doğrulanmamışsa kayıt `is_regulated` olarak işaretlenmez; açık soru olarak T-008'e
+   bağlanır.*
+5. **Occupation Profile:** qualification slot'ları doldurulur; gerekiyorsa yeni
    Qualification kavramları da aynı süreçle eklenir.
-5. **Transition ilişkileri:** en yakın 3-5 occupation ile TransitionLink değerlendirilir
-   (özellikle barrier_note — regulated hedefler için zorunlu).
-6. **Review + versiyon:** ikinci göz onayı; taxonomy minor/major versiyon notu;
-   [CHANGELOG.md](../../CHANGELOG.md) kaydı.
-7. **Doğrulama:** alias'larla örnek ilanların mapping testi; ilgili golden set
+6. **Transition ilişkileri:** en yakın 3-5 occupation ile TransitionLink değerlendirilir.
+   `barrier_note` **yalnızca regulated hedefler için değil**, hedefte kullanıcının
+   karşılamadığı **her `typical_hard` slot** için zorunludur (ör. zorunlu vocational
+   certification, portfolio şartı).
+7. **Review + versiyon:** ikinci göz onayı — tek kişilik ekipte
+   [DEFINITION_OF_DONE.md](../../DEFINITION_OF_DONE.md)'daki "insan veya ikinci agent"
+   formülü geçerlidir; taxonomy minor/major versiyon notu; PROGRESS kaydı.
+8. **Doğrulama:** alias'larla örnek ilanların mapping testi; ilgili golden set
    örneklerinin güncellenmesi ([TEST_STRATEGY.md](../quality/TEST_STRATEGY.md)).
 
 Silme yerine `deprecated` + yönlendirme (eski profillerin kırılmaması için).
 
+### 6.1 Alias Governance
+
+Alias katmanı hızlı büyür ve occupation mapping accuracy hedefinin (≥90%) ana
+belirleyicisidir; bu yüzden ayrı bir yönetişimi vardır:
+
+- **Kaynaklar:** extraction geri beslemesi (sık görülen eşlenemeyen title'lar), kullanıcı
+  seçimleri, elle ekleme.
+- **Onay:** otomatik **öneri** üretilir, yayına **insan onayıyla** girer. MVP hacminde
+  (6 occupation) bu makuldür.
+- **Çok anlamlı title'lar** ("mühendis", "danışman", "operatör" gibi tek başına birden çok
+  occupation'a gidebilenler): tekil eşleme yapılmaz; **aday listesi + confidence** döner
+  ve düşük confidence limited tier davranışını tetikler.
+- **Versiyonlama:** alias seti occupation node'larından **ayrı ve hafif** versiyonlanır;
+  her alias eklemesi taxonomy major versiyonunu artırmaz (aksi halde "sık değişim" ile
+  "reproducibility" çelişirdi). MatchResult'taki `taxonomy_version` node versiyonunu
+  izler.
+- **Ölçüm:** occupation mapping accuracy kırılımında "alias kaynaklı hata" ayrı etiketlenir
+  ([METRICS.md](../product/METRICS.md)).
+
 ## 7. MVP Kapsamı
 
-MVP'de 8-10 birinci sınıf Occupation Profile (T-005; en az 3'ü white-collar dışı).
-Taxonomy'nin core katmanı bütünüyle yüklenir (mapping herkes için çalışır); ancak
-zengin profile/transition verisi MVP occupation'larında derinleştirilir. Kapsam dışı
-occupation'a düşen kullanıcı, jenerik faktörlerle (skill/location/preference) hizmet
-alır ve bu durum Match Confidence'a yansır.
+MVP'de **3 cluster / 6 first-class Occupation Profile** (§4.1, D-008; T-005'te
+doldurulacak). Taxonomy'nin core katmanı bütünüyle yüklenir — mapping herkes için
+çalışır — ancak zengin profile/transition verisi ve ağırlık kalibrasyonu yalnızca bu altı
+occupation'da derinleştirilir. Kapsam dışı occupation'a düşen kullanıcı **generic tier**
+davranışı alır: jenerik varsayılan ağırlıklarla eşleştirilir, Match Confidence düşürülür
+ve **coverage limitation açıklaması** gösterilir (§2.5).
+
+Golden set'in meslek dağılımı bu altı occupation üzerinden kurulur; white-collar dışı
+oranı doğal olarak yarıyı aşar (Driver, Warehouse Worker, Nurse, Health Technician),
+bu da [TEST_STRATEGY.md](../quality/TEST_STRATEGY.md) §3'teki çeşitlilik şartını
+çarpıklık yaratmadan karşılar.

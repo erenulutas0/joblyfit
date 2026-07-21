@@ -1,66 +1,36 @@
-# CLAUDE.md — Coding Agent Çalışma Kuralları
+# CLAUDE.md — Claude'a Özgü Çalışma Talimatları
 
-> **Purpose:** Bu dosya, Claude (ve bu dosyayı okuyan diğer coding agent'ların) bu proje
-> üzerinde nasıl çalışacağını tanımlar. Bütün agent'lar için ortak kurallar
-> [AGENTS.md](AGENTS.md) dosyasındadır; bu dosya onun üzerine proje-spesifik kuralları ekler.
+> **Purpose:** Yalnızca Claude'a özgü, session düzeyindeki asgari talimatlar.
+> **Bütün agent'lar için geçerli normatif kurallar (yasaklar, çalışma sırası, çakışma
+> otoritesi, dosya hijyeni) tek yerde: [AGENTS.md](AGENTS.md). Bu dosya onları tekrar
+> etmez.** Çelişki görürsen AGENTS.md kazanır.
 
-## Proje Durumu
+## Session Başında (sırayla)
 
-- Proje şu anda **documentation-only** aşamasındadır. Implementation code yoktur.
-- Technology stack (language, framework, database, cloud provider) **henüz seçilmemiştir**
-  ve seçilene kadar hiçbir doküman belirli bir teknolojiye bağımlı yazılmaz
-  (bkz. [DECISIONS.md](DECISIONS.md) → D-001).
+1. [CONTEXT.md](CONTEXT.md) — projenin güncel durumu, açık kararlar, Open Question Index.
+2. [SESSION_HANDOFF.md](SESSION_HANDOFF.md) — en üstteki (en yeni) handoff kaydı.
+3. [TASKS.md](TASKS.md) — çalışılacak task'ı seç; Dependency alanına uy.
 
-## Her Session Başında
+## Session Sonunda (sırayla)
 
-1. [CONTEXT.md](CONTEXT.md) dosyasını oku — projenin güncel durumu buradadır.
-2. [SESSION_HANDOFF.md](SESSION_HANDOFF.md) içindeki son handoff kaydını oku.
-3. [TASKS.md](TASKS.md) içinden üzerinde çalışılacak task'ı belirle; task'ların
-   dependency sırasına uy.
+1. [PROGRESS.md](PROGRESS.md) — yapılan işi ekle.
+2. [SESSION_HANDOFF.md](SESSION_HANDOFF.md) — şablonu kullanarak yeni handoff yaz.
+3. [TASKS.md](TASKS.md) — task status'larını güncelle.
+4. [CONTEXT.md](CONTEXT.md) — proje durumu değiştiyse **Şu Anki Faz / Aktif Hedef /
+   Open Question Index**'i güncelle ve `Last updated` tarihini yenile.
+5. [CHANGELOG.md](CHANGELOG.md) — **yalnızca** bir milestone/release kapanıyorsa.
+6. `git commit` — session'ın çıktısını commit'le (remote yok, push yok).
 
-## Her Session Sonunda
+## Bu Projede Claude'un Sık Düştüğü Tuzaklar
 
-1. [PROGRESS.md](PROGRESS.md) dosyasına yapılan işi ekle.
-2. [SESSION_HANDOFF.md](SESSION_HANDOFF.md) şablonunu kullanarak yeni handoff kaydı yaz.
-3. Tamamlanan task'ların status'unu [TASKS.md](TASKS.md) içinde güncelle.
-4. Anlamlı değişiklikleri [CHANGELOG.md](CHANGELOG.md) dosyasına ekle.
-
-## Çalışma Kuralları
-
-### Documentation
-
-- Yeni bilgi eklerken önce hangi dosyanın o bilginin **tek sahibi (single owner)**
-  olduğunu belirle; aynı bilgiyi ikinci bir dosyada tekrar etme, link ver.
-- Terminoloji için tek kaynak [GLOSSARY.md](docs/product/GLOSSARY.md) dosyasıdır.
-  Yeni bir terim gerekiyorsa önce oraya ekle, sonra kullan.
-- **Assumption** ile **confirmed decision** ayrımını koru: assumption'lar
-  "Assumption" olarak işaretlenir; onaylanan kararlar [DECISIONS.md](DECISIONS.md)
-  ve gerekiyorsa bir ADR ([docs/adr/](docs/adr/README.md)) ile kayda geçer.
-- Open question'ları `❓ OPEN:` prefix'i ile işaretle; çözülen soruyu cevabıyla
-  birlikte ilgili dokümana taşı.
-
-### Kararlar
-
-- Mimari veya product yönünü değiştiren her karar için [ADR_TEMPLATE.md](docs/adr/ADR_TEMPLATE.md)
-  kullanarak ADR yaz ve [DECISIONS.md](DECISIONS.md) içine özet satırı ekle.
-- Kullanıcı onayı olmadan şu kararları **verme**: technology stack seçimi, scope değişikliği
-  (MVP'ye feature ekleme/çıkarma), yeni bir external source'a scraping başlatılması,
-  privacy veya compliance politikasında değişiklik.
-
-### Implementation Aşamasına Geçildiğinde
-
-- Kod yazmaya başlamadan önce D-001 (stack kararı) kapatılmış olmalı.
-- Her task [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) şartlarını sağlamadan
-  "Done" işaretlenmez.
-- Scraping ile ilgili her kod değişikliği [SCRAPING_SYSTEM.md](docs/architecture/SCRAPING_SYSTEM.md)
-  içindeki compliance kurallarına ve [PRIVACY_SECURITY_COMPLIANCE.md](docs/security/PRIVACY_SECURITY_COMPLIANCE.md)
-  sınırlarına uymak zorundadır. Login wall, CAPTCHA veya bot-detection bypass eden
-  kod **hiçbir koşulda yazılmaz**.
-- Matching ile ilgili değişikliklerde sensitive attribute yasağına
-  ([MATCHING_ENGINE.md](docs/architecture/MATCHING_ENGINE.md) → Fairness Constraints) uy.
-
-### Dosya Hijyeni
-
-- Var olan dosyaları sebepsiz silme veya overwrite etme; içeriği değiştirmeden önce oku.
-- Geçici dosyaları repository içine değil scratchpad'e yaz.
-- Bug bulursan [BUGS.md](BUGS.md) dosyasına kaydet; sessizce geçme.
+- **Faz sırası:** Stack kararı (D-001 → T-012) kapanmadan implementation task'ına
+  (T-013 ve sonrası) başlama. Validation gate (D-010) kapanmadan M1 geçilmiş sayılmaz.
+- **Onaysız karar:** Technology stack, scope değişikliği, yeni source'a scraping
+  başlatma ve privacy/compliance politikası değişikliği kullanıcı onayı ister
+  (gerekçe ve tam liste: AGENTS.md → Yasaklar).
+- **Türkiye ≠ core:** Launch pazarı Türkiye'dir (D-009) ama TR'ye özgü hiçbir şey core
+  architecture varsayımı yapılmaz; extension/policy katmanında modellenir.
+- **Hukuki dil:** Legal değerlendirmeler kesin hukuki görüş gibi yazılmaz; T-008'e
+  bağlanır ve "hukuki görüş değildir" çerçevesi korunur.
+- **Match Score dili:** Hiçbir yerde işe alınma olasılığı veya garanti gibi sunulmaz
+  (D-005).

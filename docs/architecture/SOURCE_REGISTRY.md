@@ -85,11 +85,25 @@ owner: "—"                        # sorumlu kişi/rol
 last_successful_crawl: null
 current_health: unknown           # healthy | degraded | failing | unknown
 failure_count_7d: 0
-data_quality_score: null          # 0-1; METRICS.md tanımı
+data_quality_score: null          # 0-1; formülün sahibi METRICS.md → Ölçüm Tanımları
+field_accuracy: null              # "veri var ama yanlış" boyutu; kullanıcı raporları +
+                                  # örneklem denetiminden beslenir
 job_freshness_score: null         # source'un tipik güncellik davranışı
 avg_posting_lifetime: null        # öğrenilen TTL (expiration için)
+postings_discovered_7d: null      # yield anomali izlemesi için (FS-11)
+access_change_detected_at: null   # login wall/CAPTCHA imzası tespit edildiyse (FS-12)
 notes: ""
 ```
+
+**Cold start notu:** Yeni bir source'ta `data_quality_score`, `job_freshness_score` ve
+`avg_posting_lifetime` `null` başlar. Bu değerler dolana kadar: freshness re-ranking'de
+nötr kabul edilir, expiration için source-bağımsız varsayılan yaş eşiği kullanılır ve
+source `Active (limited)` statüsünde yakın izlemede kalır
+([MATCHING_ENGINE.md](MATCHING_ENGINE.md) §2.2).
+
+**Otomatik durum geçiş eşikleri** (tek yerde tanımlı — METRICS ile tutarlı):
+`data_quality_score < 0.6` → `Degraded`; `< 0.5` → `Suspended` + Manual Review.
+Hedef değer (≥0.8) bir başarı çizgisidir, müdahale eşiği değildir.
 
 ## 4. Alan Kuralları
 

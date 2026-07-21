@@ -37,9 +37,15 @@ white-collar dışı mesleklerde dijital iş aramadan dışlanma.
 
 ## 3. Value Proposition
 
+> **Vaat hiyerarşisi (audit PS-02 düzeltmesi):** Coverage bir **taban şarttır**,
+> ayrıştırıcı değildir — ve compliance-first ingestion (D-002) gereği "her ilan" iddiası
+> dürüst değildir. Ayrıştırıcı olan, meslek-spesifik eşleştirme derinliği ve
+> explainability'dir. Coverage ölçülür (METRICS → Market coverage) ve eşik altında
+> kalırsa T-021'de tanımlı karar uygulanır.
+
 | Kullanıcıya vaat | Nasıl |
 |---|---|
-| "Bütün uygun ilanlar tek yerde" | Çok kaynaklı, source-independent ingestion; duplicate ve expired temizliği; source transparency |
+| "Aradığın işler dağınık değil, tek yerde" *(taban şart — ölçülür)* | Çok kaynaklı, source-independent ingestion; duplicate ve expired temizliği; source transparency. **Kapsama sınırı kullanıcıdan gizlenmez:** hangi kaynakların tarandığı görünür |
 | "Mesleğini gerçekten anlayan eşleştirme" | Occupation Taxonomy + hybrid matching (hard requirements + qualifications + preferences) |
 | "Nedenini bilerek başvur" | Her öneri için Match Explanation: karşılanan/eksik requirement'lar, başvurmaya değer mi, CV'de ne güçlendirilebilir |
 | "Kariyerinde sonraki adımı gör" | Transferable skill'ler üzerinden gerçekçi Career Transition önerileri; regulated profession'larda dürüst eksik-license uyarısı |
@@ -52,7 +58,16 @@ niş platformlar derin ama tek sektörlü. Bu ürün, *kapsama genişliğini* me
 ## 4. Target User Groups
 
 Birincil kullanıcı **iş arayan bireydir** (employer tarafı MVP'de yok — bkz.
-[PRD.md](PRD.md) → Excluded). Meslek yelpazesi bilinçli olarak geniştir:
+[PRD.md](PRD.md) → Excluded). Meslek yelpazesi bilinçli olarak geniştir ve **vision
+universal kalır**.
+
+> **MVP kapsamı ile vision farkı (D-008):** Aşağıdaki grupların tamamı hedef kitledir,
+> ancak MVP'de yalnızca üç cluster / altı occupation **first-class** desteklenir
+> (Driver, Warehouse Worker, Accountant, Sales Representative, Nurse, Health Technician).
+> Diğer gruplar generic tier'da hizmet alır: eşleştirme yapılır ama Match Confidence
+> düşüktür ve kullanıcıya coverage limitation açıklaması gösterilir. Kimse dışlanmaz;
+> yalnızca ne kadar iddialı davranıldığı değişir
+> ([OCCUPATION_TAXONOMY.md](../architecture/OCCUPATION_TAXONOMY.md) → Support Tiers).
 
 | Grup | Örnek meslekler | Ayırt edici ihtiyaç |
 |---|---|---|
@@ -64,7 +79,7 @@ Birincil kullanıcı **iş arayan bireydir** (employer tarafı MVP'de yok — bk
 | Finance / Office | Accountant, HR specialist, admin | Certification, software, mevzuat bilgisi |
 | Software / Tech | Engineer, data analyst, IT support | Languages/frameworks, project experience, remote tercihi |
 | Creative | Designer, copywriter, video editor | Portfolio, tool proficiency, freelance/proje bazlı iş |
-| Public sector adayları | Memur adayları, kamu sağlık/eğitim | Government portal ilanları, resmi şart listeleri |
+| Public sector adayları | Memur adayları, kamu sağlık/eğitim | Government portal ilanları, resmi şart listeleri. **MVP'de listing-only / guidance mode** (D-015): ilanlar listelenir ve resmi kaynağa yönlendirilir, Match Score üretilmez — sınav puanı ve mevzuat modellenmeden "uygunsun" demek yanlış yönlendirme olur |
 | Kariyer değiştirenler & yeni mezunlar | Tüm alanlar | Career Transition, missing qualification yol haritası |
 
 İkincil kullanıcılar (ileri fazlar): kariyer danışmanları, işkur benzeri kurumlar,

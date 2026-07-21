@@ -73,14 +73,35 @@ classDiagram
 2. Registry'de kayıtlı olmayan bir JobSource'tan JobPosting var olamaz (FR-202).
 3. Her MatchResult bir MatchExplanation'a sahiptir (D-005).
 4. MatchResult hesabına giren hiçbir girdi Sensitive Attribute içeremez (D-006).
-5. CareerProfile alanları `unverified` doğar; yalnızca kullanıcı eylemi `verified` yapar
-   (FR-103).
+5. CareerProfile alanları `unverified` doğar; yalnızca kullanıcı eylemi `user_asserted`
+   veya `verified` yapar (FR-103, FR-107).
 6. Expired bir CanonicalJobPosting feed'de, arama sonucunda veya digest'te görünemez
    (FR-207); geçmiş kayıtlarda (saved/applied) "expired" etiketiyle görünür.
-7. Occupation'a map edilemeyen JobPosting matching'e girmez; `unmapped` işaretiyle
-   Manual Review'a gider (FR-301).
-8. Regulated bir Occupation'ın hard license requirement'ı, kullanıcı profilinde o
-   license olmadan hiçbir explanation'da "karşılanıyor" gösterilemez (FR-408).
+7. Occupation'a map edilemeyen JobPosting first-class matching'e girmez; `unmapped`
+   işaretiyle **limited tier** davranışı alır — listelenir, otomatik recommendation
+   üretilmez (FR-301, D-014). Tekil unmapped kayıt Manual Review'a düşmez; sistematik
+   unmapped artışı coverage anomalisi olarak izlenir.
+8. **Gate invariant'ı (D-012):** Bir hard requirement yalnızca karşılığı olan profil alanı
+   `verified` ise `met` gösterilebilir. Gate-relevant alan (professional license — ehliyet
+   kategorisi dahil, work authorization, yasal zorunlu sertifika, country-specific
+   authorization) yoksa **veya** varsa ama `verified` değilse, sonuç `met` **değildir**;
+   yokluk `unmet`, doğrulanmamışlık `unknown / verification required` üretir (FR-408,
+   FR-107).
+9. **Üç durum invariant'ı (D-011):** Her requirement değerlendirmesi tam olarak bir durum
+   taşır: `met`, `unmet` veya `unknown`. Profilde veri bulunmaması **hiçbir koşulda**
+   `unmet` üretmez — `unknown` üretir. `unknown` bir hard requirement eleme sebebi
+   değildir.
+10. **Explanation evidence invariant'ı:** MatchExplanation'daki her iddia en az bir
+    `evidence_ref` taşır; evidence'sız iddia üretilemez (D-005).
+11. **Legal eligibility invariant'ı (D-013):** `is_legal_eligibility` işaretli bir
+    requirement Match Score'a girmez; yalnızca bilgilendirme ve kaynağa yönlendirme
+    üretir. Bu değerlendirme için sensitive user data toplanmaz.
+12. **Public sector invariant'ı (D-015):** `is_public_sector` olan bir CanonicalJobPosting
+    için genel Match Score üretilmez ve "uygunsun" sonucu gösterilmez (FR-410).
+13. **Sensitive saklama invariant'ı (D-006 güçlendirmesi):** D-006 listesindeki alanlar
+    hiçbir entity'de kalıcılaştırılmaz; yalnızca "tespit edildi ve atıldı" meta-kaydı
+    tutulabilir. Sensitive Data Vault'a yazma yalnızca tanımlı `purpose` + `consent_ref`
+    varlığında mümkündür ve MVP'de kullanılmaz.
 
 ## 4. Bounded Context Önerisi
 

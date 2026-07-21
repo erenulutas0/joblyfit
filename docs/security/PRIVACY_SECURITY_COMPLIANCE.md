@@ -10,9 +10,14 @@
 
 ## 1. Privacy İlkeleri
 
-1. **Minimization:** yalnızca eşleştirme ve ürün işlevi için gereken veri toplanır.
-   Sensitive attribute'lar toplanmaya çalışılmaz; CV'den kendiliğinden gelirse vault'a
-   izole edilir (D-006) ve matching'de kullanılmaz.
+1. **Minimization — "sakla" değil "hiç toplama":** yalnızca eşleştirme ve ürün işlevi için
+   gereken veri toplanır. Amacı ve hukuki dayanağı yazılamayan veri **saklanmaz**.
+   D-006 listesindeki sensitive alanlar (photo, religion, ethnicity, marital status,
+   health information, union membership, gender, full birth date) CV'den kendiliğinden
+   gelse bile structured profile'a aktarılmadan **discard edilir**; yalnızca "tespit
+   edildi ve atıldı" meta-kaydı tutulur ([AI_SYSTEM.md](../architecture/AI_SYSTEM.md) §1.2).
+   **Sensitive Data Vault varsayılan saklama alanı değildir** — tanımlı purpose + consent
+   olmadan kullanılamaz ve MVP'de aktif değildir.
 2. **Şeffaflık:** kullanıcı hangi verinin ne için kullanıldığını görebilir; Match
    Explanation bunun ürün içi yüzüdür.
 3. **Kontrol:** export ve deletion birinci sınıf özelliktir (F-23, FR-602/603); rıza
@@ -22,19 +27,46 @@
 
 ## 2. Veri Envanteri ve Data Lifecycle
 
+> **Statü uyarısı:** Aşağıdaki retention değerlerinin **tamamı öneridir**, karar değildir.
+> Hepsi ❓ OPEN-04…OPEN-08 olarak [CONTEXT.md](../../CONTEXT.md) index'inde izlenir ve
+> T-008 (hukuki doğrulama) acceptance criteria'sında karara çevrilir. Diğer dokümanlar
+> bu değerlere **kesin referans veremez**; "tanımlanacak SLA" ifadesi kullanılır.
+
 | Veri sınıfı | Örnek | Hassasiyet | Retention (öneri) | Silme davranışı |
 |---|---|---|---|---|
 | Hesap verisi | e-posta, auth kimliği | Orta | Hesap ömrü | Deletion'da kalıcı silinir |
 | Career Profile | education, skills, licenses… | Yüksek (PII) | Hesap ömrü | Kalıcı silinir |
-| CV dosyası (orijinal) | yüklenen belge | Yüksek (PII) | Parse + doğrulama sonrası kısa süre (öneri: 90 gün, ❓ OPEN) | Süre sonunda otomatik; deletion'da anında |
-| Sensitive Data Vault | doğum tarihi, fotoğraf vb. | Çok yüksek | Mümkün olan en kısa (öneri: kullanıcı görünürlüğü için tutulmayacaksa parse sonrası silinir, ❓ OPEN) | Anında |
-| Feedback Signals | saved, not interested… | Orta (davranışsal) | Hesap ömrü; sistem kalibrasyonu için anonimleştirilmiş kopya | Kişisel bağlantı silinir; anonim istatistik kalabilir |
+| **İletişim bilgisi (CV'den)** | telefon, adres | Yüksek (PII) | **Toplanmaz** — hesap e-postası zaten var; adres yalnızca `location_ref`'e indirgenerek işlenir, ham hali saklanmaz | — (saklanmadığı için silinecek kayıt yok) |
+| CV dosyası (orijinal) | yüklenen belge | Yüksek (PII) | Parse + doğrulama sonrası kısa süre (öneri: 90 gün, ❓ OPEN-04) | Süre sonunda otomatik; deletion'da anında |
+| Sensitive Data Vault | *(MVP'de kullanılmıyor)* | Çok yüksek | Yalnızca tanımlı purpose + consent varsa; aksi halde **hiç saklanmaz** (D-006) | Anında |
+| Feedback Signals | saved, not interested… | Orta (davranışsal) | Hesap ömrü; sistem kalibrasyonu için **yalnızca agrega** kopya | Kişisel bağlantı silinir; agrega istatistik kalabilir (§2.1) |
 | Application kayıtları | başvuru durumu | Orta | Hesap ömrü | Kalıcı silinir |
-| Job Posting verisi | ilan içeriği | Kişisel değil* | Aktif + arşiv (expired: öneri 12 ay, ❓ OPEN) | — |
-| Loglar/telemetri | erişim, hata | Değişken | Kısa (öneri: 30-90 gün) | Rotasyonla |
+| **MatchResult / MatchExplanation** | skor, faktör evidence'ları, kullanıcıya özel açıklama | Yüksek (türetilmiş PII) | Hesap ömrü; stale kayıtlar yeniden hesaplamada üzerine yazılır | **Kalıcı silinir** — profil silinince türetilmiş veri de silinir |
+| **Analytics / product event'leri** | feed görüntüleme, tıklama | Orta (davranışsal) | ❓ OPEN-01 izin modeline bağlı; öneri: kısa | Kişisel bağlantı silinir |
+| **Manual Review kayıtları** | rapor metni, karar notu | Orta (serbest metin PII içerebilir) | Karar + denetim süresi (öneri: 12 ay, ❓ OPEN-08) | Kullanıcıya bağlı alanlar silinir; karar kaydı anonimleştirilir |
+| **DataRightsRequest** | export/deletion talep kaydı | Orta | Yükümlülük kanıtı olarak asgari süre (T-008) | Silinmez; **kişisel içerik taşımaz**, yalnızca talep kanıtıdır |
+| Job Posting verisi | ilan içeriği | Karma* | Aktif + arşiv (expired: öneri 12 ay, ❓ OPEN-07) | — |
+| Loglar/telemetri | erişim, hata | Değişken | Kısa (öneri: 30-90 gün, ❓ OPEN-08) | Rotasyonla |
+| **Backup kopyaları** | yukarıdakilerin yedeği | Kaynağıyla aynı | Rotasyon süresi ❓ OPEN-08 | Deletion sonrası rotasyon süresi içinde temizlenir; süre kullanıcıya bildirilir |
 
-\* İlan metni istisnası: ilan içinde kişi bilgisi (İK çalışanının adı/telefonu) olabilir;
-gösterimde makul, talep gelirse kaldırılır.
+\* **Karma sınıf:** ilan içeriği kişisel veri değildir, **ancak içine gömülü üçüncü kişi
+PII'si** (İK çalışanının adı/telefonu) bulunabilir. Gösterimde asgari tutulur. Platform
+kullanıcısı olmayan kişiler için ayrı bir **kaldırma talep kanalı** bulunur (F-25 yalnızca
+platform kullanıcılarına açıktır). ❓ OPEN-06: gösterim sınırı ve maskeleme politikası
+T-008 kapsamında.
+
+### 2.1 Anonimleştirme standardı
+
+Deletion sonrası kalmasına izin verilen "anonim kalibrasyon verisi" için kurallar:
+
+- Yalnızca **agrega/istatistik** düzeyinde tutulur — kayıt bazlı "anonim" feedback
+  tutulmaz (niş occupation'larda tek kişiye indirgenebilir).
+- Serbest metin alanları (not-interested nedeni, rapor metni) agrega kopyaya **girmez**.
+- Düşük hacimli segmentlerde **küçük-n bastırma** uygulanır.
+- Deletion testine "anonim kopyada kullanıcıya bağlanabilir kayıt kalmadı" doğrulaması
+  eklenir ([TEST_STRATEGY.md](../quality/TEST_STRATEGY.md) §4).
+
+Nihai standart T-008 girdisidir.
 
 **Deletion akışı:** talep → kimlik doğrulama → geri alma penceresi (öneri: 7 gün,
 ❓ OPEN) → tüm kişisel veri sınıflarının kalıcı silinmesi → tamamlanma bildirimi.
@@ -58,26 +90,50 @@ saved jobs, consent kayıtları.
 | Admin/Manual Review | Yetki aşımı | Role-based erişim, least privilege, karar audit-log (C-6) |
 | Dış AI servisleri (kullanılırsa) | Veri sızıntısı | ❓ OPEN (T-009): izinli veri sınıfları, sözleşme şartları, bölge kısıtı |
 
-Genel: at-rest & in-transit encryption (NFR-402), secrets yönetimi, ortam ayrımı
-(prod verisi test ortamına kopyalanmaz; test için sentetik profiller —
-[TEST_STRATEGY.md](../quality/TEST_STRATEGY.md)).
+Genel: at-rest & in-transit encryption (NFR-402 — **backup kopyaları dahil**), secrets
+yönetimi, ortam ayrımı (prod verisi test ortamına kopyalanmaz; test için sentetik
+profiller — [TEST_STRATEGY.md](../quality/TEST_STRATEGY.md)).
+
+**"PII sızmaz" ilkesinin kapsamı:** [OBSERVABILITY.md](../quality/OBSERVABILITY.md)'deki
+"PII loglanmaz" kuralı yalnızca logları kapsar. Aynı ilke üç yerde daha geçerlidir:
+- **Analytics:** event'ler ID referanslıdır; profil alan değerleri veya serbest metin
+  event payload'una girmez.
+- **Backup:** yedekler kaynağıyla aynı hassasiyet sınıfındadır; şifrelenir, erişimi
+  audit-log'lanır ve deletion sonrası rotasyon süresi içinde temizlenir.
+- **Manual Review:** kuyruk kayıtlarında yalnızca kararı vermek için gereken alan tutulur;
+  karar sonrası kullanıcıya bağlı alanlar anonimleştirilir.
+
+**Yaş sınırı:** ❓ OPEN-11 — minimum kullanıcı yaşı ve reşit olmayan kullanıcı politikası
+T-008'de karara bağlanır. Tasarım kısıtı şimdiden geçerlidir: yaş bilgisi gerekiyorsa
+**tam doğum tarihi saklanmaz**; hesap düzeyinde türetilmiş bir uygunluk işareti kullanılır
+ve bu işaret matching veri yoluna girmez.
 
 ## 4. Compliance ve Source Policy Riskleri
 
 ### 4.1 Veri koruma rejimleri
 
-Hedef pazara göre (❓ OPEN, A-1): GDPR (AB), KVKK (TR) veya muadili. Tasarım şimdiden
-şunları varsayar: hukuki dayanak kaydı, rıza yönetimi, veri hakları (erişim/export/
-silme/düzeltme), ihlal bildirimi süreci, işleme envanteri. **Otomatik öneri sistemleri**
-için ek yükümlülük olabilir (öneri mantığının açıklanabilirliği — D-005 bunu zaten
-ürün ilkesi yapar).
+**Launch pazarı Türkiye'dir (D-009)**, dolayısıyla birincil rejim KVKK'dır. Ancak
+compliance **country-specific bir extension katmanı** olarak tasarlanır: ikinci bir pazar
+eklendiğinde (ör. AB/GDPR) core veri modeli ve akışlar değişmez; yalnızca bu katmandaki
+kurallar — hukuki dayanak, retention süreleri, rıza metinleri, veri hakları süreleri,
+ihlal bildirimi yükümlülükleri — eklenir. TR'ye özgü bir kuralı core varsayımı haline
+getirmek D-009 ihlalidir.
+
+Tasarım rejimden bağımsız olarak şunları varsayar: hukuki dayanak kaydı, rıza yönetimi,
+veri hakları (erişim/export/silme/düzeltme), ihlal bildirimi süreci, işleme envanteri.
+**Otomatik öneri sistemleri** için ek yükümlülük olabilir (öneri mantığının
+açıklanabilirliği — D-005 bunu zaten ürün ilkesi yapar).
+
+> Bu bölüm **hukuki görüş değildir** ve hiçbir ifadesi confirmed legal fact olarak
+> okunmamalıdır. Yükümlülüklerin kapsamı ve uygulanışı T-008'de uzman doğrulamasından
+> geçmeden kesinleşmez.
 
 ### 4.2 Source policy (özet — operasyonel çerçeve [SCRAPING_SYSTEM.md](../architecture/SCRAPING_SYSTEM.md) §4)
 
 | Risk | Açıklama | Duruş |
 |---|---|---|
 | ToS ihlali iddiası | Bir source otomatik erişimi yasaklıyor olabilir | `Rejected/Conditional` sınıflaması; insan onaysız crawl yok (D-002) |
-| Telif/yeniden yayın | İlan metninin platformda gösterimi içerik hakları sorusu doğurur | Kullanıcıya özet + zorunlu alanlar + **orijinal source'a link ve atıf**; tam metin yeniden yayını yapılmaz; ❓ OPEN: gösterim sınırı (T-008) |
+| Telif/yeniden yayın | İlan metninin platformda gösterimi içerik hakları sorusu doğurur | Kullanıcıya özet + zorunlu alanlar + **orijinal source'a link ve atıf**; tam metin yeniden yayını yapılmaz; ❓ OPEN-06: gösterim sınırı (T-008) |
 | İlan içindeki kişisel veri | İK iletişim bilgileri vb. | Minimum gösterim; kaldırma talebi süreci |
 | Kaynak yük etkisi | Crawl'ın kaynak siteye maliyeti | Muhafazakâr rate limit, cache, gece dengeleme (nazik komşuluk) |
 | Policy değişimi | Source sonradan kural değiştirebilir | `reevaluation_due` ile periyodik yeniden değerlendirme; Suspended akışı |

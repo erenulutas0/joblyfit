@@ -20,34 +20,63 @@ flowchart LR
 Bu documentation seti. Çıktı: vision, scope, mimari, taxonomy/matching/scraping
 tasarımları, riskler, task breakdown.
 
-### Faz 1 — Doğrulama & Hazırlık (task'lar: T-001…T-012)
+### Faz 1 — Doğrulama & Hazırlık (task'lar: T-001…T-012, T-021…T-031)
 
-Amaç: kod yazmadan önce en riskli bilinmeyenleri kapatmak.
+Amaç: kod yazmadan önce en riskli bilinmeyenleri kapatmak — **hem arz hem talep
+tarafında** (D-010).
 
 **Milestone M1 — "Build'e hazır":**
-- Pazar, başlangıç source seti (3-5) ve taxonomy standardı seçildi (T-001, T-003, T-004).
-- MVP occupation seti ve qualification template'leri hazır (T-005).
-- Compliance hukuki doğrulaması yapıldı (T-008).
-- Matching golden set tasarımı hazır (T-006).
+
+*Arz tarafı:*
+- Başlangıç source seti (2-3) belirlendi ve cluster başına ilan hacmi doğrulandı (T-003).
+- Taxonomy standardı seçildi (T-004); MVP occupation template'leri hazır (T-005).
+- Compliance hukuki doğrulaması yapıldı ve retention/SLA değerleri karara çevrildi (T-008).
+- Golden set tasarlandı **ve çekirdek set üretildi** (T-006, T-006b).
+- Employer identity resolution ve privacy inventory tasarımları tamam (T-030, T-031).
+- MVP-required test/observability alt kümesi işaretlendi (T-011).
 - Stack ADR'si onaylandı (T-012) → D-001 kapandı.
 
-**Exit criteria:** M1 maddelerinin tamamı + kritik open question kalmaması.
+*Talep tarafı (D-010):*
+- Yedi validation çalışması tamamlandı: T-021 (coverage), T-022 (user interview),
+  T-023 (explanation), T-024 (concierge), T-025 (inter-annotator), T-026 (CV vs manuel),
+  T-027 (kanal).
+
+*Süreç:*
+- Open Question Index'teki **M1-blocker** kalemler kapandı (T-001).
+
+**Exit criteria — açık go / revise / stop kararı:**
+
+M1, maddelerin tamamlanmasıyla **otomatik kapanmaz.** Validation sonuçları
+değerlendirilir ve üç karardan biri açıkça verilir:
+
+| Karar | Anlamı | Tetikleyen durum (örnek) |
+|---|---|---|
+| **Go** | Faz 2 build başlar | Validation hedefleri karşılandı veya sapmalar açıklanabilir ve kabul edilebilir |
+| **Revise** | Scope/kapsam değiştirilir, sonra tekrar değerlendirilir | Coverage eşik altı → cluster/source değişikliği; kanal validation'ı e-postayı zayıf buldu → D-016 yeniden açılır |
+| **Stop** | Ürün yönü yeniden düşünülür | Talep tarafı temel varsayımları (A-10, A-11) doğrulanamadı |
+
+> **Eşik uyarısı:** Validation task'larındaki sayısal hedefler **calibration target**'tır,
+> bilimsel kesinlik iddiası taşımaz ve ilk gerçek veriyle yeniden değerlendirilir. Bir
+> eşiğin kıl payı kaçırılması otomatik "stop" değildir; karar gerekçesiyle yazılır.
 
 ### Faz 2 — MVP Build (task'lar: T-013…T-020)
 
 Amaç: [PRD.md](PRD.md) → MVP Scope'un uçtan uca çalışması.
 
 **Milestone M2 — "Core loop çalışıyor" (internal):**
-- 1 source'tan ingestion + profil oluşturma + matching v0 + explainable feed, ekip içi
-  kullanımda (T-014…T-017).
+- **1 source'tan** ingestion + profil oluşturma + matching v0 + explainable feed, ekip içi
+  kullanımda (T-013, T-014, T-016, T-017). Cross-source dedupe M2'nin şartı **değildir**.
 
 **Milestone M3 — "MVP feature-complete":**
-- 3-5 source, duplicate/expiration handling, feedback, digest, data rights, source
-  transparency (T-015, T-018…T-020).
-- Golden set matching hedefleri karşılandı ([METRICS.md](METRICS.md)).
+- 2-3 source, duplicate/expiration handling, arama, feedback, haftalık digest, data
+  rights, source transparency (T-015, T-018…T-020).
+- Golden set metrikleri **ölçülüyor, trend raporlanıyor** ve sapmalar açıklanabilir
+  durumda ([METRICS.md](METRICS.md) → hedef revizyon kuralı).
 
 **Exit criteria:** MVP feature listesinin tamamı [DEFINITION_OF_DONE.md](../../DEFINITION_OF_DONE.md)
-şartlarıyla Done; kritik severity bug yok.
+şartlarıyla Done; kritik severity bug yok; matching kalite metrikleri **hedefe ulaşmış
+veya gerekçeli revize edilmiş** durumda (kalibrasyonsuz mutlak eşik tek başına kapı
+değildir).
 
 ### Faz 3 — Private Beta
 

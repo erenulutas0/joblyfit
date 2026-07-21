@@ -5,12 +5,23 @@
 > dosyasındadır; implementation fazından itibaren yeni büyük kararlar burada birer ADR
 > dosyası olarak tutulur ve DECISIONS.md'ye tek satır özet eklenir.
 
-## Ne zaman ADR yazılır?
+## Ne zaman ADR yazılır? *(bu kuralın tek sahibi bu dosyadır)*
 
-- Geri dönmesi pahalı kararlar: stack seçimi, veri saklama modeli, servis sınırları,
-  taxonomy standardı, önemli üçüncü taraf bağımlılıkları.
-- Bir Confirmed decision'ı değiştiren her karar (eski karar `Superseded` işaretlenir).
-- Yazılmaz: küçük implementasyon tercihleri, kolayca geri alınabilir seçimler.
+> Diğer dosyalar (CLAUDE.md, AGENTS.md, DECISIONS.md) bu kuralı **tekrar etmez**, buraya
+> link verir. Daha önce üç dosyada üç farklı formül vardı; tek tanım burasıdır.
+
+**Yazılır:** geri dönmesi pahalı kararlar — stack seçimi, veri saklama modeli, servis
+sınırları, taxonomy standardı, önemli üçüncü taraf bağımlılıkları, harici AI sağlayıcısı
+kullanımı.
+
+**Yazılmaz:** küçük implementasyon tercihleri, kolayca geri alınabilir seçimler.
+
+**Confirmed bir kararı değiştiren her karar** ADR gerektirir; eski karar `Superseded`
+işaretlenir.
+
+**Sınır durumu kuralı:** Tereddütte kalırsan [DECISIONS.md](../../DECISIONS.md) kaydı
+yeterlidir; kullanıcı isterse sonradan ADR'ye yükseltilir. "Yönü değiştiren ama kolayca
+geri alınabilir" kararlar DECISIONS.md'de kalır.
 
 ## Süreç
 
