@@ -1052,3 +1052,24 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   değişebilir. Katmasaydık kullanıcı anahtarı ekler, önbellek "taze" görünür ve
   Jooble hiç çekilmezdi — D-028/D-036'nın önlediği sessiz bayatlık, bir katman
   daha aşağıda. Artık anahtar eklenince parmak izi değişir → yeniden çekim.
+
+### D-039 düzeltmesi — URL normalizasyonu iş kimliğini query'de korumalı
+
+İlk uygulama query string'i tamamen atıyordu ve gerçek korpus üzerinde
+ölçüm bir **felaket** ortaya çıkardı: Stripe, Carvana, MongoDB, Databricks
+gibi şirketler ilanı kendi kariyer sayfasında **query'de** ayırt ediyor
+(`stripe.com/jobs/search?gh_jid=8077887`). Query atılınca bir şirketin bütün
+ilanları tek URL'e (`stripe.com/jobs/search`) çöküyor ve **yanlış birleşiyordu**
+— 40 farklı Stripe ilanı tek kümeye indi, gösterilen ilan 4415 → 4094'e düştü,
+319 gerçek ilan gizlendi. Bu tam olarak D-039'un asimetri gerekçesinin "ağır"
+dediği hata.
+
+Düzeltme: query'den yalnızca **takip parametreleri** (utm_*, gh_src, gclid…)
+atılır; iş kimliği korunur. Ayrıca anahtar yalnızca URL **belirli bir ilana**
+işaret ediyorsa üretilir: ya ayırt edici query var, ya da yolun son segmenti
+rakam taşır. `/careers/apply` gibi genel sayfalar anahtar üretmez. Regresyon
+testleri eklendi (`test_same_page_different_gh_jid_do_not_merge_in_cluster`).
+
+**Ders:** Bu hata birim testlerden geçti (temiz yol-tabanlı URL'ler kullanıyordu)
+ama gerçek veride patladı. Kaynaklar-arası dedupe kararları mutlaka gerçek
+korpusta, yanlış-birleşme denetimiyle ölçülmeli.

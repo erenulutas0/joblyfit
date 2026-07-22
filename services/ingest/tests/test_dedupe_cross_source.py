@@ -32,24 +32,46 @@ def _mk(source_id, ref, url, *, title="Backend Engineer", employer="Acme",
 # ---------------------------------------------------------------------------
 
 
-def test_url_normalization_strips_noise():
-    a = _normalize_url("https://www.Boards.Greenhouse.io/acme/jobs/123?utm=x#top")
+def test_url_normalization_strips_tracking_keeps_id():
+    """Takip parametreleri atılır, kimliği taşıyan yol/kimlik korunur."""
+    a = _normalize_url("https://www.Boards.Greenhouse.io/acme/jobs/123?utm_source=x#top")
     b = _normalize_url("http://boards.greenhouse.io/acme/jobs/123/")
     assert a == b == "boards.greenhouse.io/acme/jobs/123"
 
 
-def test_shallow_url_yields_no_key():
-    """Tek segmentli sığ yol anahtar üretmez: farklı ilanlar aynı '/jobs'
-    sayfasını paylaşabilir, yanlış birleştirme olurdu."""
-    assert _normalize_url("https://site.com/jobs") == ""
+def test_job_id_in_query_is_preserved():
+    """KRİTİK regresyon: iş kimliği query'de olduğunda korunmalı.
+
+    Gerçek korpusta Stripe/Carvana/MongoDB ilanlarının kimliği ``?gh_jid=``
+    query parametresinde. Bu atılırsa bir şirketin bütün ilanları tek URL'e
+    çöker ve **yanlış birleşir** — 40 farklı Stripe ilanı böyle gizlenmişti.
+    """
+    a = _normalize_url("https://stripe.com/jobs/search?gh_jid=8077887")
+    b = _normalize_url("https://stripe.com/jobs/search?gh_jid=8078126")
+    assert a != b, "farklı gh_jid'ler farklı anahtar üretmeli"
+    assert "gh_jid=8077887" in a
+
+
+def test_generic_career_page_without_id_yields_no_key():
+    """Kimlik taşımayan genel kariyer sayfası anahtar üretmez — yanlış
+    birleştirmeyi kökten önler."""
+    assert _normalize_url("https://stripe.com/jobs/search") == ""
+    assert _normalize_url("https://carvana.com/careers/apply") == ""
     assert _normalize_url("https://site.com/") == ""
     assert _normalize_url("") == ""
 
 
-def test_query_only_ids_do_not_false_merge():
-    """Yol aynı, yalnızca query farklıysa — bizim kaynaklarımızda kimlik yolda
-    olduğu için bu durum oluşmaz, ama olsa bile sığ-yol kuralı korur."""
-    assert _normalize_url("https://x.com/a") == ""   # tek segment → anahtar yok
+def test_same_page_different_gh_jid_do_not_merge_in_cluster():
+    """KRİTİK regresyon (küme düzeyinde): aynı kariyer sayfasını paylaşan ama
+    farklı gh_jid'li ilanlar ASLA birleşmemeli."""
+    a = _mk("src-ats-greenhouse", "1", "https://stripe.com/jobs/search?gh_jid=111",
+            title="Firmware Engineer", employer="Stripe",
+            desc="Embedded C ve donanım deneyimi.")
+    b = _mk("src-ats-greenhouse", "2", "https://stripe.com/jobs/search?gh_jid=222",
+            title="Data Analyst", employer="Stripe",
+            desc="SQL ve istatistik deneyimi.")
+    clusters, _ = cluster([a, b])
+    assert len(clusters) == 2, "farklı ilanlar yanlış birleşti — Stripe felaketi"
 
 
 # ---------------------------------------------------------------------------

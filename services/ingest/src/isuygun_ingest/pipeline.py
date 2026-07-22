@@ -197,15 +197,30 @@ class NormalizedPosting:
         return f"{self.city_key}|{self.job.occupation_id}"
 
 
-def _normalize_url(url: str) -> str:
-    """URL'i karşılaştırılabilir hale getirir.
+#: Saf takip parametreleri — ilanı ayırt etmezler, atılır. Bunların DIŞINDAKİ
+#: her şey korunur; özellikle iş kimliği (``gh_jid`` gibi) çünkü çoğu şirket
+#: kendi kariyer sayfasında ilanı **query'de** ayırt eder
+#: (``stripe.com/jobs/search?gh_jid=123``). Kimliği atmak, bir şirketin bütün
+#: ilanlarını tek URL'e çökertip **yanlış birleştirir** — bu, gerçek ilanları
+#: gizleyen ağır hatadır (gerçek korpusta 40 Stripe ilanı böyle çökmüştü).
+_TRACKING_PARAMS = frozenset({
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "gclid", "fbclid", "mc_cid", "mc_eid", "gh_src", "utm",
+})
 
-    Şema ve ``www.`` atılır, host küçük harfe indirilir, query/fragment
-    (takip parametreleri) atılır. **En az iki yol segmenti** şartı vardır:
-    "/company/job-123" belirli bir ilandır ama "/jobs" gibi sığ bir yol farklı
-    ilanları paylaşabilir, o yüzden anahtar üretmez — yanlış birleştirmeyi
-    önlemek için. Kaynaklarımızın hepsi (Lever/Greenhouse/Ashby/Recruitee ve
-    çoğu TR panosu) ilan kimliğini **yolda** taşır, query'de değil.
+
+def _normalize_url(url: str) -> str:
+    """URL'i **kaynaklar arası** karşılaştırma için normalize eder.
+
+    Şema + ``www.`` atılır, host küçük harf, fragment atılır. Query'den yalnızca
+    takip parametreleri çıkarılır; kalanı (özellikle iş kimliği) korunur ve
+    sıralanır.
+
+    **Anahtar yalnızca URL belirli bir ilana işaret ediyorsa üretilir:** ya
+    ayırt edici bir query parametresi vardır, ya da yolun son segmenti bir
+    kimlik taşır (rakam içerir). İkisi de yoksa — ``/careers/apply`` gibi genel
+    bir kariyer sayfası — ``""`` döner ve birleştirmede kullanılmaz. Bu şart,
+    aynı genel sayfayı paylaşan farklı ilanların yanlış birleşmesini önler.
     """
     if not url:
         return ""
@@ -216,10 +231,18 @@ def _normalize_url(url: str) -> str:
     host = (p.netloc or "").lower()
     if host.startswith("www."):
         host = host[4:]
-    segments = [s for s in (p.path or "").split("/") if s]
-    if not host or len(segments) < 2:
+    if not host:
         return ""
-    return host + "/" + "/".join(segments)
+    path = "/".join(s for s in (p.path or "").split("/") if s)
+    kept = sorted((k, v) for k, v in urllib.parse.parse_qsl(p.query)
+                  if k.lower() not in _TRACKING_PARAMS)
+    query = "&".join(f"{k}={v}" for k, v in kept)
+
+    last = path.rsplit("/", 1)[-1] if path else ""
+    id_in_path = any(c.isdigit() for c in last)
+    if not path or (not query and not id_in_path):
+        return ""      # genel kariyer sayfası — belirli bir ilan değil
+    return f"{host}/{path}" + (f"?{query}" if query else "")
 
 
 #: Kaynak güvenilirlik/zenginlik katmanı — düşük = daha yetkili. Aynı ilan
