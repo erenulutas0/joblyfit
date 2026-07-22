@@ -21,7 +21,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from isuygun_core import build_explanation, match
-from isuygun_core.domain import JobPosting, MatchBand
+from isuygun_core.domain import (
+    GATE_RELEVANT_CATEGORIES,
+    NON_DISCRIMINATIVE_CATEGORIES,
+    JobPosting,
+    MatchBand,
+)
 from isuygun_ingest import regions, registry, search
 from isuygun_ingest.pipeline import age_in_days
 
@@ -229,6 +234,16 @@ def _evaluate(posting):
     return result, build_explanation(result)
 
 
+def _role_key(employer: str, title: str) -> tuple[str, str]:
+    """Liste satırının kimliği.
+
+    Tek yerde tanımlı: hem gösterim birleştirmesi hem de "kaç ilan açılır"
+    sayımı bunu kullanır. İki yerde ayrı yazılsaydı biri değişince diğeri
+    sessizce sapardı ve sonuç yine yanlış sayı olurdu.
+    """
+    return (employer.casefold(), title.casefold())
+
+
 def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     """Aynı işverenin aynı rolünü farklı konumlarda tek satıra indirir.
 
@@ -241,7 +256,7 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     out: list[JobSummary] = []
     seen: dict[tuple[str, str], JobSummary] = {}
     for j in items:
-        key = (j.employer.casefold(), j.title.casefold())
+        key = _role_key(j.employer, j.title)
         first = seen.get(key)
         if first is None:
             seen[key] = j
@@ -410,6 +425,75 @@ def get_profile() -> ProfileOut:
 def set_occupations(body: OccupationsIn) -> ProfileOut:
     STORE.set_occupations(body.occupation_ids)
     return get_profile()
+
+
+class UnlockSuggestionOut(BaseModel):
+    key: str
+    label: str
+    category: str
+    category_label: str
+    asks_years: bool
+    needs_verification: bool
+    #: Bu alan profile eklenirse değerlendirilebilir hâle gelecek ilan sayısı
+    unlocks: int
+
+
+@app.get("/api/profile/unlock-suggestions", response_model=list[UnlockSuggestionOut])
+def unlock_suggestions(limit: int = 12) -> list[UnlockSuggestionOut]:
+    """"Neyi eklersem kaç ilan değerlendirilebilir olur?"
+
+    Korpusun büyük bölümü bant alamıyor ve bu **doğru** davranış: kullanıcının
+    profilinde karşılaştıracak bilgi yoksa uydurma bir bant üretmek D-019'un
+    reddettiği şeydir. Ama kullanıcıya yalnızca "değerlendiremedik" demek,
+    elinde çözüm varken onu göstermemek demek.
+
+    Sayı ölçülerek üretilir: her ilan tek tek değerlendirilir ve yalnızca
+    *şu anda* bandı olmayan, o alan eklendiğinde ayırt edici bir kanıt
+    kazanacak satırlar sayılır. **Yaklaşıktır ve hep hafif yukarıdadır**:
+    aynı rol hem değerlendirilen hem değerlendirilemeyen listede temsil
+    edilebiliyor. Ölçülen sapma %1–3 (297 iddia → 295 gerçek). Tam kesinlik
+    her aday alan için korpusu yeniden değerlendirmeyi gerektirirdi (~9 sn);
+    bir yönlendirme paneli için bu bedel orantısız. Arayüz bu yüzden "≈"
+    yazar — olmayan bir kesinlik iddia etmez.
+    """
+    # Sayım **satır** birimindedir, ilan değil: liste aynı işverenin aynı
+    # rolünü tek satıra indiriyor (`_group_by_role`). İlan sayarsak "+327"
+    # deyip 295 açılır — D-030'da düzeltilen hatanın aynısı: kullanıcının
+    # gördüğü sayı, tıklayınca aldığı sayı olmalı.
+    roles: dict[str, set[tuple[str, str]]] = {}
+    for posting in STORE.postings.values():
+        result, _ = _evaluate(posting)
+        if result.band is not None or result.listing_only:
+            continue        # zaten değerlendirilebiliyor
+        role = _role_key(posting.job.employer, posting.job.title)
+        for o in result.outcomes:
+            req = o.requirement
+            if (o.state == "unknown"
+                    and o.unknown_reason == "missing_profile_data"
+                    and req.category not in GATE_RELEVANT_CATEGORIES
+                    and req.category not in NON_DISCRIMINATIVE_CATEGORIES
+                    and not req.is_legal_eligibility):
+                roles.setdefault(req.key, set()).add(role)
+
+    have = {f.key for f in STORE.profile.facts}
+    out: list[UnlockSuggestionOut] = []
+    for key, n in sorted(((k, len(v)) for k, v in roles.items()),
+                         key=lambda kv: -kv[1]):
+        if key in have:
+            continue
+        item = STORE.catalog_item(key)
+        # D-013/D-006: yasal uygunluk alanları profile hiç yazılmaz, bu yüzden
+        # önerilmezler de — tıklanamayacak bir öneri göstermek olurdu.
+        if item is None or item.is_legal_eligibility:
+            continue
+        out.append(UnlockSuggestionOut(
+            key=item.key, label=item.label, category=item.category,
+            category_label=item.category_label, asks_years=item.asks_years,
+            needs_verification=item.needs_verification, unlocks=n,
+        ))
+        if len(out) >= limit:
+            break
+    return out
 
 
 @app.post("/api/profile/facts", response_model=ProfileOut)

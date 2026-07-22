@@ -314,3 +314,63 @@ def test_feed_exposes_new_axes(client):
         for key in ("work_arrangement", "employment_type", "experience_level",
                     "salary_currency", "salary_min_yearly"):
             assert key in j, key
+
+
+# ---------------------------------------------------------------------------
+# Profil açma önerileri (D-034)
+# ---------------------------------------------------------------------------
+
+
+def test_unlock_suggestions_are_actionable(client):
+    """Öneriler tıklanabilir olmalı: profile yazılamayan bir alanı önermek,
+    kullanıcıya yapamayacağı bir eylem göstermek olurdu."""
+    for s in client.get("/api/profile/unlock-suggestions").json():
+        r = client.post("/api/profile/facts", json={"key": s["key"]})
+        assert r.status_code == 200, s["key"]
+
+
+def test_unlock_suggestions_exclude_what_profile_already_has(client):
+    first = client.get("/api/profile/unlock-suggestions").json()
+    if not first:
+        pytest.skip("korpusta öneri üretecek şart yok")
+    client.post("/api/profile/facts", json={"key": first[0]["key"]})
+    after = {s["key"] for s in client.get("/api/profile/unlock-suggestions").json()}
+    assert first[0]["key"] not in after
+
+
+def test_unlock_suggestions_are_ranked(client):
+    got = [s["unlocks"] for s in client.get("/api/profile/unlock-suggestions").json()]
+    assert got == sorted(got, reverse=True)
+
+
+def test_adding_a_suggested_field_actually_unlocks_listings(client):
+    """İddianın kendisi test edilir: "+N" dedikten sonra gerçekten
+    değerlendirilemeyen sayısı düşmeli.
+
+    Sapmaya izin verilir (aynı rol iki listede temsil edilebiliyor) ama
+    **yön** ve **büyüklük mertebesi** tutmalı — bunlar tutmazsa sayı
+    kullanıcıyı yanlış yönlendiriyor demektir.
+    """
+    suggestions = client.get("/api/profile/unlock-suggestions").json()
+    if not suggestions or suggestions[0]["unlocks"] < 5:
+        pytest.skip("anlamlı ölçüm için yeterli korpus yok")
+    target = suggestions[0]
+
+    before = len(client.get("/api/feed").json()["unevaluated"])
+    client.post("/api/profile/facts", json={"key": target["key"]})
+    after = len(client.get("/api/feed").json()["unevaluated"])
+
+    actual = before - after
+    assert actual > 0, "öneri hiçbir ilanı açmadı"
+    assert actual <= target["unlocks"], "iddia gerçekleşenden düşük olamaz"
+    assert actual >= target["unlocks"] * 0.85, (
+        f"iddia {target['unlocks']}, gerçekleşen {actual} — sapma çok büyük"
+    )
+
+
+def test_role_key_shared_between_grouping_and_counting():
+    """Gruplama ve sayım aynı kuralı kullanmalı; iki yerde ayrı yazılsaydı
+    biri değişince diğeri sessizce sapardı."""
+    from isuygun_api.main import _role_key
+
+    assert _role_key("ACME A.Ş.", "Yazılım Uzmanı") == _role_key("acme a.ş.", "yazılım uzmanı")

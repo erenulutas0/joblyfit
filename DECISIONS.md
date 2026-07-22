@@ -817,3 +817,43 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   veritabanına tablo eklemek orantısız olurdu. Eski kayıtlarda bulunmayan
   alanlar geri yüklenirken varsayılana düşer — yoksa yeni bir filtre
   eklendiğinde eski kayıtlar `undefined` yazardı.
+
+---
+
+## D-034 — "Neyi eklersem kaç ilan açılır": ölçülmüş profil önerileri
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Ölçüldü: ilanların **%68'i** (3026/4395) bant alamıyor. İnceleme
+  bunun bir hata **olmadığını** gösterdi — değerlendirilemeyen 3026 ilanın
+  hepsinde şart çıkarılmış durumda; bant yokluğu D-019/D-021/D-022'nin doğru
+  çalışmasından geliyor:
+  - "Legal Professionals — Labor Law" → tek şart "İngilizce" (ayırt edici
+    değil, D-021) → bant yok.
+  - "Trendyol Express Dağıtım Merkezi" → Excel, Kurye, Vardiya → profilde yok
+    → hepsi `unknown` → değerlendirilecek kanıt yok.
+- **Asıl eksik mantıkta değil, yönlendirmede:** Kullanıcıya 3026 ilanlık bir
+  yığın gösterip "değerlendiremedik" demek, elimizde çözüm varken onu
+  göstermemek. Hangi alanın kaç ilanı açacağı **hesaplanabilir**.
+- **Decision:** `/api/profile/unlock-suggestions` her aday alan için, o alan
+  eklendiğinde bant alabilecek satır sayısını ölçer; arayüz bunları sayaçlı
+  gösterir ve tek tıkla profile ekletir.
+- **Sayım birimi satırdır, ilan değil:** İlan sayınca "+327" diyip 295 açıldı
+  (%10 abartı) — D-030'da düzeltilen hatanın aynısı. Liste aynı işverenin aynı
+  rolünü tek satıra indirdiği için sayım da satır üzerinden yapılır. Düzeltme
+  sonrası sapma **%1–3** (297 iddia → 295 gerçek).
+- **Kalan sapma dürüstçe etiketlenir:** Aynı rol hem değerlendirilen hem
+  değerlendirilemeyen listede temsil edilebiliyor. Tam kesinlik her aday alan
+  için korpusu yeniden değerlendirmeyi gerektirir (~9 sn); bir yönlendirme
+  paneli için orantısız. Arayüz "≈+300" yazar — olmayan bir kesinlik iddia
+  etmez.
+- **Gruplama kuralı tek yerde (`_role_key`):** Gösterim birleştirmesi ve sayım
+  aynı fonksiyonu kullanır. İki yerde ayrı yazılsaydı biri değişince diğeri
+  sessizce sapardı ve sonuç yine yanlış sayı olurdu.
+- **D-013/D-006 korunur:** Yasal uygunluk alanları profile yazılamadığı için
+  önerilmez de — tıklanamayacak bir öneri göstermek olurdu. Test bunu her
+  önerinin gerçekten eklenebildiğini deneyerek doğrular.
+- **Denetlenebilirlik:** `test_adding_a_suggested_field_actually_unlocks_listings`
+  iddianın kendisini test eder: "+N" dedikten sonra değerlendirilemeyen sayısı
+  gerçekten düşmeli, iddia gerçekleşenden düşük olmamalı ve sapma %15'i
+  geçmemeli.

@@ -202,6 +202,14 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
 .frow.hint code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
   background:var(--paper-2); border:1px solid var(--line-1); border-radius:4px; padding:1px 5px}
 .sq{font-size:11.5px; color:var(--accent); font-weight:600; margin-left:auto}
+.unlock{border:1px solid var(--line-1); border-radius:10px; padding:13px 15px;
+  margin-bottom:14px; background:var(--paper-1)}
+.unlockHead{display:flex; flex-direction:column; gap:3px; margin-bottom:10px}
+.unlockHead .muted{font-size:12px}
+.unlockRow{display:flex; flex-wrap:wrap; gap:7px}
+.unlockChip b{color:var(--match); margin-left:3px}
+.unlockChip:hover{border-color:var(--match); color:var(--match)}
+.unlockChip:disabled{opacity:.55; cursor:default}
 .frow.saved{border-top:1px dashed var(--line-1); margin-top:4px}
 .savedChip{display:inline-flex; align-items:center; gap:2px}
 .savedChip .x{border:0; background:none; cursor:pointer; color:var(--ink-4);
@@ -408,7 +416,7 @@ tr:last-child td{border-bottom:0}
 
 <script>
 const API='/api';
-let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
+let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null, UNLOCKS=null;
 const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match',
          pay:'', work:'', exp:'', etype:'', cur:'', minpay:''};
 
@@ -466,7 +474,14 @@ function go(v){
   render();
 }
 
-async function refresh(){ [PROFILE,FEED]=await Promise.all([api('/profile'),api('/feed')]); }
+async function refresh(){
+  [PROFILE,FEED,UNLOCKS]=await Promise.all([
+    api('/profile'), api('/feed'),
+    // Öneri hesabı korpusu bir kez daha değerlendirir; başarısız olursa
+    // liste yine gelsin — panel bir yardımcı, önkoşul değil.
+    api('/profile/unlock-suggestions').catch(()=>[]),
+  ]);
+}
 
 function paintChrome(){
   if(FEED){
@@ -618,6 +633,31 @@ function axisRow(label, key, counts, labels, skipEmpty){
     <button class="chip" data-axis="${key}" data-val="" aria-pressed="${F[key]===''}">Tümü</button>
     ${opts.map(k=>`<button class="chip" data-axis="${key}" data-val="${k}"
       aria-pressed="${F[key]===k}">${labels[k]} <b style="opacity:.7">${counts[k]}</b></button>`).join('')}
+  </div>`;
+}
+
+/** "Şunu eklersen kaç ilan değerlendirilebilir olur" paneli.
+ *
+ *  Korpusun %68'i bant alamıyor ve bu doğru davranış (D-019): karşılaştıracak
+ *  bilgi yokken uydurma bant üretmeyiz. Ama kullanıcıya yalnızca
+ *  "değerlendiremedik" demek, elimizde çözüm varken onu göstermemek olurdu.
+ *  Sayılar tahmin değil: her ilan tek tek değerlendirilip sayılıyor.
+ */
+function unlockPanel(){
+  if(!UNLOCKS || !UNLOCKS.length) return '';
+  const top=UNLOCKS.slice(0,8);
+  return `<div class="unlock">
+    <div class="unlockHead">
+      <strong>Bunları eklersen daha fazla ilan değerlendirilebilir</strong>
+      <span class="muted">Sayılar, o alan profiline eklendiğinde bant alabilecek
+        <strong>yaklaşık</strong> ilan adedidir — ölçülerek bulunur, tahmin
+        değildir, ama birkaç ilan şaşabilir.</span>
+    </div>
+    <div class="unlockRow">
+      ${top.map(u=>`<button class="chip unlockChip" data-unlock="${esc(u.key)}"
+        title="${esc(u.category_label)}${u.needs_verification?' · doğrulama ister':''}">
+        ${esc(u.label)} <b>≈+${u.unlocks}</b></button>`).join('')}
+    </div>
   </div>`;
 }
 
@@ -775,7 +815,7 @@ function viewFeed(){
       uymadıkları anlamına gelmez</strong> — profilinde o alanlar boş olduğu için
       hesaplama yapılamadı. Ayrı tutuyoruz ki “zayıf eşleşme” diye yanlış
       okunmasınlar.
-    </div>${un.slice(0,shownUn).map(card).join('')+more(un.length,shownUn,'un')}`:'';
+    </div>${unlockPanel()}${un.slice(0,shownUn).map(card).join('')+more(un.length,shownUn,'un')}`:'';
 
   return `${volatile}${emptyNote}${filterBar()}
     <div class="sec"><h2>Sana göre değerlendirilenler</h2>
@@ -1249,6 +1289,22 @@ document.addEventListener('click',async ev=>{
     if(mb.dataset.more==='ev') shownEv+=PAGE; else shownUn+=PAGE;
     repaintFeed(); return;
   }
+  const ul=ev.target.closest('[data-unlock]');
+  if(ul){
+    ul.disabled=true; ul.textContent='ekleniyor…';
+    try{
+      await api('/profile/facts',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({key:ul.dataset.unlock})});
+      await refresh(); repaintFeed();
+    }catch(err){
+      // Hata yutulursa düğme "ekleniyor…"da donar ve kullanıcı neden
+      // bir şey olmadığını anlayamaz.
+      ul.disabled=false; ul.textContent='eklenemedi — tekrar dene';
+    }
+    return;
+  }
+
   const ax=ev.target.closest('[data-axis]');
   if(ax){ F[ax.dataset.axis]=ax.dataset.val; repaintFeed(); return; }
 
