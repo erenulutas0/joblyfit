@@ -134,6 +134,11 @@ class NormalizedPosting:
     posted_at: str | None
     fetched_at: str
     provenance: dict
+    #: İlan metninden okunan maaş. `None` iki şey olabilir; ayrımı
+    #: `salary_status` taşır — "yazmamış" ile "okuyamadım" aynı şey değildir.
+    salary: object | None = None
+    #: found | not_stated | unreadable
+    salary_status: str = "not_stated"
     #: Metin token'ları. Blok içi karşılaştırma O(n²) olduğu için her çiftte
     #: yeniden hesaplamak pahalıydı; bir kez üretilip saklanır.
     _tokens_cache: set | None = None
@@ -246,6 +251,14 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
 
         reqs = extract_requirements(raw.title, raw.description)
         occupation = raw.occupation_id or infer_occupation(raw.title, reqs)
+    from . import salary as _sal
+
+    _salary = _sal.extract(raw.description)
+    _salary_status = (
+        "found" if _salary
+        else ("unreadable" if _sal.mentions_money(raw.description) else "not_stated")
+    )
+
     job = JobPosting(
         job_id=f"{raw.source_id}:{raw.source_posting_ref}",
         title=raw.title,
@@ -263,6 +276,8 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
         city_key=" ".join(_words(raw.city)),
         content_fingerprint=_fingerprint(raw.description),
         job_text=raw.description,
+        salary=_salary,
+        salary_status=_salary_status,
         url=raw.url,
         posted_at=raw.posted_at,
         fetched_at=datetime.now().isoformat(timespec="seconds"),

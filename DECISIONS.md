@@ -674,3 +674,59 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 - **Denetlenebilirlik:** `services/ingest/tests/test_cache.py`, özellikle
   `test_changed_extraction_logic_invalidates_processed_records` ve
   `test_partial_write_does_not_destroy_existing_cache`.
+
+---
+
+## D-029 — Maaş üç durumlu gösterilir; kur dönüştürmesi yapılmaz
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Saha çalışması, maaşın gizlenmesini muadillerin en somut ve en
+  çok şikâyet edilen eksiği olarak gösterdi. Türkiye'de ağırlığı ayrıca var:
+  Kariyer.net'te maaş **filtresi bile yok**. Rakiplerin burada yapısal bir
+  çıkar çatışması var — ilan verenden ücret alıyorlar, ilan veren maaşı
+  yazmak istemiyor. Bizim böyle bir bağımlılığımız yok.
+- **Decision:** İlan metninden maaş çıkarılır ve üç durumdan biri gösterilir:
+  `found` (yazıyor), `not_stated` (ilan yazmamış), `unreadable` (rakam var,
+  güvenle okunamadı). Filtre yalnızca `found` üzerinden çalışır.
+- **Reason (üç durum):** "Yazmamış" ile "okuyamadım" farklı taraflara ait
+  kusurlardır. İkisini birleştirmek, maaşını dürüstçe yazan bir ilanı
+  yazmamış gibi göstermek olurdu — tam da ödüllendirmek istediğimiz davranışı
+  cezalandırırdık. Bu, D-011'in üç durumlu şart değerlendirmesiyle aynı ilke.
+- **Reason (dönüştürme yok):** Kaynaktaki para birimi olduğu gibi gösterilir.
+  Kur çevirisi yapsaydık, hangi güne ait kurla hesaplandığı belirsiz bir sayı
+  üretirdik; yanlış kurla gösterilen maaş maaş değildir.
+- **Yanlış pozitif asimetrisi:** Maaşı bulamamak kullanıcıya "belirtilmemiş"
+  gösterir — ilanın kusuru, zararsız. Yanlış bulmak **var olmayan bir sayı**
+  gösterir ve kullanıcı ona güvenerek başvurur. Bu yüzden yakınında maaş
+  bağlamı (±90 karakter) olmayan sayı kabul edilmez ve makul aralık dışına
+  çıkan değer elenir. Testlerin çoğu doğru pozitifi değil, yanlış pozitifi
+  kovalar.
+- **Ölçüm (5808 ilanlık gerçek korpus):** %37 bulundu · %16 para var ama
+  okunamadı · %46 hiç maaş yok.
+- **Consequence:** `salary.py` çıkarım mantığıdır, bu yüzden önbellek parmak
+  izine (`cache._LOGIC_FILES`) eklendi; eklenmeseydi önbellekteki ilanlar
+  sessizce maaşsız kalırdı.
+- **Denetlenebilirlik:** `services/ingest/tests/test_salary.py`.
+
+---
+
+## D-030 — Facet sayaçları gösterilen listeden sayılır; liste artımlı basılır
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Maaş rozeti eklenince ortaya çıktı: rozet "1994 ilan" diyordu,
+  kullanıcı tıklayınca 1678 ilan görüyordu. Facet'ler `_group_by_role`
+  **öncesinden**, liste ise sonrasından sayılıyordu. Aynı sapma şehir, işveren
+  ve bölge sayaçlarında da vardı.
+- **Decision (a):** Facet'ler gösterilen listeden sayılır. Şehir facet'i
+  birleştirilen konumları da içerir ve şehir filtresi `other_locations`'a da
+  bakar — aksi halde o şehirdeki gerçek ilan kaybolurdu.
+- **Decision (b):** Liste 60'ar ilan basılır, kalan sayı açıkça yazılır
+  ("1309 ilan daha var"). Filtre değişince pencere başa döner.
+- **Reason:** Sayının kendisi yanlış değildi ama kullanıcıya verilen söz
+  tutulmuyordu. Gördüğü sayı, tıklayınca aldığı sayı olmalı.
+- **Ölçüm:** 4395 kart tek turda basılırken 105.470 DOM düğümü üretiliyor ve
+  sayfa donuyordu; artımlı gösterimle **5.241** düğüm.
+- **Kırpma sessiz değildir:** Gizlenen ilan sayısı yazılır. Sessizce kırpmak
+  kullanıcıya "hepsi bu" demek olurdu.

@@ -89,6 +89,11 @@ class JobSummary(BaseModel):
     other_locations: list[str] = []
     #: İlanın yaşı (gün). null = yayın tarihi bilinmiyor (D-024).
     age_days: int | None = None
+    #: İlanda yazan maaş — kaynaktaki birimiyle, dönüştürülmeden.
+    salary_text: str | None = None
+    #: found | not_stated | unreadable. "Yazmamış" ile "okuyamadım" ayrıdır:
+    #: ikincisini ilkine katmak, maaşını yazan ilana haksızlık olurdu (D-029).
+    salary_status: str = "not_stated"
 
 
 class JobDetail(JobSummary):
@@ -235,6 +240,13 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     return out
 
 
+def _salary_text(posting) -> str | None:
+    from isuygun_ingest.salary import format_tr
+
+    s = getattr(posting, "salary", None)
+    return format_tr(s) if s else None
+
+
 def _lines(items) -> list[ExplanationLineOut]:
     return [
         ExplanationLineOut(text=l.text, evidence=l.evidence, action_label=l.action_label)
@@ -271,6 +283,8 @@ def _summary(posting, result, exp) -> JobSummary:
         matched_requirements=[o.requirement.label for o in result.met][:5],
         regions=sorted(regions.classify(posting.job.city)),
         age_days=age_in_days(posting.posted_at),
+        salary_text=_salary_text(posting),
+        salary_status=getattr(posting, "salary_status", "not_stated"),
     )
 
 
@@ -483,19 +497,33 @@ def feed() -> FeedOut:
             evaluated.append((_BAND_ORDER[result.band], s))
 
     evaluated.sort(key=lambda t: (t[0], t[1].title))
-    every = [s for _, s in evaluated] + unevaluated
+    shown_evaluated = _group_by_role([s for _, s in evaluated])
+    shown_unevaluated = _group_by_role(unevaluated)
+    # Facet'ler **gösterilen** listeden sayılır. Gruplama öncesinden sayılırsa
+    # rozet "1994 ilan" der, kullanıcı tıklar, 1678 ilan görür — sayının
+    # kendisi yanlış olmasa da kullanıcıya verilen söz tutulmamış olur.
+    every = shown_evaluated + shown_unevaluated
     return FeedOut(
-        evaluated=_group_by_role([s for _, s in evaluated]),
-        unevaluated=_group_by_role(unevaluated),
+        evaluated=shown_evaluated,
+        unevaluated=shown_unevaluated,
         profile_is_empty=not STORE.profile.facts,
         profile_is_persistent=STORE.is_persistent,
         profile_backend=STORE.backend,
         ingest=STORE.ingest_summary,
         facets={
-            "cities": sorted({j.city for j in every if j.city}),
+            # Birleştirilen konumlar da listelenir: ilan o şehirde gerçekten
+            # var, yalnızca gösterimde tek satıra indirilmiş durumda.
+            "cities": sorted(
+                {j.city for j in every if j.city}
+                | {c for j in every for c in j.other_locations if c}
+            ),
             "employers": sorted({j.employer for j in every if j.employer}),
             "clusters": sorted({j.occupation_id for j in every if j.occupation_id}),
             # Bölge sayaçları: kullanıcı hangi pazarda kaç ilan olduğunu görebilmeli.
+            "salary_counts": {
+                k: sum(1 for j in every if j.salary_status == k)
+                for k in ("found", "not_stated", "unreadable")
+            },
             "regions": [
                 {"name": r, "count": sum(1 for j in every if r in j.regions)}
                 for r in regions.ALL

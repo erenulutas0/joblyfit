@@ -26,9 +26,10 @@ from pathlib import Path
 from isuygun_core.domain import JobPosting, Requirement
 
 from .pipeline import NormalizedPosting, RawPosting
+from .salary import Salary
 
 #: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
-_LOGIC_FILES = ("lexicon.py", "extract.py")
+_LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py")
 
 
 def extraction_fingerprint() -> str:
@@ -64,6 +65,8 @@ def _posting_to_dict(p: NormalizedPosting) -> dict:
         "posted_at": p.posted_at,
         "fetched_at": p.fetched_at,
         "provenance": p.provenance,
+        "salary": asdict(p.salary) if p.salary else None,
+        "salary_status": p.salary_status,
     }
 
 
@@ -80,6 +83,8 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
         city_key=d["city_key"], content_fingerprint=d["content_fingerprint"],
         job_text=d["job_text"], url=d["url"], posted_at=d["posted_at"],
         fetched_at=d["fetched_at"], provenance=d["provenance"],
+        salary=Salary(**d["salary"]) if d.get("salary") else None,
+        salary_status=d.get("salary_status", "not_stated"),
     )
 
 

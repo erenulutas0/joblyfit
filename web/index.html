@@ -193,6 +193,16 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
   flex-wrap:wrap; align-items:center}
 .card-meta b{color:var(--ink-2); font-weight:600}
 .card-meta .dot{color:var(--ink-4)}
+.pay{font-size:11.5px; font-weight:700; color:var(--match);
+  background:var(--match-soft); padding:2px 8px; border-radius:5px}
+.pay.none{color:var(--ink-4); background:var(--paper-2); font-weight:500}
+.pay.unread{color:var(--unknown); background:var(--unknown-soft); font-weight:500}
+.moreWrap{display:flex; align-items:center; gap:12px; justify-content:center;
+  padding:18px 0 6px}
+.moreBtn{font:inherit; font-weight:650; font-size:13px; cursor:pointer;
+  color:var(--ink-1); background:var(--paper-1); border:1px solid var(--line-1);
+  padding:9px 18px; border-radius:8px}
+.moreBtn:hover{border-color:var(--accent); color:var(--accent)}
 .age{font-size:11.5px; color:var(--ink-3)}
 .age.new{color:var(--match); font-weight:600}
 .age.old{color:var(--ink-4)}
@@ -388,7 +398,16 @@ tr:last-child td{border-bottom:0}
 <script>
 const API='/api';
 let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
-const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match'};
+const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match', pay:''};
+
+/** Tek seferde basılan kart sayısı.
+ *
+ * Korpus 4400 ilana çıkınca sayfa donuyordu: 105 bin DOM düğümü tek turda
+ * üretiliyordu. Kimse 4400 ilanı sırayla okumuyor; okumayan kullanıcıya
+ * bedelini ödetmenin anlamı yok. Filtreler tüm küme üzerinde çalışmaya devam
+ * eder — kırpılan yalnızca *gösterim*, arama değil. */
+const PAGE=60;
+let shownEv=PAGE, shownUn=PAGE;
 let PQ='', OPEN=new Set();                                    // profil arama + açık gruplar
 
 const $=(s,r=document)=>r.querySelector(s);
@@ -434,6 +453,15 @@ function paintChrome(){
 
 /* ================= FEED ================= */
 const BC={strong:'b-strong',good:'b-good',cond:'b-cond',weak:'b-weak'};
+/** Maaş üç durumlu gösterilir; "yazmamış" ile "okuyamadım" ayrı şeylerdir. */
+function payLabel(j){
+  if(j.salary_status==='found' && j.salary_text)
+    return `<span class="pay">${esc(j.salary_text)}</span>`;
+  if(j.salary_status==='unreadable')
+    return `<span class="pay unread" title="İlanda rakam var ama güvenle okuyamadık">maaş okunamadı</span>`;
+  return `<span class="pay none">maaş yazmıyor</span>`;
+}
+
 function ageLabel(j){
   if(j.age_days==null) return `<span class="age unk" title="Kaynak yayın tarihi vermedi">tarih bilinmiyor</span>`;
   if(j.age_days<=1) return `<span class="age new">bugün</span>`;
@@ -448,7 +476,10 @@ function matches(j){
   // Tarihi bilinmeyen ilan tazelik filtresiyle ELENMEZ — "bilmiyoruz",
   // "eski" demek değildir (D-011'in aynı mantığı, D-024).
   if(F.age && j.age_days!=null && j.age_days>Number(F.age)) return false;
-  if(F.city && j.city!==F.city) return false;
+  // "Okunamadı" olanlar elenmez: maaşını yazmış ama biz çıkaramamış olabiliriz.
+  if(F.pay==='yes' && j.salary_status!=='found') return false;
+  // Birleştirilmiş konumlara da bakılır; yoksa o şehirdeki ilan kaybolur.
+  if(F.city && j.city!==F.city && !(j.other_locations||[]).includes(F.city)) return false;
   if(F.cluster && j.occupation_id!==F.cluster) return false;
   if(F.employer && j.employer!==F.employer) return false;
   if(F.band==='match' && !j.band) return false;
@@ -477,6 +508,7 @@ function card(j){
           ${(j.other_locations||[]).length?`<span class="rgn" title="${
             esc(j.other_locations.join(', '))}">+${j.other_locations.length} konum</span>`:''}
           <span class="dot">·</span>${ageLabel(j)}
+          ${payLabel(j)}
           ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
           ${(j.regions||[]).filter(r=>r!=='Diğer').map(r=>
             `<span class="rgn">${esc(r)}</span>`).join('')}
@@ -533,6 +565,10 @@ function filterBar(){
       <span class="fl-label">Yayın</span>
       ${[['','Tümü'],['7','Son 7 gün'],['14','Son 14 gün'],['30','Son 30 gün']].map(([v,l])=>
         `<button class="chip" data-age="${v}" aria-pressed="${F.age===v}">${l}</button>`).join('')}
+      <span class="fl-label" style="margin-left:14px">Maaş</span>
+      ${[['','Tümü'],['yes','Sadece maaşı yazanlar']].map(([v,l])=>
+        `<button class="chip" data-pay="${v}" aria-pressed="${F.pay===v}">${l}${
+          v==='yes'&&fx.salary_counts?` <b style="opacity:.7">${fx.salary_counts.found}</b>`:''}</button>`).join('')}
       <span class="fl-label" style="margin-left:14px">Sırala</span>
       <select id="fsort">
         <option value="match"${F.sort==='match'?' selected':''}>Uygunluğa göre</option>
@@ -544,6 +580,18 @@ function filterBar(){
     <div class="frow" style="border-top:0; padding-top:0; margin-top:6px">
       <span class="fcount" id="fcount" style="margin-left:0"></span>
     </div>
+  </div>`;
+}
+
+/** "Daha fazla göster" — kaç ilanın gizlendiği açıkça yazılır.
+ *  Sessizce kırpmak, kullanıcıya "hepsi bu" demek olurdu. */
+function more(total,shown,which){
+  if(total<=shown) return '';
+  const rest=total-shown;
+  return `<div class="moreWrap">
+    <button class="moreBtn" data-more="${which}">
+      ${Math.min(rest,PAGE)} ilan daha göster</button>
+    <span class="muted" style="font-size:12px">${rest} ilan daha var</span>
   </div>`;
 }
 
@@ -578,7 +626,7 @@ function viewFeed(){
       <a href="#" data-goto="profile">profilini doldur</a>.
     </div>`:'';
 
-  const evBlock=ev.length?ev.map(card).join(''):`
+  const evBlock=ev.length?ev.slice(0,shownEv).map(card).join('')+more(ev.length,shownEv,'ev'):`
     <div class="empty"><h3>Bu filtrelerle eşleşme yok</h3>
       <p class="muted">${anyFilter?'Filtreleri gevşetmeyi dene.'
         :'Profiline bilgi ekledikçe burası dolacak.'}</p></div>`;
@@ -591,7 +639,7 @@ function viewFeed(){
       uymadıkları anlamına gelmez</strong> — profilinde o alanlar boş olduğu için
       hesaplama yapılamadı. Ayrı tutuyoruz ki “zayıf eşleşme” diye yanlış
       okunmasınlar.
-    </div>${un.map(card).join('')}`:'';
+    </div>${un.slice(0,shownUn).map(card).join('')+more(un.length,shownUn,'un')}`:'';
 
   return `${volatile}${emptyNote}${filterBar()}
     <div class="sec"><h2>Sana göre değerlendirilenler</h2>
@@ -660,7 +708,8 @@ async function viewJob(id){
         <h1>${esc(j.title)}</h1>
         <div class="card-meta"><b>${esc(j.employer)}</b>
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
-          <span class="dot">·</span>${ageLabel(j)}</div>
+          <span class="dot">·</span>${ageLabel(j)}
+          ${payLabel(j)}</div>
       </div>
 
       ${j.verification_notice?`<div class="notice" style="margin-bottom:16px">${esc(j.verification_notice)}</div>`:''}
@@ -1000,7 +1049,20 @@ async function render(){
 }
 
 // Filtre değişince ağa gitmeden yeniden çiz (59 ilan bellekte).
+/** Filtre değişince gösterim penceresi başa döner: yeni sonuç kümesinde
+ *  "601. ilandan devam" anlamsızdır.
+ *
+ *  Sıfırlama tek tek filtre çağrılarına serpiştirilmedi; imza karşılaştırması
+ *  tercih edildi çünkü sonradan eklenen bir filtrede çağrıyı unutmak sessiz
+ *  bir hata olurdu — kullanıcı filtreyi daraltır, liste eskisi gibi kalır. */
+let lastFilterKey='';
+function resetPagingIfFiltersChanged(){
+  const key=JSON.stringify(F);
+  if(key!==lastFilterKey){ lastFilterKey=key; shownEv=PAGE; shownUn=PAGE; }
+}
+
 function repaintFeed(){
+  resetPagingIfFiltersChanged();
   const app=$('#app'); app.innerHTML=viewFeed(); wireFeed(); paintChrome();
 }
 
@@ -1037,13 +1099,19 @@ function wireJob(){
 }
 
 document.addEventListener('click',async ev=>{
-  const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-clear]');
+  const mb=ev.target.closest('[data-more]');
+  if(mb){
+    if(mb.dataset.more==='ev') shownEv+=PAGE; else shownUn+=PAGE;
+    repaintFeed(); return;
+  }
+  const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-pay],[data-clear]');
   if(chip){
     if(chip.dataset.clear!==undefined){
-      Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:''});
+      Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:'',pay:''});
       return repaintFeed();
     }
     if(chip.dataset.age!==undefined) F.age=chip.dataset.age;
+    if(chip.dataset.pay!==undefined) F.pay=chip.dataset.pay;
     if(chip.dataset.cluster!==undefined) F.cluster=chip.dataset.cluster;
     if(chip.dataset.band!==undefined) F.band=chip.dataset.band;
     if(chip.dataset.region!==undefined){
