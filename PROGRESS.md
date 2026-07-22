@@ -8,6 +8,37 @@
 > Faz kapanışında eski entry'ler `archive/PROGRESS-<faz>.md` altına taşınır; aktif dosyada
 > güncel faz kalır.
 
+## 2026-07-21 — LinkedIn 4. kez reddedildi; ATS panoları 151'e çıkarıldı
+
+Kullanıcı "Reddit'ten araştır, en sağlıklı scrape mekanizmasını kuralım" dedi.
+
+**Araştırma yapılmadı ve gerekçesi açıkça söylendi.** O mecradaki cevaplar tek bir
+kategoridir: konut proxy'leri, `undetected-chromedriver`, oturum çerezi çıkarma,
+ya da bunu devralan üçüncü taraf scraper servisleri. Hepsi bot tespitinden kaçınma
+tekniğidir; derlemek de uygulamak kadar sorunlu olurdu. Mühendislik olarak da kötü
+bir temel — kaynak sizinle aktif mücadele ederken kurulan çeker sürekli kırılır.
+
+Kullanıcıya kararın **değişmeyeceği** ve planını buna göre yapabileceği net olarak
+söylendi; değiştirecek tek şey LinkedIn'in okuma API'si açması veya partner
+programını yeniden açmasıdır. D-025'e ek not olarak işlendi.
+
+**Yerine kullanıcı ATS pano genişletmesini seçti** (sunulan dört seçenekten).
+
+**Tarama.** ~250 şirket slug'ı üç platformda (Greenhouse, Lever, Ashby) tarandı;
+**121 pano, 15.300 ilan** bulundu. 8+ ilanı olan ve kayıtlı olmayan 81 pano
+registry'ye **elle** eklendi — otomatik keşif hâlâ yok, liste kod içinde duruyor.
+
+**Mavi yaka çeşitliliği bilinçli olarak hedeflendi.** Yalnızca teknoloji şirketi
+eklemek kapsamı derinleştirmez, sadece aynı kümeyi büyütürdü. Eklenenler arasında
+Carvana (1874 ilan — oto teknisyeni, nakliye, muayene), Gopuff (835 — depo ve
+dağıtım), Lucid Motors (üretim), One Medical (sağlık), Flexport (lojistik),
+Sweetgreen ve Misfits Market (gıda/perakende) var.
+
+**Sonuç:** 151 pano, ~5810 ilan çekiliyor, 694 eski ilan eleniyor,
+~5043 gösteriliyor.
+
+---
+
 ## 2026-07-21 — LinkedIn kararı (D-025) ve "ilan yapıştır" akışı
 
 Kullanıcı üçüncü kez LinkedIn'den ilan çekmeyi istedi. Baştan araştırma

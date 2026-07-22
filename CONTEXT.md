@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (ilan yapıştırma akışı + missing_duration ayrımı; 163 test)_
+_Last updated: 2026-07-21 (151 pano, ~5043 ilan; LinkedIn 4. kez reddedildi)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -42,23 +42,26 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 ## Aktif Hedef
 
-**Gerçek ilanlarla çalışan uygulama** — 70 ATS panosu + 4 public API'den
-**~3330 ilan çekiliyor, 283'ü eski olduğu için eleniyor, ~2650 gösteriliyor**
-(Avrupa 1219 · ABD 1098 · Uzaktan 586 · Türkiye 21). **163 test geçiyor** ve
-GitHub Actions'ta üç iş olarak koşuyor (Python testleri · arayüz sözdizimi ·
-kaynak izni denetimi).
+**Gerçek ilanlarla çalışan uygulama** — **151 ATS panosu** + 4 public API'den
+**~5810 ilan çekiliyor, 694'i eski olduğu için eleniyor, ~5043 gösteriliyor.**
+(ABD 2254 · Avrupa 1602 · Uzaktan 994 · Diğer 856 · Türkiye 21)
+**168 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
+arayüz sözdizimi · kaynak izni denetimi).
 
 Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
 **yayın tarihi (son 7/14/30 gün)** · sıralama (uygunluk / en yeni / işveren).
+Ayrıca **"İlan yapıştır"** sekmesi: başka bir sitede görülen ilanın metni aynı
+değerlendirmeden geçirilebilir (D-025) — sunucu o adrese istek atmaz.
 
-**Mavi yaka kapsamı açıldı** (D-023): Arbeitsagentur'dan depo, şoför, aşçı, bakım,
-kaynakçı ilanları geliyor. Sözlüğe Almanca yüzey biçimleri eklendi.
+**Mavi yaka kapsamı** (D-023 + pano genişletmesi): Arbeitsagentur'dan depo, şoför,
+aşçı, bakım, kaynakçı; ABD tarafından Carvana (oto teknisyeni, nakliye), Gopuff
+(depo, dağıtım), Lucid Motors (üretim), One Medical (sağlık), Flexport (lojistik).
 
-**Bilinen sınırlar:** Türkiye hacmi çok düşük (21) — TR kaynakları hâlâ izne bağlı
-(OPEN-19). Arbeitsagentur liste ucu açıklama metni vermiyor; şart çıkarımı başlıkla
-sınırlı. Kalıcılık yok (açılış ~35 sn, `.cache/` 6 saat TTL).
+**Bilinen sınırlar:** Türkiye hacmi hâlâ çok düşük — TR kaynakları izne bağlı
+(OPEN-19), Careerjet/Jooble kullanıcı kaydı ister (OPEN-24). Arbeitsagentur liste
+ucu açıklama metni vermiyor. Kalıcılık yok; önbellek `.cache/` altında, 6 saat TTL.
 
-Sıradaki: kalıcılık (PostgreSQL) · Next.js'e taşıma · TR kaynakları (OPEN-19).
+Sıradaki: kalıcılık (PostgreSQL) · Next.js'e taşıma · TR kaynakları.
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.

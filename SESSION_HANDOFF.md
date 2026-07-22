@@ -34,6 +34,29 @@
 
 ---
 
+## 2026-07-21 — LinkedIn 4. kez reddedildi; 151 pano
+
+**Bu session'da yapılanlar:**
+- LinkedIn scrape talebi **dördüncü kez** reddedildi; Reddit araştırması
+  yapılmadı (gerekçe D-025'te ek not olarak yazılı).
+- ~250 slug tarandı → 81 yeni pano eklendi. **70 → 151 pano.**
+- Mavi yaka çeşitliliği hedeflendi (Carvana, Gopuff, Lucid, One Medical, Flexport).
+
+**Yarım kalanlar:**
+- Kalıcılık yok. TR hacmi hâlâ düşük (OPEN-19 / OPEN-24).
+- Önbellek yenilemesi ~5 dk sürüyor (151 pano). Silinirse ilk açılış uzun.
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **LinkedIn bir daha sorulursa araştırma yapma.** Dört kez soruldu, üçünde
+  birincil kanıtla doğrulandı. Cevabı değiştirecek tek şey LinkedIn'in okuma
+  API'si açmasıdır. "Reddit'ten bak" talebi = kaçınma tekniği talebidir.
+- **Pano eklerken `registry.BOARDS`'a elle yaz.** Otomatik keşif yok; bu kasıtlı.
+  Tarama script'i geçicidir, kod tabanında durmaz.
+- Yeni pano eklerken mavi yaka çeşitliliğine bak — yalnızca tech eklemek aynı
+  kümeyi büyütür, kapsamı derinleştirmez.
+
+---
+
 ## 2026-07-21 — LinkedIn kararı (D-025) + ilan yapıştırma
 
 **Bu session'da yapılanlar:**
