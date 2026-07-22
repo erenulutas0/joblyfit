@@ -223,6 +223,25 @@ REGISTRY: dict[str, SourceRecord] = {
             attribution_required=True, min_poll_hours=6.0,
             redistribution_policy="link-back-required",
         ),
+        SourceRecord(
+            source_id="src-api-jooble", name="Jooble (Türkiye toplayıcı)",
+            source_type="aggregator", base_url="https://jooble.org",
+            access_method="api",
+            scraping_permission="allowed", policy_risk="low", status="active_limited",
+            permission_evidence=(
+                "jooble.org/api/about — resmî public REST API. Amacı belgede "
+                "açıkça 'webmaster'ların Jooble sonuçlarını kendi sitesinde "
+                "göstermesi' olarak tanımlı; her ilan kaynağa giden `link` taşır "
+                "ve model sonucu gösterip kaynağa yönlendirmektir. Ücretsiz "
+                "anahtar kayıtla alınır (ISUYGUN_JOOBLE_KEY). Türkiye hacminin "
+                "ana kaynağı; kendisi Kariyer.net/SecretCV gibi panolardan agrege "
+                "eder (doğrulandı 2026-07-22, help.jooble.org REST API dokümanı). "
+                "NOT: anahtar alınırken Jooble API kullanım şartları kullanıcı "
+                "tarafından onaylanmalıdır — commit öncesi gözden geçirilecek."
+            ),
+            attribution_required=True, min_poll_hours=12.0,
+            redistribution_policy="link-back-required",
+        ),
     ]
 }
 

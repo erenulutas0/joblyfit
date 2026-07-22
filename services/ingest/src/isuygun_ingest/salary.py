@@ -50,7 +50,12 @@ _YEARLY = re.compile(r"per year|per annum|/\s?y(?:r|ear)?\b|annual|yearly|yillik
 
 _SYM = r"\$|€|£|₺"
 _CODE = r"USD|EUR|GBP|TRY|TL|CHF|SEK|DKK|NOK|PLN|CAD"
-_NUM = r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
+# İki biçim, sırayla: (1) binlik ayraçlı — "120,000" / "35.000"; ayraç grubu
+# **zorunlu** (`+`, `*` değil), yoksa "50000" için ilk alternatif yalnızca ilk
+# üç haneyi ("500") yakalayıp geri kalanı bırakıyordu — Jooble'ın ayraçsız düz
+# sayıları bu hatayı ortaya çıkardı. (2) düz sayı, olası ondalıkla — "50000",
+# "25.50".
+_NUM = r"\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
 
 #: Aralık: iki sayı, arada tire/en-dash/"to"/"–"/"ile"
 _RANGE = re.compile(

@@ -951,3 +951,51 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   Kartlarda kıdem rozeti (belirtilmemiş gösterilmez — yer kaplar, bilgi
   taşımaz). İş tanımının tam metni zaten detay görünümünde yapılandırılmış
   gösteriliyordu (başlık→alt başlık, madde listesi).
+
+---
+
+## D-038 — Türkiye hacmi: Jooble toplayıcı API'si (LinkedIn değil)
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Kullanıcı Türkiye'nin (neredeyse) tüm ilanlarına, bölge bazlı
+  ulaşmak istedi ve LinkedIn'i tekrar önerdi. Gerekçesi: "kaynağa
+  yönlendireceğiz, o yüzden ihlal değil."
+- **Bu gerekçe neden yanlış:** İhlal yönlendirmede değil, **veriyi toplamada**.
+  "Kullanıcı yerine en uygun ilanı LinkedIn'den bulmak" için önce LinkedIn'in
+  ilan verisini toplu çekip saklamak gerekir; o çekme adımı robots.txt
+  (`Disallow: /`), ToS (scraping yasak), login duvarı ve bot tespitiyle
+  engelli. Atıf ≠ izin. Bu yüzden LinkedIn **reddedildi** olarak kalır
+  (src-tr-015) ve bypass önerilmez.
+- **Doğru çözüm — istenen modelin meşru hâli:** Kullanıcının istediği "sonucu
+  göster, kaynağa yönlendir" tam olarak bir **iş ilanı toplayıcı API'sinin**
+  iş modeli. Araştırma (2026-07-22):
+  - **Adzuna:** Türkiye'yi kapsamıyor (16-19 ülke, TR yok). Elendi.
+  - **Careerjet:** careerjet.com.tr var ama partner hesabı + **domain** ister
+    (kullanıcının takıldığı engel, OPEN-24).
+  - **İŞKUR:** en geniş mavi yaka/bölgesel kaynak ama doğrulanmış public API
+    yok — ayrı araştırma gerektirir.
+  - **Jooble:** ~12.000 TR ilanı, şehir + yarıçap, ücretsiz REST API, her ilan
+    kaynağa giden `link` taşır. Seçildi.
+- **Decision:** Jooble `src-api-jooble` olarak kaydedildi ve adaptörü yazıldı.
+  Anahtar **ortam değişkeninden** (`ISUYGUN_JOOBLE_KEY`) okunur — koda gömülmez,
+  kullanıcıya özeldir, yoksa kaynak **temizce ama sessizce değil** atlanır
+  (ingest raporunda "anahtarı şuradan al" mesajı görünür).
+- **Tasarım notları:**
+  - Bölge-özgüllük sorgudan değil, dönen ilanın `location` alanından gelir —
+    regions.py sınıflandırır, mevcut şehir filtresi çalışır. Tüm Türkiye tek
+    çekimde taranır, il il sorgu gerekmez.
+  - Jooble `updated` = son görülme, ilk yayın **değil**. D-035 gereği
+    `posted_at=None` (yaş bilinmiyor, elenmez), tazelik `refreshed_at`ten
+    ölçülür. `updated`'ı yaş sanmak hayalet-ilan hatasını geri getirirdi.
+  - Geniş tohum sorguları ağır örtüşür; batch içinde `id` ile tekilleştirilir.
+- **İzin kanıtı ve sınır:** Registry kaydı Jooble API dokümanının amacını
+  ("webmaster'lar sonuçları kendi sitesinde gösterir") kanıt olarak taşır.
+  **Anahtar alınırken Jooble API kullanım şartları kullanıcı tarafından
+  onaylanmalı** — bu bir hukuki görüş değildir (T-008 çerçevesi korunur).
+- **Yan bulgu (gerçek hata):** Jooble'ın ayraçsız düz sayıları ("50000")
+  `salary._NUM` regex'indeki bir hatayı ortaya çıkardı: binlik-ayraç grubu
+  `*` (isteğe bağlı) olduğu için ayraçsız sayıda ilk alternatif yalnızca ilk
+  üç haneyi yakalıyordu. Gerçek korpus hep ayraçlı ("$120,000") olduğundan
+  bugüne dek patlamamıştı. `+` (zorunlu) yapıldı; eski biçimler bozulmadı,
+  düz sayılar artık çıkıyor.
