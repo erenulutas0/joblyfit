@@ -195,6 +195,9 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
 .card-meta .dot{color:var(--ink-4)}
 .longOpen{font-size:11.5px; font-weight:600; color:var(--unknown);
   background:var(--unknown-soft); padding:2px 8px; border-radius:5px}
+.lvl{font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase;
+  color:var(--ink-2); background:var(--paper-2); border:1px solid var(--line-1);
+  padding:1px 7px; border-radius:4px; margin-left:2px}
 .pay{font-size:11.5px; font-weight:700; color:var(--match);
   background:var(--match-soft); padding:2px 8px; border-radius:5px}
 .pay.none{color:var(--ink-4); background:var(--paper-2); font-weight:500}
@@ -574,7 +577,9 @@ function suggestSearchName(){
   if(F.work) parts.push({remote:'uzaktan',hybrid:'hibrit',onsite:'ofisten',
                          unspecified:'biçimi belirsiz'}[F.work]);
   if(F.city) parts.push(F.city);
-  if(F.exp) parts.push({senior:'kıdemli',entry:'giriş',unspecified:''}[F.exp]);
+  if(F.exp) parts.push({intern:'stajyer',junior:'junior',mid:'orta',
+    senior:'kıdemli',lead:'lead',architect:'mimar',executive:'yönetici',
+    unspecified:''}[F.exp]);
   return parts.filter(Boolean).join(' · ') || 'Aramam';
 }
 
@@ -594,6 +599,15 @@ function runSearch(){
   },220);
 }
 
+/** Kıdem rozeti — kartta, tıklamadan görünsün. "Belirtilmemiş" gösterilmez:
+ *  yer kaplar ama bilgi taşımaz; kullanıcı zaten filtreden ayırt edebilir. */
+const LVL={intern:'Stajyer',junior:'Junior',mid:'Orta',senior:'Kıdemli',
+  lead:'Lead',architect:'Mimar',executive:'Yönetici'};
+function levelLabel(j){
+  const l=LVL[j.experience_level];
+  return l?`<span class="lvl">${l}</span>`:'';
+}
+
 function card(j){
   const cls=j.band?BC[j.band]:'b-none';
   const bandTxt=j.band?esc(j.band_label)
@@ -607,6 +621,7 @@ function card(j){
       <div class="card-head">
         <h3>${esc(j.title)}</h3>
         <div class="card-meta"><b>${esc(j.employer)}</b>
+          ${levelLabel(j)}
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
           ${(j.other_locations||[]).length?`<span class="rgn" title="${
             esc(j.other_locations.join(', '))}">+${j.other_locations.length} konum</span>`:''}
@@ -732,7 +747,9 @@ function filterBar(){
     ${axisRow('Çalışma', 'work', fx.arrangements, {
       remote:'Uzaktan', hybrid:'Hibrit', onsite:'Ofisten', unspecified:'Belirtilmemiş'})}
     ${axisRow('Deneyim', 'exp', fx.experience_levels, {
-      senior:'Kıdemli', entry:'Giriş seviyesi', unspecified:'Belirtilmemiş'})}
+      intern:'Stajyer', junior:'Junior', mid:'Orta (mid)', senior:'Kıdemli',
+      lead:'Lead / Uzman', architect:'Mimar', executive:'Yönetici',
+      unspecified:'Belirtilmemiş'})}
     ${axisRow('Çalışma türü', 'etype', fx.employment_types, {
       part_time:'Yarı zamanlı', contract:'Sözleşmeli', internship:'Staj'}, true)}
     <div class="frow">

@@ -916,3 +916,38 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   Tek parmak iziyle her sözlük değişikliği 151 panoyu yeniden çekerdi.
 - **Denetlenebilirlik:** `test_changed_fetch_logic_invalidates_raw_records`
   ve `test_fetch_and_extraction_fingerprints_are_independent`.
+
+---
+
+## D-037 — Kıdem: ikili senior/entry yerine 7 basamaklı merdiven
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Kullanıcı "stajyer, jr, mid, senior, architect" tarzı bir yapı
+  istedi. Mevcut sistem yalnızca senior/entry ayırıyordu.
+- **Ölçüm (5803 başlık, öncelik çözümlü):** intern %1, junior %0.5, mid %1,
+  senior %21, lead %11, architect %1, executive %6, **belirtilmemiş %55**.
+- **Decision:** `experience_level` yedi basamak döner: `intern`, `junior`,
+  `mid`, `senior`, `lead`, `architect`, `executive`. Yalnızca başlıktan,
+  öncelik sırasıyla (ilk eşleşen kazanır).
+- **"mid" pozitif olarak çıkarılamaz:** Korpusun %55'i işaretsiz. "Software
+  Engineer" seviye söylemez. Bu %55'i "mid" saymak, projenin her yerde
+  kaçındığı fazla iddiadır (D-011). `mid` yalnızca **açık** işaretle
+  ("mid-level", "II", "intermediate") atanır; kalan çoğunluk kendi sayaçlı
+  "belirtilmemiş" grubunda kalır.
+- **Öncelik sırası neden böyle:**
+  - Giriş işaretleri (stajyer/junior) en tepede: iş arayan için belirleyici ve
+    üst basamaklarla neredeyse hiç birlikte geçmezler. "Junior Staff Accountant"
+    → junior (kullanıcı giriş rolü arıyor).
+  - Üst basamaklar arasında en yüksek kazanır: "Senior Director" → executive,
+    "Senior Staff Engineer" → lead, "Senior Solutions Architect" → architect.
+  - `manager` merdivende **yok** (D-032 dersi): rol türüdür, dahil edilince
+    korpusun yarısı "kıdemli" görünüyordu.
+  - `lead` "Lead Generation Specialist"ten ayrılır (satış rolü).
+- **Kaynağın beyanı öncelikli:** Lever/Ashby `workplaceType` alanı çalışma
+  biçimi için zaten kullanılıyordu (D-035); kıdem başlıktan okunur çünkü ATS'ler
+  seviye için yapısal alan vermiyor.
+- **Arayüz:** Filtre çubuğunda 7 basamak + belirtilmemiş, her biri sayaçlı.
+  Kartlarda kıdem rozeti (belirtilmemiş gösterilmez — yer kaplar, bilgi
+  taşımaz). İş tanımının tam metni zaten detay görünümünde yapılandırılmış
+  gösteriliyordu (başlık→alt başlık, madde listesi).

@@ -140,20 +140,41 @@ _CONTRACT_FALSE = re.compile(r"smart contract|contract test|contract negoti|"
 # Deneyim seviyesi
 # ---------------------------------------------------------------------------
 
-#: Yalnızca **başlıktan** okunur. Açıklamada "you will work with senior
-#: engineers" geçmesi ilanı kıdemli yapmaz — başlık işverenin kendi etiketidir.
-#: ``manager`` bilinçli olarak **yok**: "Account Manager" kıdemli bir unvan
-#: değil, rol türüdür. Dahil edildiğinde korpusun %54'ü "kıdemli" görünüyordu
-#: — bir filtre yarıdan fazlasını seçiyorsa hiçbir şey seçmiyor demektir.
-#: ``lead`` ise "Lead Generation Specialist"ten ayrılır; o bir satış rolüdür.
-_SENIOR = re.compile(
-    r"\bsenior\b|\bsr\.?\b|\bstaff\b|\bprincipal\b|"
-    r"\blead\b(?!\s+(?:generation|gen\b))|\bhead of\b|"
-    r"\bdirector\b|\bvp\b|\bchief\b|kidemli", re.I)
-_ENTRY = re.compile(
-    r"\bjunior\b|\bjr\.?\b|\bintern(?:ship)?\b|\bnew grad(?:uate)?\b|"
-    r"entry[- ]level|\btrainee\b|\bapprentice\b|stajyer|yeni mezun|"
-    r"\bgraduate (?:program|scheme|role)\b", re.I)
+#: Kıdem merdiveni. Yalnızca **başlıktan** okunur — açıklamada "you will work
+#: with senior engineers" geçmesi ilanı kıdemli yapmaz; başlık işverenin kendi
+#: etiketidir.
+#:
+#: Basamaklar öncelik sırasıyla denenir, **ilk eşleşen kazanır**. Sıra rastgele
+#: değil:
+#:
+#: * Giriş işaretleri (stajyer/junior) en tepede: iş arayan için belirleyici ve
+#:   üst basamaklarla neredeyse hiç birlikte geçmezler ("Junior Staff" nadir,
+#:   olduğunda da kullanıcı giriş rolü arıyordur).
+#: * ``manager`` merdivende **yok**: "Account Manager" kıdem değil rol türüdür
+#:   ve dahil edildiğinde korpusun yarısı "kıdemli" görünüyordu (D-032). Yarıdan
+#:   fazlasını seçen bir filtre hiçbir şey seçmiyor demektir.
+#: * ``lead`` "Lead Generation Specialist"ten ayrılır — o bir satış rolüdür.
+#:
+#: Ölçüm (5803 ilan): korpusun **%55'i işaretsiz** kalıyor ("Software Engineer"
+#: seviye söylemez). Bu boşluk gizlenmez; "belirtilmemiş" gerçek bir cevaptır
+#: (D-011) ve arayüzde kendi sayaçlı grubunda gösterilir.
+_LADDER: tuple[tuple[str, "re.Pattern[str]"], ...] = (
+    ("intern", re.compile(
+        r"\bintern(?:ship)?\b|stajyer|\bstaj\b|praktikum|werkstudent|"
+        r"\btrainee\b|\bco-?op\b", re.I)),
+    ("junior", re.compile(
+        r"\bjunior\b|\bjr\.?\b|\bentry[- ]level\b|\bnew grad(?:uate)?\b|"
+        r"yeni mezun|\bgraduate (?:program|scheme|role)\b|\bapprentice\b", re.I)),
+    ("executive", re.compile(
+        r"\bdirector\b|\bvp\b|\bvice president\b|\bchief\b|\bc[teof]o\b|"
+        r"\bhead of\b|genel mudur", re.I)),
+    ("architect", re.compile(r"\barchitect\b|\bmimar\b", re.I)),
+    ("lead", re.compile(
+        r"\bstaff\b|\bprincipal\b|\bdistinguished\b|"
+        r"\blead\b(?!\s+(?:generation|gen\b))", re.I)),
+    ("senior", re.compile(r"\bsenior\b|\bsr\.?\b|\bsnr\b|kidemli", re.I)),
+    ("mid", re.compile(r"\bmid[- ]?level\b|\bintermediate\b|\bii\b", re.I)),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +183,7 @@ class JobMeta:
     work_arrangement: str | None = None
     #: part_time | contract | internship | None(belirtilmemiş)
     employment_type: str | None = None
-    #: senior | entry | None(belirtilmemiş)
+    #: intern|junior|mid|senior|lead|architect|executive | None(belirtilmemiş)
     experience_level: str | None = None
 
 
@@ -197,11 +218,9 @@ def _employment(title: str, text: str) -> str | None:
 
 
 def _experience(title: str) -> str | None:
-    # Giriş seviyesi önce: "Junior Lead" gibi bir başlıkta giriş baskındır.
-    if _ENTRY.search(title):
-        return "entry"
-    if _SENIOR.search(title):
-        return "senior"
+    for level, pat in _LADDER:
+        if pat.search(title):
+            return level
     return None
 
 

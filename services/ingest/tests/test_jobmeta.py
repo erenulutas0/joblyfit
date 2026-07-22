@@ -135,21 +135,27 @@ def test_full_time_is_never_claimed():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("title", [
-    "Senior Software Engineer", "Sr. Data Analyst", "Staff Engineer",
-    "Principal Scientist", "Head of Marketing", "Director of Sales",
-    "Kıdemli Yazılım Geliştirici",
+@pytest.mark.parametrize(("title", "level"), [
+    ("Software Engineering Intern", "intern"),
+    ("Stajyer Mühendis", "intern"),
+    ("Junior Developer", "junior"),
+    ("New Graduate Engineer", "junior"),
+    ("Entry-Level Analyst", "junior"),
+    ("Software Engineer II", "mid"),
+    ("Mid-Level Designer", "mid"),
+    ("Senior Software Engineer", "senior"),
+    ("Sr. Data Analyst", "senior"),
+    ("Kıdemli Yazılım Geliştirici", "senior"),
+    ("Staff Engineer", "lead"),
+    ("Principal Scientist", "lead"),
+    ("Engineering Lead", "lead"),
+    ("Solutions Architect", "architect"),
+    ("Head of Marketing", "executive"),
+    ("Director of Sales", "executive"),
+    ("VP of Engineering", "executive"),
 ])
-def test_detects_senior(title):
-    assert detect(title=title).experience_level == "senior"
-
-
-@pytest.mark.parametrize("title", [
-    "Junior Developer", "Software Engineering Intern", "New Graduate Engineer",
-    "Entry-Level Analyst", "Stajyer Mühendis",
-])
-def test_detects_entry(title):
-    assert detect(title=title).experience_level == "entry"
+def test_detects_ladder_level(title, level):
+    assert detect(title=title).experience_level == level
 
 
 @pytest.mark.parametrize("title", ["Account Manager", "Product Manager",
@@ -157,20 +163,29 @@ def test_detects_entry(title):
 def test_manager_is_not_a_seniority_signal(title):
     """"Manager" bir rol türüdür, kıdem değil.
 
-    Dahil edildiğinde korpusun %54'ü "kıdemli" görünüyordu. Yarıdan fazlasını
-    seçen bir filtre hiçbir şey seçmiyor demektir.
+    Dahil edildiğinde korpusun yarısı "kıdemli" görünüyordu. Yarıdan fazlasını
+    seçen bir filtre hiçbir şey seçmiyor demektir (D-032).
     """
-    assert detect(title=title).experience_level != "senior"
+    assert detect(title=title).experience_level is None
 
 
 def test_lead_generation_is_not_seniority():
     """"Lead Generation Specialist" bir satış rolüdür, lider pozisyonu değil."""
-    assert detect(title="Lead Generation Specialist").experience_level != "senior"
-    assert detect(title="Engineering Lead").experience_level == "senior"
+    assert detect(title="Lead Generation Specialist").experience_level is None
+    assert detect(title="Engineering Lead").experience_level == "lead"
 
 
-def test_entry_wins_over_senior_in_title():
-    assert detect(title="Junior Staff Accountant").experience_level == "entry"
+def test_entry_beats_higher_rungs_in_title():
+    """Giriş işaretleri üst basamakları ezer: kullanıcı "Junior Staff X"e
+    baktığında giriş rolü arıyordur, merdivenin tepesini değil."""
+    assert detect(title="Junior Staff Accountant").experience_level == "junior"
+
+
+def test_highest_rung_wins_among_high_levels():
+    """Üst basamaklar arasında en yüksek olan kazanır."""
+    assert detect(title="Senior Director").experience_level == "executive"
+    assert detect(title="Senior Staff Engineer").experience_level == "lead"
+    assert detect(title="Senior Solutions Architect").experience_level == "architect"
 
 
 def test_seniority_read_from_title_only():
