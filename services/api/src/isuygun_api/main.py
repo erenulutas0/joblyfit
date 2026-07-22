@@ -47,8 +47,11 @@ def _load_local_env() -> None:
     path = Path(__file__).resolve().parents[4] / ".env.local"
     if not path.is_file():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
+    # utf-8-sig: Windows PowerShell 5.1'in `Out-File -Encoding utf8`'i dosya
+    # başına BOM ekler; düz utf-8 ile okunursa ilk anahtarın adına görünmez bir
+    # önek yapışır ve değişken hiç eşleşmez. utf-8-sig BOM'u sessizce yer.
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip().lstrip("﻿")
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, val = line.partition("=")
