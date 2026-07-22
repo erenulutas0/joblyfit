@@ -26,7 +26,8 @@ from .taxonomy import CatalogItem, build_catalog, selectable
 
 PROFILE_ID = "local"
 
-#: Profil veritabanının yeri. `ISUYGUN_DB=:memory:` verilirse kalıcılık kapanır
+#: Profil veritabanı. Öncelik `ISUYGUN_DSN` (PostgreSQL — ADR-001 hedefi);
+#: yoksa SQLite dosyası. `ISUYGUN_DB=:memory:` kalıcılığı tamamen kapatır
 #: (testler bunu kullanır).
 def _db_path() -> Path | None:
     raw = os.environ.get("ISUYGUN_DB", "")
@@ -45,7 +46,11 @@ class Store:
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
     ingest_summary: dict = field(default_factory=dict)
-    store: ProfileStore = field(default_factory=lambda: open_store(_db_path()))
+    store: ProfileStore = field(
+        default_factory=lambda: open_store(
+            _db_path(), os.environ.get("ISUYGUN_DSN") or None
+        )
+    )
 
     def __post_init__(self) -> None:
         self.profile = self.store.load(PROFILE_ID)
@@ -54,6 +59,11 @@ class Store:
     @property
     def is_persistent(self) -> bool:
         return not isinstance(self.store, MemoryProfileStore)
+
+    @property
+    def backend(self) -> str:
+        """Hangi depo kullanılıyor: postgres | sqlite | memory."""
+        return type(self.store).__name__.replace("ProfileStore", "").lower()
 
     def _persist(self) -> None:
         self.store.save(self.profile)

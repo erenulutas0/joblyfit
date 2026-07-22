@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (profil kalıcılığı D-027; 178 test)_
+_Last updated: 2026-07-21 (PostgreSQL devrede — D-027 tamam; 183 test)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -45,7 +45,7 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 **Gerçek ilanlarla çalışan uygulama** — **151 ATS panosu** + 4 public API'den
 **~5810 ilan çekiliyor, 694'i eski olduğu için eleniyor, ~5043 gösteriliyor.**
 (ABD 2254 · Avrupa 1602 · Uzaktan 994 · Diğer 856 · Türkiye 21)
-**178 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
+**183 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
 arayüz sözdizimi · kaynak izni denetimi).
 
 Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
@@ -59,11 +59,13 @@ aşçı, bakım, kaynakçı; ABD tarafından Carvana (oto teknisyeni, nakliye), 
 
 **Bilinen sınırlar:** Türkiye hacmi hâlâ çok düşük — TR kaynakları izne bağlı
 (OPEN-19), Careerjet/Jooble kullanıcı kaydı ister (OPEN-24). Arbeitsagentur liste
-ucu açıklama metni vermiyor. Profil **kalıcı** (D-027, SQLite → `.data/profile.db`); ilan korpusu kalıcı
+ucu açıklama metni vermiyor. Profil **kalıcı** (D-027): PostgreSQL (`docker compose up -d`, port 5435) →
+SQLite → bellek düşme zinciri; ilan korpusu kalıcı
 değil ve bu bilinçli (tazelik, D-024) — `.cache/` altında 6 saat TTL. Açılış
 ~35 sn: bu extraction maliyeti, kalıcılıkla ilgisiz.
 
-Sıradaki: PostgreSQL'e geçiş (Docker gerekiyor) · Next.js'e taşıma · TR kaynakları.
+Sıradaki: Next.js'e taşıma · TR kaynakları (OPEN-19/OPEN-24) · açılış süresi
+(~35 sn, extraction maliyeti).
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.

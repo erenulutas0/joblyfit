@@ -606,7 +606,10 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 
 ## D-027 — Profil kalıcılığı SQLite ile; PostgreSQL hedef olarak duruyor
 
-- **Status:** Confirmed (2026-07-21) — **ADR-001'i değiştirmez**, sırasını değiştirir
+- **Status:** Confirmed (2026-07-21) — **ADR-001'i değiştirmez**, sırasını değiştirdi.
+  **Aynı gün tamamlandı:** Docker açılınca PostgreSQL uygulaması yazıldı ve
+  gerçek veritabanına karşı sınandı. SQLite artık düşme zincirinin ikinci
+  halkası olarak duruyor.
 - **Date:** 2026-07-21
 - **Decision:** Kullanıcı profili artık kalıcı. Depolama bir **arayüz** ardına
   alındı (`storage.ProfileStore`); bugünkü uygulaması SQLite. PostgreSQL
@@ -624,7 +627,19 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   tazelikleri vardır (D-024) ve veritabanındaki kopya kapanmış bir ilanı
   yaşatmaya devam ederdi. Korpus `.cache/` altında ayrı yönetiliyor.
   Açılış süresi hâlâ ~35 sn — bu extraction maliyeti, kalıcılıkla ilgisiz.
-- **Denetlenebilirlik:** `services/api/tests/test_storage.py`. Özellikle
+- **Uygulama sırası (D-027b):** `open_store` → PostgreSQL → SQLite → bellek.
+  `docker-compose.yml` (pgvector/pg16, port 5435 — 5432 ve 5433 doluydu) ve
+  `db/001_init.sql`. Şemada `verification` bir **CHECK** ile sınırlandı: uygulama
+  katmanı tanınmayan değeri zaten düşürüyor ama veritabanına doğrudan yazan bir
+  yol (migration, elle müdahale) o kontrolü atlar; iki katman da tutmalı.
+  pgvector uzantısı şimdiden açıldı — semantic reranking (T-006b) henüz yok ama
+  imajı sonradan değiştirmek veri taşımayı gerektirir.
+- **Denetlenebilirlik:** `services/api/tests/test_storage.py`. PostgreSQL testleri
+  `ISUYGUN_TEST_DSN` verilmezse atlanır — sahte bir veritabanına karşı test etmek
+  asıl riski (SQL lehçesi, dizi tipleri, CHECK, işlem sınırları) hiç sınamazdı.
+  `test_pg_and_sqlite_agree` iki uygulamanın aynı girdide aynı sonucu verdiğini
+  doğrular: sessiz bir semantik farkı, veritabanı değiştirildiğinde kullanıcının
+  profilinin sessizce değişmesi demektir. Ayrıca
   `test_tampered_verification_does_not_pass_the_gate`: veritabanından gelen
   tanınmayan doğrulama değeri **en güvenli** duruma düşer. Sessizce `verified`
   kabul etmek, D-012'nin bütün gate mantığını veritabanı üzerinden atlatılabilir

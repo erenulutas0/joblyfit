@@ -568,7 +568,7 @@ function viewFeed(){
   const volatile=FEED.profile_is_persistent===false?`
     <div class="notice warn" style="margin:14px 0">
       <strong>Profilin kalıcı değil.</strong> Veritabanı açılamadı; girdiğin
-      bilgiler sunucu kapanınca kaybolacak.
+      bilgiler sunucu kapanınca kaybolacak. (Depo: ${esc(FEED.profile_backend||'?')})
     </div>`:'';
   const emptyNote=FEED.profile_is_empty?`
     <div class="notice" style="margin:14px 0">

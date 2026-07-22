@@ -133,3 +133,113 @@ def test_memory_store_satisfies_the_same_contract():
     assert [f.key for f in s.load("local").facts] == ["x"]
     s.save_suggestions("local", [{"key": "y"}])
     assert s.load_suggestions("local") == [{"key": "y"}]
+
+
+# --------------------------------------------------------------------------
+# PostgreSQL — ADR-001'in hedef uygulaması
+# --------------------------------------------------------------------------
+#
+# Bu testler **gerçek bir veritabanı** ister ve `ISUYGUN_TEST_DSN` verilmezse
+# atlanır. Sahte bir PostgreSQL'e karşı test etmek, asıl riski (SQL lehçesi,
+# dizi tipleri, CHECK kısıtı, işlem sınırları) hiç sınamazdı.
+
+import os
+
+from isuygun_api.storage import PostgresProfileStore
+
+_DSN = os.environ.get("ISUYGUN_TEST_DSN")
+pg_only = pytest.mark.skipif(not _DSN, reason="ISUYGUN_TEST_DSN verilmedi")
+
+
+@pytest.fixture()
+def pg():
+    s = PostgresProfileStore(dsn=_DSN)
+    with s._db.cursor() as cur:
+        cur.execute("DELETE FROM profile_fact WHERE profile_id LIKE 'test-%'")
+        cur.execute("DELETE FROM cv_suggestion WHERE profile_id LIKE 'test-%'")
+        cur.execute("DELETE FROM profile WHERE profile_id LIKE 'test-%'")
+    yield s
+    s.close()
+
+
+@pg_only
+def test_pg_profile_round_trip(pg):
+    pg.save(CareerProfile(
+        profile_id="test-a",
+        occupation_ids=("Yazılım ve veri", "Sağlık"),
+        facts=(
+            ProfileFact(key="python", category="skill",
+                        verification="user_asserted", years=5.0),
+            ProfileFact(key="src", category="license", verification="verified"),
+        ),
+    ))
+    p = pg.load("test-a")
+    assert p.occupation_ids == ("Yazılım ve veri", "Sağlık")
+    assert {f.key: f.verification for f in p.facts} == {
+        "python": "user_asserted", "src": "verified"}
+    assert next(f for f in p.facts if f.key == "src").counts_as_present is True
+
+
+@pg_only
+def test_pg_save_is_a_full_replace(pg):
+    pg.save(CareerProfile(profile_id="test-b", facts=(
+        ProfileFact(key="a", category="skill", verification="user_asserted"),
+        ProfileFact(key="b", category="skill", verification="user_asserted"),
+    )))
+    pg.save(CareerProfile(profile_id="test-b", facts=(
+        ProfileFact(key="a", category="skill", verification="user_asserted"),
+    )))
+    assert [f.key for f in pg.load("test-b").facts] == ["a"]
+
+
+@pg_only
+def test_pg_schema_rejects_invalid_verification(pg):
+    """Şemadaki CHECK, uygulama katmanını atlayan yola karşı ikinci kattır.
+
+    D-012'nin gate mantığı yalnızca Python tarafında dursaydı, veritabanına
+    doğrudan yazan bir migration ya da elle müdahale onu geçersiz kılardı.
+    """
+    import psycopg
+
+    pg.save(CareerProfile(profile_id="test-c", facts=()))
+    with pytest.raises(psycopg.errors.CheckViolation):
+        with pg._db.cursor() as cur:
+            cur.execute(
+                "INSERT INTO profile_fact (profile_id, key, category, verification) "
+                "VALUES ('test-c', 'x', 'license', 'yes')"
+            )
+
+
+@pg_only
+def test_pg_suggestions_are_separate_from_profile(pg):
+    pg.save_suggestions("test-d", [{"key": "python", "label": "Python"}])
+    assert pg.load("test-d").facts == (), "öneri profile sızdı"
+    assert pg.load_suggestions("test-d")[0]["label"] == "Python"
+
+
+@pg_only
+def test_pg_and_sqlite_agree(tmp_path, pg):
+    """İki uygulama aynı girdide **aynı** sonucu vermeli.
+
+    Uygulamalar arasında sessiz bir semantik farkı, veritabanını değiştirdiğinde
+    kullanıcının profilinin sessizce değişmesi demektir.
+    """
+    profile = CareerProfile(
+        profile_id="test-e",
+        occupation_ids=("Lojistik ve taşımacılık",),
+        facts=(
+            ProfileFact(key="license_ce", category="license", verification="verified"),
+            ProfileFact(key="warehouse", category="experience",
+                        verification="user_asserted", years=3.0),
+        ),
+    )
+    lite = SqliteProfileStore(path=tmp_path / "cmp.db")
+    try:
+        pg.save(profile)
+        lite.save(profile)
+        a, b = pg.load("test-e"), lite.load("test-e")
+        assert a.occupation_ids == b.occupation_ids
+        assert [(f.key, f.verification, f.years) for f in a.facts] == \
+               [(f.key, f.verification, f.years) for f in b.facts]
+    finally:
+        lite.close()

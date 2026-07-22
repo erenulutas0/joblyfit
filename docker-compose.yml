@@ -1,0 +1,32 @@
+# Tek makinede çalışan runtime (ADR-001: "tek sunucu / container").
+#
+# Yalnızca veritabanı burada. Uygulama bilinçli olarak dışarıda çalışıyor:
+# geliştirme sırasında kodu her değiştirdiğinde imaj yeniden kurmak gereksiz
+# sürtünme. Dağıtımda uygulama da bir servis olarak eklenecek.
+
+services:
+  db:
+    # pgvector'lu imaj: semantic reranking (T-006b) henüz yazılmadı ama ADR-001
+    # onu öngörüyor ve imajı sonradan değiştirmek veriyi taşımayı gerektirir.
+    image: pgvector/pgvector:pg16
+    container_name: isuygun-db
+    environment:
+      POSTGRES_DB: isuygun
+      POSTGRES_USER: isuygun
+      # Yerel geliştirme parolası. Gerçek dağıtımda ortam değişkeninden gelir;
+      # bu dosyaya production parolası YAZILMAZ.
+      POSTGRES_PASSWORD: isuygun_local
+    ports:
+      - "5435:5432"   # 5432 ve 5433 bu makinede doluydu
+    volumes:
+      - isuygun_pgdata:/var/lib/postgresql/data
+      # Şema yalnızca veritabanı ilk kez oluşturulurken çalışır.
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isuygun -d isuygun"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  isuygun_pgdata:

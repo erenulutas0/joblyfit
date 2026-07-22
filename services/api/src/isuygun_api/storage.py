@@ -1,14 +1,14 @@
-"""Profil kalıcılığı — depolama arayüzü ve SQLite uygulaması.
+"""Profil kalıcılığı — depolama arayüzü ve uygulamaları.
 
 **ADR-001'in hedefi PostgreSQL'dir ve bu modül onu değiştirmez.** Burada iki
 şey ayrılır: API katmanının konuştuğu *arayüz* (:class:`ProfileStore`) ve o
 arayüzün *uygulaması*. PostgreSQL uygulaması yazıldığında değişecek tek yer
 :func:`open_store`'dur; API ve arayüz katmanı hiç dokunulmadan çalışır.
 
-SQLite'ın şimdi seçilmesinin gerekçesi teknik değil, **doğrulanabilirlik**:
-bu makinede Docker daemon çalışmıyor, dolayısıyla PostgreSQL kodu yazılsa bile
-koşturulup sınanamazdı. Çalıştığı görülmemiş altyapı kodu teslim etmek, çalışan
-bir şey teslim etmek değildir.
+Üç uygulama var ve :func:`open_store` aralarında **düşerek** seçer:
+PostgreSQL (ADR-001 hedefi) → SQLite (dosya) → bellek. Zincirin amacı,
+veritabanı erişilemez olduğunda uygulamanın çalışmaya devam etmesidir; ama bu
+sessiz olmaz — arayüz hangi deponun kullanıldığını gösterir.
 
 Kalıcı kılınan şey **yalnızca kullanıcı profilidir**. İlan korpusu burada
 tutulmaz: o dış kaynaktan gelir, tazeliği vardır ve `.cache/` altında ayrı
@@ -189,13 +189,100 @@ def _as_verification(value: str) -> VerificationState:
     return value if value in _VALID else "unverified"  # type: ignore[return-value]
 
 
-def open_store(path: Path | None) -> ProfileStore:
-    """Kalıcı depoyu açar; açılamazsa belleğe düşer.
+@dataclass
+class PostgresProfileStore:
+    """ADR-001'in hedef uygulaması.
 
-    Disk yazılamadığında uygulamanın **çalışmaya devam etmesi** tercih edilir —
-    ama bu sessiz olmaz: çağıran taraf hangi depoyu aldığını görür ve arayüzde
-    belirtir.
+    SQLite sürümüyle **aynı semantiği** taşır: kaydetme tam yazımdır, öneriler
+    ayrı tabloda durur ve tanınmayan bir doğrulama değeri en güvenli duruma
+    düşer. Şemadaki CHECK kısıtı ikinci bir kattır; ikisi de tutmalıdır çünkü
+    veritabanına doğrudan yazan bir yol uygulama katmanını atlar.
     """
+
+    dsn: str
+
+    def __post_init__(self) -> None:
+        import psycopg
+
+        self._db = psycopg.connect(self.dsn, autocommit=True)
+
+    def load(self, profile_id: str) -> CareerProfile:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "SELECT occupation_ids FROM profile WHERE profile_id = %s", (profile_id,)
+            )
+            row = cur.fetchone()
+            occupations = tuple(row[0]) if row and row[0] else ()
+
+            cur.execute(
+                "SELECT key, category, verification, years FROM profile_fact "
+                "WHERE profile_id = %s ORDER BY key",
+                (profile_id,),
+            )
+            facts = tuple(
+                ProfileFact(key=k, category=c, verification=_as_verification(v), years=y)
+                for k, c, v, y in cur.fetchall()
+            )
+        return CareerProfile(profile_id=profile_id, occupation_ids=occupations, facts=facts)
+
+    def save(self, profile: CareerProfile) -> None:
+        # Tek işlem: sil + ekle yarıda kalırsa profil boş kalmamalı.
+        with self._db.transaction(), self._db.cursor() as cur:
+            cur.execute(
+                "INSERT INTO profile (profile_id, occupation_ids) VALUES (%s, %s) "
+                "ON CONFLICT (profile_id) DO UPDATE "
+                "SET occupation_ids = EXCLUDED.occupation_ids, updated_at = now()",
+                (profile.profile_id, list(profile.occupation_ids)),
+            )
+            cur.execute(
+                "DELETE FROM profile_fact WHERE profile_id = %s", (profile.profile_id,)
+            )
+            if profile.facts:
+                cur.executemany(
+                    "INSERT INTO profile_fact "
+                    "(profile_id, key, category, verification, years) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    [(profile.profile_id, f.key, f.category, f.verification, f.years)
+                     for f in profile.facts],
+                )
+
+    def load_suggestions(self, profile_id: str) -> list[dict]:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "SELECT payload FROM cv_suggestion WHERE profile_id = %s ORDER BY key",
+                (profile_id,),
+            )
+            return [r[0] for r in cur.fetchall()]
+
+    def save_suggestions(self, profile_id: str, items: list[dict]) -> None:
+        import json
+
+        with self._db.transaction(), self._db.cursor() as cur:
+            cur.execute("DELETE FROM cv_suggestion WHERE profile_id = %s", (profile_id,))
+            if items:
+                cur.executemany(
+                    "INSERT INTO cv_suggestion (profile_id, key, payload) "
+                    "VALUES (%s, %s, %s::jsonb)",
+                    [(profile_id, i["key"], json.dumps(i, ensure_ascii=False))
+                     for i in items],
+                )
+
+    def close(self) -> None:
+        self._db.close()
+
+
+def open_store(path: Path | None, dsn: str | None = None) -> ProfileStore:
+    """Kalıcı depoyu açar; açılamazsa bir alt seçeneğe düşer.
+
+    Sıra: PostgreSQL → SQLite → bellek. Veritabanı erişilemez olduğunda
+    uygulamanın **çalışmaya devam etmesi** tercih edilir — ama bu sessiz olmaz:
+    çağıran taraf hangi depoyu aldığını görür ve arayüz onu yazar.
+    """
+    if dsn:
+        try:
+            return PostgresProfileStore(dsn=dsn)
+        except Exception:
+            pass   # SQLite'a düş
     if path is None:
         return MemoryProfileStore()
     try:
