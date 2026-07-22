@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from isuygun_core.domain import CareerProfile, ProfileFact, VerificationState
+from isuygun_ingest import search
 from isuygun_ingest.pipeline import (
     NormalizedPosting,
     run_fixture_ingest,
@@ -42,6 +43,8 @@ def _db_path() -> Path | None:
 class Store:
     postings: dict[str, NormalizedPosting] = field(default_factory=dict)
     catalog: list[CatalogItem] = field(default_factory=list)
+    #: job_id -> aranabilir metin torbası (bkz. search.haystack)
+    search_index: dict[str, str] = field(default_factory=dict)
     profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id=PROFILE_ID))
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
@@ -92,6 +95,12 @@ class Store:
 
         self.postings = {
             p.job.job_id: p for p in result["canonical_postings"].values()
+        }
+        # Arama torbaları bir kez kurulur. Her istekte 30 MB metni yeniden
+        # katlamak, arama kutusuna her harf yazıldığında bunu tekrarlamak
+        # demekti.
+        self.search_index = {
+            job_id: search.haystack(p) for job_id, p in self.postings.items()
         }
         self.catalog = build_catalog()
         self.ingest_summary = {

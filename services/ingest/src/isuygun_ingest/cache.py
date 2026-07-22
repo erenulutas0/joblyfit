@@ -29,7 +29,7 @@ from .pipeline import NormalizedPosting, RawPosting
 from .salary import Salary
 
 #: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
-_LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py")
+_LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py")
 
 
 def extraction_fingerprint() -> str:
@@ -67,6 +67,9 @@ def _posting_to_dict(p: NormalizedPosting) -> dict:
         "provenance": p.provenance,
         "salary": asdict(p.salary) if p.salary else None,
         "salary_status": p.salary_status,
+        "work_arrangement": p.work_arrangement,
+        "employment_type": p.employment_type,
+        "experience_level": p.experience_level,
     }
 
 
@@ -85,6 +88,9 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
         fetched_at=d["fetched_at"], provenance=d["provenance"],
         salary=Salary(**d["salary"]) if d.get("salary") else None,
         salary_status=d.get("salary_status", "not_stated"),
+        work_arrangement=d.get("work_arrangement"),
+        employment_type=d.get("employment_type"),
+        experience_level=d.get("experience_level"),
     )
 
 

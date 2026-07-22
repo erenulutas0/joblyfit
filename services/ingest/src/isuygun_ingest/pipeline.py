@@ -136,6 +136,11 @@ class NormalizedPosting:
     provenance: dict
     #: İlan metninden okunan maaş. `None` iki şey olabilir; ayrımı
     #: `salary_status` taşır — "yazmamış" ile "okuyamadım" aynı şey değildir.
+    #: Çalışma biçimi / istihdam türü / deneyim seviyesi. Üçü de ``None``
+    #: olabilir ve bu "belirtilmemiş" demektir — varsayılan değil.
+    work_arrangement: str | None = None
+    employment_type: str | None = None
+    experience_level: str | None = None
     salary: object | None = None
     #: found | not_stated | unreadable
     salary_status: str = "not_stated"
@@ -251,8 +256,10 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
 
         reqs = extract_requirements(raw.title, raw.description)
         occupation = raw.occupation_id or infer_occupation(raw.title, reqs)
+    from . import jobmeta as _jm
     from . import salary as _sal
 
+    _meta = _jm.detect(title=raw.title, city=raw.city, description=raw.description)
     _salary = _sal.extract(raw.description)
     _salary_status = (
         "found" if _salary
@@ -276,6 +283,9 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
         city_key=" ".join(_words(raw.city)),
         content_fingerprint=_fingerprint(raw.description),
         job_text=raw.description,
+        work_arrangement=_meta.work_arrangement,
+        employment_type=_meta.employment_type,
+        experience_level=_meta.experience_level,
         salary=_salary,
         salary_status=_salary_status,
         url=raw.url,

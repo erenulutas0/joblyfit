@@ -730,3 +730,90 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   sayfa donuyordu; artımlı gösterimle **5.241** düğüm.
 - **Kırpma sessiz değildir:** Gizlenen ilan sayısı yazılır. Sessizce kırpmak
   kullanıcıya "hepsi bu" demek olurdu.
+
+---
+
+## D-031 — Tam metin araması sunucuda; operatörlerle daraltılabilir
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Arama yalnızca başlık, işveren, şehir ve şart önizlemesine
+  bakıyordu. Sözlükte olmayan ama ilan metninde geçen terimler ("forklift",
+  "SAP", "kaynakçı") hiç bulunamıyordu — kullanıcı aradığı işin **var**
+  olduğunu bilmeden "sonuç yok" görüyordu. Ölçüldü: "forklift" 0 sonuç
+  veriyordu, gerçekte 13 ilan var.
+- **Decision:** Tam metin araması sunucuda yapılır; `/api/search` yalnızca
+  eşleşen ilan kimliklerini döner. Diğer filtreler istemcide anında çalışmaya
+  devam eder ve bu kümeyle kesiştirilir.
+- **Reason:** Açıklamalar toplam **30 MB**. Tarayıcıya göndermek anlamsız;
+  sunucuda tam korpus taraması **19 ms** sürüyor. Buna karşılık şehir/bant/
+  bölge filtreleri istemcide kalmalı — her tuş vuruşunda ağa çıkmak, hâlihazırda
+  anında olan bir şeyi yavaşlatırdı.
+- **Operatörler:** `"tam öbek"`, `-dışla`, çoklu kelime (VE mantığı). Dışlama
+  özellikle işe yarıyor: "engineer -senior" 2771 sonucu 1418'e indiriyor.
+  Sorgunun **nasıl anlaşıldığı** kullanıcıya geri gösterilir — operatörü yanlış
+  yazdığında sessizce başka bir arama yapılmış olmasın.
+- **Consequence:** Arama torbaları açılışta bir kez kurulur; her istekte 30 MB
+  metni yeniden katlamak, arama kutusuna her harf yazıldığında bunu tekrarlamak
+  demekti. İlan metni 8000 karakterde kesilir: kuyruk genelde hukuki metin ve
+  eşit fırsat beyanıdır, oradan gelen eşleşme alakasızdır.
+- **Yarış koşulu:** İstemci `searchSeq` ile geç dönen eski yanıtı yok sayar;
+  yoksa hızlı yazarken liste sorguyla alakasız görünebilirdi.
+
+---
+
+## D-032 — Üç yeni eksen: çalışma biçimi, deneyim, istihdam türü
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Kullanıcı "uzaktan çalışabileceğim işler" diye arıyordu ve bunu
+  serbest metinle yapmak zorundaydı. Ölçüm: korpusun %27'si uzaktan, %13'ü
+  hibrit işareti taşıyor — filtre olmayı fazlasıyla hak eden bir eksen.
+- **Decision:** `work_arrangement` (remote/hybrid/onsite), `experience_level`
+  (senior/entry), `employment_type` (part_time/contract/internship) çıkarılır.
+  Üçü de `None` olabilir ve **bu "belirtilmemiş" demektir, varsayılan değil**.
+- **Reason (bilinmiyor ≠ varsayılan):** İşaret yoksa "ofisten" demek, ilanın
+  söylemediği bir şeyi söylemiş gibi göstermek olurdu (D-011'in aynı mantığı).
+  "Belirtilmemiş" arayüzde kendi seçeneği olarak sayaçlı gösterilir; gizlenmesi
+  kullanıcıya yanlış bir bütünlük hissi verirdi.
+- **Reason (tam zamanlı çıkarılmaz):** Neredeyse hiçbir ilan yazmıyor çünkü
+  varsayılan. Yazmayanı tam zamanlı saymak kanıt değil varsayımdır.
+- **Yanlış pozitifler — hepsi gerçek korpusta yakalandı:**
+  1. `remote`/`hybrid`/`contract` yazılım ilanlarında **teknik terim**:
+     "remote server", "hybrid cloud", "smart contract". Çıplak kelime yetmez,
+     kalıp aranır.
+  2. Şirketin **politika cümlesi** ("fully office-based, fully remote, or
+     hybrid") o ilanın biçimi sanılıyordu. Seçenek listesi içindeki eşleşme
+     sayılmaz — ama kontrol **cümle** düzeyinde yapılır: sabit karakter
+     penceresi, hemen ardından gelen gerçek beyanı da eliyordu (testle
+     yakalandı).
+  3. Hibrit önce bakılır: hibrit ilanlar "remote" kelimesini de kullanır
+     ("2 days remote"). Ters sıra, haftada 3 gün ofise gitmesi gereken bir işi
+     "uzaktan" gösterirdi — kullanıcı taşınma kararı bile verebilir.
+  4. `manager` kıdem işareti **değil**: "Account Manager" rol türüdür. Dahil
+     edilince korpusun %54'ü "kıdemli" görünüyordu; yarıdan fazlasını seçen
+     filtre hiçbir şey seçmiyor demektir. Düzeltilince %38.
+  5. `lead` "Lead Generation Specialist"ten ayrılır — o bir satış rolüdür.
+- **Performans:** Ucuz alt dize sondası (sözlükteki iki aşamalı desenin aynısı)
+  ve Türkçe karakter sondası ile 13.4 sn → **9.4 sn**, sonuçlar birebir aynı.
+- **Consequence:** `jobmeta.py` çıkarım mantığıdır, önbellek parmak izine
+  eklendi (D-028).
+
+---
+
+## D-033 — Asgari maaş filtresi tek para birimi içinde; kayıtlı aramalar
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Decision (a):** Asgari maaş eşiği ancak bir para birimi seçildiğinde
+  etkinleşir. Eşik ilanın **alt sınırına** uygulanır.
+- **Reason:** Kur çevirisi yapmadan 100.000 USD ile 100.000 TRY
+  karşılaştırılamaz; çeviri yapmak D-029'un reddettiği uydurma sayıyı üretir.
+  Alt sınır seçildi çünkü "en az 80.000" diyen kullanıcıya aralığı 60–120 bin
+  olan ilanı göstermek, ona 80 bin garanti edilmiş izlenimi verirdi.
+- **Decision (b):** Kullanıcı kurduğu aramayı adıyla kaydedip tek tıkla geri
+  getirebilir. Ad, filtrelerden otomatik önerilir ("uzaktan · kıdemli").
+- **Neden `localStorage`:** Bunlar kariyer verisi değil arayüz tercihi; profil
+  veritabanına tablo eklemek orantısız olurdu. Eski kayıtlarda bulunmayan
+  alanlar geri yüklenirken varsayılana düşer — yoksa yeni bir filtre
+  eklendiğinde eski kayıtlar `undefined` yazardı.

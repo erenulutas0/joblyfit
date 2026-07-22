@@ -197,6 +197,17 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
   background:var(--match-soft); padding:2px 8px; border-radius:5px}
 .pay.none{color:var(--ink-4); background:var(--paper-2); font-weight:500}
 .pay.unread{color:var(--unknown); background:var(--unknown-soft); font-weight:500}
+.frow.hint{border-top:0; padding-top:0; margin-top:-2px}
+.frow.hint .muted{font-size:12px}
+.frow.hint code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px;
+  background:var(--paper-2); border:1px solid var(--line-1); border-radius:4px; padding:1px 5px}
+.sq{font-size:11.5px; color:var(--accent); font-weight:600; margin-left:auto}
+.frow.saved{border-top:1px dashed var(--line-1); margin-top:4px}
+.savedChip{display:inline-flex; align-items:center; gap:2px}
+.savedChip .x{border:0; background:none; cursor:pointer; color:var(--ink-4);
+  font-size:15px; line-height:1; padding:2px 5px; border-radius:4px}
+.savedChip .x:hover{color:var(--unmet); background:var(--paper-2)}
+.chip.save{border-style:dashed}
 .moreWrap{display:flex; align-items:center; gap:12px; justify-content:center;
   padding:18px 0 6px}
 .moreBtn{font:inherit; font-weight:650; font-size:13px; cursor:pointer;
@@ -398,7 +409,25 @@ tr:last-child td{border-bottom:0}
 <script>
 const API='/api';
 let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null;
-const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match', pay:''};
+const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match',
+         pay:'', work:'', exp:'', etype:'', cur:'', minpay:''};
+
+/** Sunucudan gelen tam metin arama sonucu (job_id kümesi) ya da null.
+ *
+ *  Arama neden sunucuda: ilan açıklamaları toplam 30 MB, tarayıcıya
+ *  gönderilemez. Diğer filtreler istemcide anında çalışmaya devam eder;
+ *  bu küme yalnızca onlarla kesiştirilir. */
+let SEARCH_IDS=null, SEARCH_INFO=null, searchTimer=null, searchSeq=0;
+
+/** Kayıtlı aramalar. `localStorage`'da tutulur: bunlar kariyer verisi değil,
+ *  arayüz tercihi — profil veritabanına tablo eklemek orantısız olurdu. */
+const SAVED_KEY='isuygun.savedSearches';
+function loadSaved(){
+  try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]'); }catch(e){ return []; }
+}
+function storeSaved(list){
+  try{ localStorage.setItem(SAVED_KEY, JSON.stringify(list)); }catch(e){}
+}
 
 /** Tek seferde basılan kart sayısı.
  *
@@ -484,11 +513,54 @@ function matches(j){
   if(F.employer && j.employer!==F.employer) return false;
   if(F.band==='match' && !j.band) return false;
   if(F.band==='strong' && !['strong','good'].includes(j.band)) return false;
+  if(F.work && (j.work_arrangement||'unspecified')!==F.work) return false;
+  if(F.exp && (j.experience_level||'unspecified')!==F.exp) return false;
+  if(F.etype && j.employment_type!==F.etype) return false;
+  if(F.cur && j.salary_currency!==F.cur) return false;
+  // Asgari maaş yalnızca para birimi seçiliyken uygulanır; kur çevirisi
+  // yapmadan 100.000 USD ile 100.000 TRY karşılaştırılamaz (D-029).
+  if(F.cur && F.minpay && !(j.salary_min_yearly>=Number(F.minpay))) return false;
   if(F.q){
+    // Sunucu yanıtı geldiyse o belirleyicidir (ilan metnini de görür).
+    // Gelmediyse yerel alanlarda arayarak devam ederiz — yazarken liste
+    // boşalıp dolmasın diye.
+    if(SEARCH_IDS) return SEARCH_IDS.has(j.job_id);
     const hay=fold(`${j.title} ${j.employer} ${j.city} ${(j.top_requirements||[]).join(' ')}`);
     if(!fold(F.q).split(/\s+/).filter(Boolean).every(w=>hay.includes(w))) return false;
   }
   return true;
+}
+
+/** Sunucu tarafı aramayı tetikler (gecikmeli).
+ *
+ *  `searchSeq` yarış koşulu içindir: kullanıcı hızlı yazarken geç dönen eski
+ *  yanıt yeni sonucun üstüne yazabilir ve liste sorguyla alakasız görünür. */
+/** Kaydederken önerilecek ad — kullanıcı boş bir kutuyla karşılaşmasın. */
+function suggestSearchName(){
+  const parts=[];
+  if(F.q) parts.push(F.q);
+  if(F.cluster) parts.push(F.cluster);
+  if(F.work) parts.push({remote:'uzaktan',hybrid:'hibrit',onsite:'ofisten',
+                         unspecified:'biçimi belirsiz'}[F.work]);
+  if(F.city) parts.push(F.city);
+  if(F.exp) parts.push({senior:'kıdemli',entry:'giriş',unspecified:''}[F.exp]);
+  return parts.filter(Boolean).join(' · ') || 'Aramam';
+}
+
+function runSearch(){
+  clearTimeout(searchTimer);
+  const q=F.q.trim();
+  if(!q){ SEARCH_IDS=null; SEARCH_INFO=null; return; }
+  const seq=++searchSeq;
+  searchTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch('/api/search?q='+encodeURIComponent(q));
+      const d=await r.json();
+      if(seq!==searchSeq) return;           // eskimiş yanıt
+      SEARCH_IDS=new Set(d.job_ids); SEARCH_INFO=d;
+      repaintFeed();
+    }catch(e){ /* sunucu arama veremezse yerel arama sürer */ }
+  },220);
 }
 
 function card(j){
@@ -531,12 +603,46 @@ function card(j){
   </article>`;
 }
 
+/** Sayaçlı bir filtre satırı.
+ *
+ *  Sıfır ilan içeren seçenek **hiç gösterilmez**: tıklayınca boş liste veren
+ *  bir filtre, olmayan bir vaattir. `skipEmpty` ise ekseni tamamen gizler —
+ *  korpusta hiç yarı zamanlı iş yoksa o satır yer kaplamamalı.
+ */
+function axisRow(label, key, counts, labels, skipEmpty){
+  if(!counts) return '';
+  const opts=Object.keys(labels).filter(k=>counts[k]>0);
+  if(!opts.length || (skipEmpty && !opts.some(k=>counts[k]>0))) return '';
+  return `<div class="frow">
+    <span class="fl-label">${label}</span>
+    <button class="chip" data-axis="${key}" data-val="" aria-pressed="${F[key]===''}">Tümü</button>
+    ${opts.map(k=>`<button class="chip" data-axis="${key}" data-val="${k}"
+      aria-pressed="${F[key]===k}">${labels[k]} <b style="opacity:.7">${counts[k]}</b></button>`).join('')}
+  </div>`;
+}
+
+/** Kayıtlı aramalar şeridi. Kullanıcının kendi kurduğu arama, tek tıkla geri
+ *  gelir — "kendine göre özelleştirme" bunun için var. */
+function savedRow(){
+  const list=loadSaved();
+  return `<div class="frow saved">
+    <span class="fl-label">Aramalarım</span>
+    ${list.length?list.map((s,i)=>
+      `<span class="savedChip"><button class="chip" data-load="${i}">${esc(s.name)}</button>
+       <button class="x" data-del="${i}" title="Sil" aria-label="${esc(s.name)} aramasını sil">×</button></span>`
+      ).join(''):'<span class="muted" style="font-size:12.5px">Henüz kayıtlı arama yok.</span>'}
+    <button class="chip save" data-save="1" style="margin-left:auto">＋ Bu aramayı kaydet</button>
+  </div>`;
+}
+
 function filterBar(){
   const fx=FEED.facets||{};
   const opt=(list,cur)=>list.map(v=>
     `<option value="${esc(v)}"${v===cur?' selected':''}>${esc(v)}</option>`).join('');
   const bands=[['','Tümü'],['match','Değerlendirilenler'],['strong','Güçlü / iyi']];
   const regs=fx.regions||[];
+  // Para birimleri ilan sayısına göre: kullanıcı önce baskın olanı görsün.
+  const curs=Object.entries(fx.currencies||{}).sort((a,b)=>b[1]-a[1]);
   return `<div class="filters">
     ${regs.length?`<div class="frow">
       <span class="fl-label">Bölge</span>
@@ -545,10 +651,20 @@ function filterBar(){
         aria-pressed="${F.region===r.name}">${esc(r.name)} <b style="opacity:.7">${r.count}</b></button>`).join('')}
     </div>`:''}
     <div class="frow">
-      <div class="search"><input id="fq" type="search" placeholder="Pozisyon, şirket veya beceri ara…"
+      <div class="search"><input id="fq" type="search"
+        placeholder="İlan metninde ara — &quot;ön muhasebe&quot;, forklift, -stajyer…"
         value="${esc(F.q)}"></div>
       <select id="fcity"><option value="">Tüm şehirler</option>${opt(fx.cities||[],F.city)}</select>
       <select id="femp"><option value="">Tüm işverenler</option>${opt(fx.employers||[],F.employer)}</select>
+    </div>
+    <div class="frow hint">
+      <span class="fl-label"></span>
+      <span class="muted">Arama ilanın <strong>tam metnini</strong> tarar.
+        <code>"tam öbek"</code> · <code>-dışla</code> · birden çok kelime yazarsan
+        hepsi geçmeli.</span>
+      ${SEARCH_INFO&&F.q?`<span class="sq">${
+        SEARCH_INFO.phrases.map(p=>`öbek: “${esc(p)}”`).join(' ')}
+        ${SEARCH_INFO.excluded.map(x=>`dışlanan: ${esc(x)}`).join(' ')}</span>`:''}
     </div>
     <div class="frow">
       <span class="fl-label">Alan</span>
@@ -556,6 +672,12 @@ function filterBar(){
       ${(fx.clusters||[]).map(c=>
         `<button class="chip" data-cluster="${esc(c)}" aria-pressed="${F.cluster===c}">${esc(c)}</button>`).join('')}
     </div>
+    ${axisRow('Çalışma', 'work', fx.arrangements, {
+      remote:'Uzaktan', hybrid:'Hibrit', onsite:'Ofisten', unspecified:'Belirtilmemiş'})}
+    ${axisRow('Deneyim', 'exp', fx.experience_levels, {
+      senior:'Kıdemli', entry:'Giriş seviyesi', unspecified:'Belirtilmemiş'})}
+    ${axisRow('Çalışma türü', 'etype', fx.employment_types, {
+      part_time:'Yarı zamanlı', contract:'Sözleşmeli', internship:'Staj'}, true)}
     <div class="frow">
       <span class="fl-label">Durum</span>
       ${bands.map(([v,l])=>
@@ -577,9 +699,23 @@ function filterBar(){
       </select>
       <button class="chip" data-clear="1" style="margin-left:auto">Filtreleri temizle</button>
     </div>
+    ${curs.length?`<div class="frow">
+      <span class="fl-label">Maaş eşiği</span>
+      <select id="fcur">
+        <option value="">Para birimi seç…</option>
+        ${curs.map(([c,n])=>`<option value="${c}"${F.cur===c?' selected':''}>${c} (${n})</option>`).join('')}
+      </select>
+      <input id="fminpay" type="number" inputmode="numeric" min="0" step="5000"
+        placeholder="en az (yıllık)" value="${esc(F.minpay)}"
+        ${F.cur?'':'disabled'} style="width:150px">
+      <span class="muted" style="font-size:12px">${F.cur
+        ? 'İlanın <strong>alt sınırı</strong> bu değere eşit veya üstündeyse gösterilir.'
+        : 'Kur çevirisi yapmıyoruz; eşik ancak tek para birimi içinde anlamlı olur.'}</span>
+    </div>`:''}
     <div class="frow" style="border-top:0; padding-top:0; margin-top:6px">
       <span class="fcount" id="fcount" style="margin-left:0"></span>
     </div>
+    ${savedRow()}
   </div>`;
 }
 
@@ -1069,10 +1205,19 @@ function repaintFeed(){
 function wireFeed(){
   const q=$('#fq');
   if(q){
-    q.oninput=()=>{F.q=q.value; const p=q.selectionStart; repaintFeed();
+    q.oninput=()=>{F.q=q.value; runSearch(); const p=q.selectionStart; repaintFeed();
       const n=$('#fq'); if(n){n.focus(); n.setSelectionRange(p,p)}};
   }
   const c=$('#fcity'); if(c) c.onchange=()=>{F.city=c.value; repaintFeed()};
+  const cu=$('#fcur'); if(cu) cu.onchange=()=>{
+    F.cur=cu.value;
+    if(!F.cur) F.minpay='';       // para birimi yoksa eşik anlamsız
+    repaintFeed();
+  };
+  const mp=$('#fminpay'); if(mp) mp.oninput=()=>{
+    F.minpay=mp.value; const pos=mp.selectionStart; repaintFeed();
+    const n=$('#fminpay'); if(n){n.focus(); try{n.setSelectionRange(pos,pos)}catch(e){}}
+  };
   const e=$('#femp'); if(e) e.onchange=()=>{F.employer=e.value; repaintFeed()};
   const s=$('#fsort'); if(s) s.onchange=()=>{F.sort=s.value; repaintFeed()};
   const fc=$('#fcount');
@@ -1104,10 +1249,33 @@ document.addEventListener('click',async ev=>{
     if(mb.dataset.more==='ev') shownEv+=PAGE; else shownUn+=PAGE;
     repaintFeed(); return;
   }
+  const ax=ev.target.closest('[data-axis]');
+  if(ax){ F[ax.dataset.axis]=ax.dataset.val; repaintFeed(); return; }
+
+  const sv=ev.target.closest('[data-save],[data-load],[data-del]');
+  if(sv){
+    const list=loadSaved();
+    if(sv.dataset.save){
+      const name=(prompt('Bu aramaya bir ad ver:', suggestSearchName())||'').trim();
+      if(name){ list.push({name, F:{...F}}); storeSaved(list); }
+    } else if(sv.dataset.load!==undefined){
+      const s=list[Number(sv.dataset.load)];
+      // Eski kayıtlarda olmayan alanlar için varsayılanlar korunur, yoksa
+      // yeni bir filtre eklendiğinde eski kayıtlar `undefined` yazardı.
+      if(s) Object.keys(F).forEach(k=>{ F[k]=s.F[k]!==undefined?s.F[k]:''; });
+      runSearch();
+    } else {
+      list.splice(Number(sv.dataset.del),1); storeSaved(list);
+    }
+    repaintFeed(); return;
+  }
+
   const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-pay],[data-clear]');
   if(chip){
     if(chip.dataset.clear!==undefined){
-      Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:'',pay:''});
+      Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:'',pay:'',
+                       work:'',exp:'',etype:'',cur:'',minpay:''});
+      SEARCH_IDS=null; SEARCH_INFO=null;
       return repaintFeed();
     }
     if(chip.dataset.age!==undefined) F.age=chip.dataset.age;

@@ -266,3 +266,51 @@ def test_openapi_schema_is_generated(client):
     schema = client.get("/openapi.json").json()
     assert "FeedOut" in schema["components"]["schemas"]
     assert "/api/feed" in schema["paths"]
+
+
+# ---------------------------------------------------------------------------
+# Arama ucu (D-031)
+# ---------------------------------------------------------------------------
+
+
+def test_search_returns_job_ids(client):
+    r = client.get("/api/search", params={"q": "engineer"})
+    assert r.status_code == 200
+    assert isinstance(r.json()["job_ids"], list)
+
+
+def test_empty_search_returns_nothing_not_everything(client):
+    """Boş sorgu **hiçbir şey** döner, her şeyi değil.
+
+    Her şeyi dönseydi arayüz "arama aktif" sanıp tüm listeyi filtre sonucu
+    gibi gösterirdi; sorgu kutusu boşken arama hiç uygulanmamalı.
+    """
+    assert client.get("/api/search", params={"q": ""}).json()["job_ids"] == []
+    assert client.get("/api/search", params={"q": "   "}).json()["job_ids"] == []
+
+
+def test_search_reports_how_query_was_understood(client):
+    """Operatörün nasıl anlaşıldığı geri bildirilir — kullanıcı yanlış
+    yazdığında sessizce farklı bir arama yapılmış olmasın."""
+    d = client.get("/api/search", params={"q": '"data engineer" -stajyer python'}).json()
+    assert d["phrases"] == ["data engineer"]
+    assert d["excluded"] == ["stajyer"]
+    assert d["terms"] == ["python"]
+
+
+def test_search_exclusion_narrows_results(client):
+    wide = client.get("/api/search", params={"q": "engineer"}).json()["job_ids"]
+    narrow = client.get("/api/search", params={"q": "engineer -senior"}).json()["job_ids"]
+    assert set(narrow) <= set(wide)
+
+
+def test_feed_exposes_new_axes(client):
+    d = client.get("/api/feed").json()
+    for key in ("arrangements", "experience_levels", "employment_types", "currencies"):
+        assert key in d["facets"], key
+    every = d["evaluated"] + d["unevaluated"]
+    if every:
+        j = every[0]
+        for key in ("work_arrangement", "employment_type", "experience_level",
+                    "salary_currency", "salary_min_yearly"):
+            assert key in j, key

@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from isuygun_core import build_explanation, match
 from isuygun_core.domain import JobPosting, MatchBand
-from isuygun_ingest import regions, registry
+from isuygun_ingest import regions, registry, search
 from isuygun_ingest.pipeline import age_in_days
 
 from .cv import read_cv
@@ -94,6 +94,17 @@ class JobSummary(BaseModel):
     #: found | not_stated | unreadable. "Yazmamış" ile "okuyamadım" ayrıdır:
     #: ikincisini ilkine katmak, maaşını yazan ilana haksızlık olurdu (D-029).
     salary_status: str = "not_stated"
+    #: Maaşın para birimi ve yıllık karşılığı. Asgari maaş filtresi bunları
+    #: kullanır ama **yalnızca tek para birimi içinde**: kur çevirisi yapmadan
+    #: karşılaştırma yanlış, çeviri yapmak ise uydurma olurdu (D-029).
+    salary_currency: str | None = None
+    salary_min_yearly: float | None = None
+    #: remote | hybrid | onsite | null. null "ofisten" DEĞİL, "belirtilmemiş".
+    work_arrangement: str | None = None
+    #: part_time | contract | internship | null (tam zamanlı varsayılmaz)
+    employment_type: str | None = None
+    #: senior | entry | null
+    experience_level: str | None = None
 
 
 class JobDetail(JobSummary):
@@ -240,6 +251,47 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     return out
 
 
+def _yearly(s) -> float | None:
+    """Maaşın **alt sınırının** yıllık karşılığı.
+
+    Alt sınır seçildi: kullanıcı "en az 80.000" dediğinde, aralığı 60–120 bin
+    olan bir ilanı eşleşme saymak ona 80 bin garanti edilmiş izlenimi verirdi.
+    """
+    if s is None:
+        return None
+    from isuygun_ingest.salary import _yearly_equivalent
+
+    return _yearly_equivalent(s.min_amount, s.period)
+
+
+def _axis_counts(items: list[JobSummary], field_name: str) -> dict:
+    """Bir eksenin değer sayaçları. "Belirtilmemiş" de bir değerdir ve sayılır.
+
+    Gizlenmesi kullanıcıya yanlış bir bütünlük hissi verirdi: 4395 ilanın
+    2500'ünde çalışma biçimi yazmıyorsa, bunu görmesi gerekir.
+    """
+    out: dict[str, int] = {}
+    for j in items:
+        out[getattr(j, field_name) or "unspecified"] = (
+            out.get(getattr(j, field_name) or "unspecified", 0) + 1
+        )
+    return out
+
+
+def _currency_counts(items: list[JobSummary]) -> dict:
+    """Maaşı okunan ilanların para birimi dağılımı.
+
+    Asgari maaş filtresi ancak tek para birimi içinde anlamlı: kur çevirisi
+    yapmadan 100.000 USD ile 100.000 TRY karşılaştırılamaz, çeviri yapmak ise
+    D-029'un reddettiği uydurma sayıyı üretir.
+    """
+    out: dict[str, int] = {}
+    for j in items:
+        if j.salary_status == "found" and j.salary_currency:
+            out[j.salary_currency] = out.get(j.salary_currency, 0) + 1
+    return out
+
+
 def _salary_text(posting) -> str | None:
     from isuygun_ingest.salary import format_tr
 
@@ -284,7 +336,12 @@ def _summary(posting, result, exp) -> JobSummary:
         regions=sorted(regions.classify(posting.job.city)),
         age_days=age_in_days(posting.posted_at),
         salary_text=_salary_text(posting),
+        salary_currency=getattr(getattr(posting, "salary", None), "currency", None),
+        salary_min_yearly=_yearly(getattr(posting, "salary", None)),
         salary_status=getattr(posting, "salary_status", "not_stated"),
+        work_arrangement=getattr(posting, "work_arrangement", None),
+        employment_type=getattr(posting, "employment_type", None),
+        experience_level=getattr(posting, "experience_level", None),
     )
 
 
@@ -524,12 +581,48 @@ def feed() -> FeedOut:
                 k: sum(1 for j in every if j.salary_status == k)
                 for k in ("found", "not_stated", "unreadable")
             },
+            # Eksen sayaçları. Sabit liste değil korpustan sayılır: bir seçenek
+            # sıfır ilan içeriyorsa arayüzde hiç gösterilmez — tıklayınca boş
+            # liste veren bir filtre, olmayan bir vaat demektir.
+            "arrangements": _axis_counts(every, "work_arrangement"),
+            "employment_types": _axis_counts(every, "employment_type"),
+            "experience_levels": _axis_counts(every, "experience_level"),
+            "currencies": _currency_counts(every),
             "regions": [
                 {"name": r, "count": sum(1 for j in every if r in j.regions)}
                 for r in regions.ALL
                 if any(r in j.regions for j in every)
             ],
         },
+    )
+
+
+class SearchOut(BaseModel):
+    job_ids: list[str]
+    #: Sorgunun nasıl anlaşıldığı — kullanıcı operatörü yanlış yazdıysa görsün.
+    terms: list[str] = []
+    phrases: list[str] = []
+    excluded: list[str] = []
+
+
+@app.get("/api/search", response_model=SearchOut)
+def search_jobs(q: str = "") -> SearchOut:
+    """İlan **metninde** arama.
+
+    Arayüzün diğer filtreleri istemcide anında çalışır; bu uç yalnızca tam
+    metin için var, çünkü açıklamalar toplam 30 MB ve tarayıcıya gönderilemez.
+    Dönen kimlikleri istemci kendi filtreleriyle kesiştirir.
+    """
+    parsed = search.parse(q)
+    if parsed.is_empty:
+        return SearchOut(job_ids=[])
+    ids = [
+        job_id for job_id, hay in STORE.search_index.items()
+        if search.matches(hay, parsed)
+    ]
+    return SearchOut(
+        job_ids=ids, terms=list(parsed.terms),
+        phrases=list(parsed.phrases), excluded=list(parsed.excluded),
     )
 
 
