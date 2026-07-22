@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (PostgreSQL devrede — D-027 tamam; 183 test)_
+_Last updated: 2026-07-21 (açılış 35 sn → 1.2 sn, D-028; 191 test)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -45,7 +45,7 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 **Gerçek ilanlarla çalışan uygulama** — **151 ATS panosu** + 4 public API'den
 **~5810 ilan çekiliyor, 694'i eski olduğu için eleniyor, ~5043 gösteriliyor.**
 (ABD 2254 · Avrupa 1602 · Uzaktan 994 · Diğer 856 · Türkiye 21)
-**183 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
+**191 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
 arayüz sözdizimi · kaynak izni denetimi).
 
 Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
@@ -64,8 +64,10 @@ SQLite → bellek düşme zinciri; ilan korpusu kalıcı
 değil ve bu bilinçli (tazelik, D-024) — `.cache/` altında 6 saat TTL. Açılış
 ~35 sn: bu extraction maliyeti, kalıcılıkla ilgisiz.
 
-Sıradaki: Next.js'e taşıma · TR kaynakları (OPEN-19/OPEN-24) · açılış süresi
-(~35 sn, extraction maliyeti).
+Açılış **1.2 sn** (D-028: önbellek işlenmiş kayıtları da tutuyor).
+
+Sıradaki: Next.js'e taşıma · TR kaynakları · rakip şikâyet araştırması sonrası
+sağlamlaştırma.
 
 **M1 validation gate'i** (D-010) yalnızca yukarıdaki iki madde için geçerliliğini
 koruyor; T-021…T-027 doğrulama çalışmaları devam ediyor.
@@ -152,7 +154,7 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-17 | Technology stack (D-001) | pre-build | [DECISIONS.md](DECISIONS.md) | T-012 | **Kapandı (D-001 / ADR-001, 2026-07-21)** — Python + TypeScript hibrit |
 | OPEN-22 | "Değerlendirilemedi" durumundaki ilanlar feed'de nasıl sıralanır ve gösterilir? | pre-build | [DECISIONS.md](DECISIONS.md) | T-018 | Open — D-019 bu dördüncü durumu yarattı. **Geçici çözüm:** ayrı bölümde, bant sırasına sokulmadan |
 | OPEN-23 | Profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne zaman ve nasıl kurulacak? | pre-build | [lexicon.py](services/ingest/src/isuygun_ingest/lexicon.py) | T-016 | Open — **kısmen azaltıldı:** elle yazılmış 82 terimlik paylaşılan sözlük kuruldu; ilan ve CV aynı sözlüğe eşleniyor. Serbest metin anlaşılmıyor |
-| OPEN-24 | Hangi ek ilan kaynakları eklenecek? | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** **Kısmen kapandı (D-023):** Arbeitsagentur, Arbeitnow, The Muse, Himalayas eklendi. **Açık kalan:** ücretsiz kayıt gerektirenler (Adzuna, USAJOBS, Reed) ve TR için Careerjet/Jooble |
+| OPEN-24 | Hangi ek ilan kaynakları eklenecek? **Careerjet publisher kaydı bir domain istiyor; uygulama yayına girene kadar bu kapı kapalı.** | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** **Kısmen kapandı (D-023):** Arbeitsagentur, Arbeitnow, The Muse, Himalayas eklendi. **Açık kalan:** ücretsiz kayıt gerektirenler (Adzuna, USAJOBS, Reed) ve TR için Careerjet/Jooble |
 | OPEN-25 | Registry, kaynak başına atıf / gecikme / yeniden-yayın şartlarını taşımalı mı? | pre-build | [registry.py](services/ingest/src/isuygun_ingest/registry.py) | OPEN-24 | **Kapandı (D-023, 2026-07-21)** — alanlar eklendi, testle denetleniyor |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla

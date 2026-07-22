@@ -1,0 +1,138 @@
+"""İlan önbelleği — ham **ve** işlenmiş kayıtlar.
+
+Önbellek iki ayrı maliyeti önler ve ikisinin ömrü farklıdır:
+
+* **Çekim** (~250 sn): 151 pano + 4 API, ``Crawl-delay`` uygulanarak. Ham
+  kayıtlar bunun için saklanır.
+* **Çıkarım** (~35 sn): 5810 ilanın sözlük taraması. İşlenmiş kayıtlar bunun
+  için saklanır.
+
+**Tehlikeli olan ikincisidir.** Sözlüğe bir terim eklendiğinde önbellekteki
+işlenmiş kayıtlar eski mantığı taşımaya devam eder; geliştirici değişikliğinin
+hiçbir etkisini göremez ve sebebini kodda arar. Bu yüzden çıkarım mantığının
+**parmak izi** önbellekle birlikte yazılır: `lexicon.py` veya `extract.py`
+değiştiğinde işlenmiş kayıtlar geçersiz sayılır ve ham kayıtlardan yeniden
+üretilir — yeniden çekim yapılmadan.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import asdict
+from datetime import datetime
+from pathlib import Path
+
+from isuygun_core.domain import JobPosting, Requirement
+
+from .pipeline import NormalizedPosting, RawPosting
+
+#: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
+_LOGIC_FILES = ("lexicon.py", "extract.py")
+
+
+def extraction_fingerprint() -> str:
+    """Çıkarım mantığının kimliği.
+
+    Kaynak dosyaların içeriğinden üretilir. Elle artırılan bir sürüm numarası
+    yerine bu tercih edildi: sürümü artırmayı unutmak, sessiz bayat önbellek
+    demektir ve o hatanın belirtisi ("değişikliğim işe yaramıyor") kodda
+    aranır, önbellekte değil.
+    """
+    here = Path(__file__).parent
+    h = hashlib.sha256()
+    for name in _LOGIC_FILES:
+        h.update((here / name).read_bytes())
+    return h.hexdigest()[:16]
+
+
+# --------------------------------------------------------------------------
+# Serileştirme
+# --------------------------------------------------------------------------
+
+
+def _posting_to_dict(p: NormalizedPosting) -> dict:
+    return {
+        "job": {**asdict(p.job),
+                "requirements": [asdict(r) for r in p.job.requirements]},
+        "employer_key": p.employer_key,
+        "title_key": p.title_key,
+        "city_key": p.city_key,
+        "content_fingerprint": p.content_fingerprint,
+        "job_text": p.job_text,
+        "url": p.url,
+        "posted_at": p.posted_at,
+        "fetched_at": p.fetched_at,
+        "provenance": p.provenance,
+    }
+
+
+def _posting_from_dict(d: dict) -> NormalizedPosting:
+    job = d["job"]
+    return NormalizedPosting(
+        job=JobPosting(
+            job_id=job["job_id"], title=job["title"], employer=job["employer"],
+            city=job["city"], occupation_id=job["occupation_id"], source=job["source"],
+            requirements=tuple(Requirement(**r) for r in job["requirements"]),
+            is_public_sector=job["is_public_sector"],
+        ),
+        employer_key=d["employer_key"], title_key=d["title_key"],
+        city_key=d["city_key"], content_fingerprint=d["content_fingerprint"],
+        job_text=d["job_text"], url=d["url"], posted_at=d["posted_at"],
+        fetched_at=d["fetched_at"], provenance=d["provenance"],
+    )
+
+
+# --------------------------------------------------------------------------
+# Okuma / yazma
+# --------------------------------------------------------------------------
+
+
+def read(path: Path, max_age_hours: float) -> dict | None:
+    """Önbelleği okur.
+
+    Döner: ``{"raws": [...], "postings": [...] | None, "meta": {...}}`` ya da
+    ``None`` (yok / süresi dolmuş / bozuk).
+
+    ``postings`` yalnızca çıkarım parmak izi tutuyorsa doldurulur. Tutmuyorsa
+    ham kayıtlar döner ve çağıran taraf yeniden normalize eder — yeniden
+    **çekim** yapmadan.
+    """
+    if not path.is_file():
+        return None
+    try:
+        blob = json.loads(path.read_text(encoding="utf-8"))
+        fetched_at = datetime.fromisoformat(blob["fetched_at"])
+    except Exception:
+        return None   # bozuk önbellek sessizce yok sayılır, hata değildir
+
+    if (datetime.now() - fetched_at).total_seconds() > max_age_hours * 3600:
+        return None
+
+    fresh_logic = blob.get("extraction_fingerprint") == extraction_fingerprint()
+    try:
+        raws = [RawPosting(**r) for r in blob["raws"]]
+        postings = (
+            [_posting_from_dict(p) for p in blob.get("postings", [])]
+            if fresh_logic and blob.get("postings") else None
+        )
+    except Exception:
+        return None
+
+    return {"raws": raws, "postings": postings, "meta": blob.get("meta", {})}
+
+
+def write(path: Path, *, raws: list[RawPosting],
+          postings: list[NormalizedPosting], meta: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "fetched_at": datetime.now().isoformat(),
+        "extraction_fingerprint": extraction_fingerprint(),
+        "meta": meta,
+        "raws": [asdict(r) for r in raws],
+        "postings": [_posting_to_dict(p) for p in postings],
+    }
+    # Önce geçici dosyaya yaz: yazım yarıda kalırsa mevcut önbellek bozulmasın.
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)

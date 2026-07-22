@@ -644,3 +644,33 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   tanınmayan doğrulama değeri **en güvenli** duruma düşer. Sessizce `verified`
   kabul etmek, D-012'nin bütün gate mantığını veritabanı üzerinden atlatılabilir
   yapardı.
+
+---
+
+## D-028 — Önbellek işlenmiş kayıtları da tutar; çıkarım parmak iziyle geçersizleşir
+
+- **Status:** Confirmed (2026-07-21)
+- **Date:** 2026-07-21
+- **Decision:** `.cache/ats_postings.json` artık **hem ham hem işlenmiş** kayıt
+  tutar ve yanında **çıkarım mantığının parmak izini** taşır (`lexicon.py` +
+  `extract.py` içeriğinin hash'i). Parmak izi tutmuyorsa işlenmiş kayıtlar
+  atılır, ham kayıtlar korunur.
+- **Reason:** Açılışın 35 saniyesinin **tamamı** extraction'dı — 5810 ilanın
+  sözlük taraması her açılışta baştan yapılıyordu. Ölçüm: ham önbellekle 35 sn,
+  işlenmiş önbellekle **1.2 sn**.
+- **Asıl mesele hız değil, geçersizleştirme.** Sözlüğe bir terim eklendiğinde
+  önbellekteki işlenmiş kayıtlar eski mantığı taşımaya devam etseydi,
+  geliştirici değişikliğinin hiçbir etkisini göremezdi. O hatanın belirtisi
+  ("değişikliğim işe yaramıyor") insanı **kodda** arattırır, önbellekte değil —
+  saatler kaybettirebilecek bir sessiz hata.
+- **Alternatives:** Elle artırılan sürüm numarası (reddedildi — artırmayı
+  unutmak tam da yukarıdaki sessiz hatayı üretir). Yalnızca işlenmiş kayıtları
+  tutmak (reddedildi — mantık değiştiğinde yeniden **çekim** gerekirdi: 195 sn
+  yerine 43 sn).
+- **Consequence:** Önbellek ~70 MB (ham + işlenmiş). Disk ucuz, 150 saniye
+  değil. Yazım geçici dosya üzerinden yapılır: yarıda kalan bir yazım eski
+  önbelleği de kaybettirseydi sonuç gereksiz bir tam çekim olurdu.
+  Ölçülen: soğuk 195 sn · sıcak **1.2 sn** · mantık değişmiş 43 sn.
+- **Denetlenebilirlik:** `services/ingest/tests/test_cache.py`, özellikle
+  `test_changed_extraction_logic_invalidates_processed_records` ve
+  `test_partial_write_does_not_destroy_existing_cache`.

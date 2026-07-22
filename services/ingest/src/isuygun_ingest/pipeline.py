@@ -512,36 +512,9 @@ def _cache_path(root: Path | None = None) -> Path:
     return (root or REPO_ROOT) / ".cache" / "ats_postings.json"
 
 
-def _read_cache(max_age_hours: float) -> list[RawPosting] | None:
-    """Taze önbellek varsa ham kayıtları döndürür.
-
-    Önbellek bir performans önlemidir, kaynağın yerine geçmez: süresi dolduğunda
-    yeniden çekilir ve `--reload` olmadan çalışan sunucuda yeniden başlatma
-    dakikalar yerine saniyeler sürer.
-    """
-    path = _cache_path()
-    if not path.is_file():
-        return None
-    try:
-        blob = json.loads(path.read_text(encoding="utf-8"))
-        fetched_at = datetime.fromisoformat(blob["fetched_at"])
-        if (datetime.now() - fetched_at).total_seconds() > max_age_hours * 3600:
-            return None
-        return [RawPosting(**r) for r in blob["postings"]]
-    except Exception:
-        return None   # bozuk önbellek sessizce yok sayılır, hata olarak değil
-
-
-def _write_cache(raws: list[RawPosting], meta: dict) -> None:
-    from dataclasses import asdict
-
-    path = _cache_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
-        "fetched_at": datetime.now().isoformat(),
-        "meta": meta,
-        "postings": [asdict(r) for r in raws],
-    }, ensure_ascii=False), encoding="utf-8")
+# Okuma/yazma :mod:`cache` modülüne taşındı; oradaki asıl mesele hız değil
+# **geçersizleştirme**: çıkarım mantığı değiştiğinde işlenmiş kayıtlar bayat
+# kalırsa, yapılan değişikliğin etkisi hiç görünmez.
 
 
 def run_live_ingest(
@@ -561,21 +534,34 @@ def run_live_ingest(
     kararıdır (D-009 — pazara özgü davranış core'a gömülmez). Her ilan
     :mod:`regions` ile etiketlenir ve filtreleme arayüzde yapılır.
     """
-    cached = None if force_refresh else _read_cache(cache_hours)
-    from_cache = cached is not None
+    from . import cache as _cache
 
-    if from_cache:
-        raws, fetched_boards, errors = cached, [], []
-    else:
+    path = _cache_path()
+    cached = None if force_refresh else _cache.read(path, cache_hours)
+    from_cache = cached is not None
+    # Çıkarım mantığı değişmişse işlenmiş kayıtlar geçersizdir; ham kayıtlar
+    # yine de kullanılır — yeniden **çekim** gerekmez, yalnızca yeniden çıkarım.
+    reused_extraction = bool(cached and cached["postings"])
+
+    if cached is None:
         raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
         api_raws, api_meta, api_errors = _fetch_api_sources()
         raws.extend(api_raws)
         fetched_boards.extend(api_meta)
         errors.extend(api_errors)
-        if raws:
-            _write_cache(raws, {"boards": fetched_boards, "errors": errors})
+    else:
+        raws = cached["raws"]
+        fetched_boards = cached["meta"].get("boards", [])
+        errors = cached["meta"].get("errors", [])
 
-    normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
+    if reused_extraction:
+        normalized = cached["postings"]
+    else:
+        normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
+        if raws:
+            _cache.write(path, raws=raws, postings=normalized,
+                         meta={"boards": fetched_boards, "errors": errors})
+
     fetched_total = len(normalized)
 
     # D-024: süresi geçmiş ilan gösterilmez. Eleme sessiz değildir.
@@ -594,6 +580,7 @@ def run_live_ingest(
         "boards": fetched_boards,
         "errors": errors,
         "from_cache": from_cache,
+        "reused_extraction": reused_extraction,
         "fetched": fetched_total,
         "stale_dropped": stale_dropped,
         "max_age_days": max_age_days,
