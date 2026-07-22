@@ -1111,3 +1111,42 @@ korpusta, yanlış-birleşme denetimiyle ölçülmeli.
 - **Açık kalan (OPEN-25):** Türkiye aggregator'larının hepsi (tr.jooble.org,
   Careerjet) kayıt için **Website/domain** istiyor. Domain, Türkiye hacminin
   önündeki tek gerçek engel haline geldi.
+
+---
+
+## D-042 — Ayrımcılık kalkanı: işaretle + bilgilendir, asla hüküm verme
+
+- **Date:** 2026-07-23
+- **Status:** Accepted
+- **Bağlam ve zamanlama:** Kullanıcı Türkiye kaynağını (domain'e takılı, D-041)
+  bekletip başka bir korumaya geçmeyi seçti. Saha araştırmasının en yüksek-
+  bütünlüklü maddesi ayrımcı ilan diliydi (İş Kanunu md.5, 6701 sayılı TİHEK
+  Kanunu; TİHEK 2025'te milyonlarca TL ceza kesti).
+- **Ölçüm önce:** Mevcut korpusta (doğrudan şirket ATS'si) yalnızca 8/5803
+  ilanda kalıp var — çünkü ATS'ler EEO-uyumlu. Ayrımcı dil aggregator'larda
+  (Kariyer.net/İŞKUR = Türkiye verisi) çıkar. Yani şimdilik **dormant**.
+- **Yine de neden şimdi:** Launch pazarı Türkiye. Türkiye verisi geldiğinde
+  ilanları işaretlemeden göstermek platformun adalet duruşuna (D-005) aykırı
+  olur. Modül **aktivasyona hazır** kurulur ve gerçekçi Türkçe kalıplara karşı
+  test edilir (bizde yok ama kalıplar iyi biliniyor). Dormant ama ileri-konumlu.
+- **Decision:** `fairness.scan(title, description)` beş kategori işaretler: yaş,
+  cinsiyet, askerlik, medeni durum, ana-dili. Her biri metinden **kanıt** taşır.
+- **İlke — hüküm değil bilgilendirme (T-008):** Hiçbir ilan "yasa dışı" ilan
+  edilmez. İfade işaretlenir, kategori söylenir, "olabilir/değerlendirilebilir"
+  denir ve istisna olabileceği belirtilir. Arayüz TİHEK'e yönlendirir. Bu, D-005
+  (işe alınma olasılığı sunmama) ve D-011 (üç durumlu dürüstlük) ile aynı çizgi.
+- **Yanlış pozitif koruması (ölçüldü, 6/6 yakala · 0/6 yanlış pozitif):**
+  - Betimleyici ("genç ve dinamik ekip") ≠ şart ("35 yaş altı"); betimleyici
+    bağlamda (kültür/DEI/fırsat eşitliği) işaret düşürülür.
+  - Sayı ≠ yaş: "50-60 mühendis", "5-10 yıl" işaretlenmez; yaş yalnızca yaş
+    kelimesi yakınında.
+  - Kapsayıcı dil ("kadın mühendisleri destekliyoruz", "she will lead", DEI
+    beyanları) cinsiyet işareti üretmez — yalnızca **dışlayıcı** şart.
+- **Sertlik derecesi:** cinsiyet/yaş/askerlik = hard (açık dışlama). "native
+  speaker" = soft (gerçek dil ihtiyacı olabilir; "C1/C2 iste" kapsayıcılık
+  önerisi olarak sunulur, suçlama değil).
+- **Gerçek korpus doğrulaması:** 1 gerçek Türkçe ayrımcı ilan (Trendyol
+  Dağıtım — "erkek adaylar" + "Askerlik ile ilişiği olmayan") hem cinsiyet hem
+  askerlik yakalandı; 7 "native speaker" soft; sıfır yanlış pozitif.
+- **Denetlenebilirlik:** `services/ingest/tests/test_fairness.py`. fairness.py
+  çıkarım parmak izinde (D-028).

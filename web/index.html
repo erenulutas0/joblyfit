@@ -195,6 +195,12 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
 .card-meta .dot{color:var(--ink-4)}
 .longOpen{font-size:11.5px; font-weight:600; color:var(--unknown);
   background:var(--unknown-soft); padding:2px 8px; border-radius:5px}
+.fair-badge{font-size:11px; font-weight:700; color:var(--unmet);
+  background:var(--unmet-soft,rgba(220,60,60,.12)); border:1px solid var(--unmet);
+  padding:1px 8px; border-radius:5px; margin-left:2px}
+.fair-list{margin:8px 0 0; padding-left:18px; line-height:1.55}
+.fair-list li{margin-bottom:5px}
+.fair-ev{color:var(--ink-3); font-style:italic}
 .lvl{font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase;
   color:var(--ink-2); background:var(--paper-2); border:1px solid var(--line-1);
   padding:1px 7px; border-radius:4px; margin-left:2px}
@@ -608,6 +614,42 @@ function levelLabel(j){
   return l?`<span class="lvl">${l}</span>`:'';
 }
 
+const FAIR_CAT={age:'yaş',gender:'cinsiyet',military:'askerlik',
+  marital:'medeni durum',native_speaker:'ana dili'};
+
+/** Kartta ayrımcı-dil uyarısı — yalnızca "hard" işaretler. Kullanıcı tıklamadan
+ *  görsün. Hüküm değil bir uyarı: "içerebilir". */
+function fairnessBadge(j){
+  const hard=(j.fairness_flags||[]).filter(f=>f.severity==='hard');
+  if(!hard.length) return '';
+  const cats=hard.map(f=>FAIR_CAT[f.category]||f.category).join(', ');
+  return `<span class="fair-badge" title="Bu ilan ayrımcı olabilecek bir ifade içeriyor (${esc(cats)}). Detayda haklarını gör.">⚠ ayrımcı ifade olabilir</span>`;
+}
+
+/** Detayda tam bilgilendirme — hüküm vermez, hakları hatırlatır (T-008). */
+function fairnessNotice(j){
+  const flags=j.fairness_flags||[];
+  if(!flags.length) return '';
+  const hard=flags.filter(f=>f.severity==='hard');
+  const soft=flags.filter(f=>f.severity==='soft');
+  const rows=flags.map(f=>`<li><b>${FAIR_CAT[f.category]||f.category}:</b>
+    ${esc(f.note)} <span class="fair-ev">“${esc(f.evidence)}”</span></li>`).join('');
+  const cls=hard.length?'warn':'';
+  const head=hard.length
+    ? 'Bu ilanda ayrımcı olabilecek ifadeler var'
+    : 'Kapsayıcılık notu';
+  return `<div class="sec"><h2>Adalet uyarısı</h2></div>
+    <div class="notice ${cls}" style="margin-bottom:6px">
+      <strong>${head}.</strong> Bu bir hukuki görüş <em>değildir</em> ve ilanı
+      geçersiz kılmaz — bazı şartlar yasal olabilir. Yalnızca dikkatini çekiyoruz.
+      <ul class="fair-list">${rows}</ul>
+      ${hard.length?`<div style="margin-top:8px">Ayrımcılığa uğradığını
+        düşünüyorsan başvurabilirsin:
+        <a href="https://www.tihek.gov.tr" target="_blank" rel="noopener noreferrer">TİHEK</a>
+        (Türkiye İnsan Hakları ve Eşitlik Kurumu).</div>`:''}
+    </div>`;
+}
+
 function card(j){
   const cls=j.band?BC[j.band]:'b-none';
   const bandTxt=j.band?esc(j.band_label)
@@ -628,6 +670,7 @@ function card(j){
           <span class="dot">·</span>${ageLabel(j)}
           ${payLabel(j)}
           ${longOpenLabel(j)}
+          ${fairnessBadge(j)}
           ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
           ${(j.regions||[]).filter(r=>r!=='Diğer').map(r=>
             `<span class="rgn">${esc(r)}</span>`).join('')}
@@ -946,6 +989,8 @@ async function viewJob(id){
 
       ${j.legal_eligibility_notices.length?`<div class="sec"><h2>Bilgilendirme</h2></div>
         ${j.legal_eligibility_notices.map(n=>`<div class="notice">${esc(n)}</div>`).join('')}`:''}
+
+      ${fairnessNotice(j)}
 
       ${j.description?`<div class="sec"><h2>İlanın tam metni</h2><span class="sp"></span>
           <button class="btn-2 btn-sm" id="descToggle">Tamamını aç</button></div>

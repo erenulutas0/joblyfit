@@ -153,6 +153,9 @@ class NormalizedPosting:
     salary: object | None = None
     #: found | not_stated | unreadable
     salary_status: str = "not_stated"
+    #: Ayrımcı/dışlayıcı dil işaretleri (D-042). Boş = temiz. Hüküm değil,
+    #: bilgilendirme; işaretler Türkiye/aggregator verisiyle görünür.
+    fairness_flags: tuple = ()
     #: Metin token'ları. Blok içi karşılaştırma O(n²) olduğu için her çiftte
     #: yeniden hesaplamak pahalıydı; bir kez üretilip saklanır.
     _tokens_cache: set | None = None
@@ -344,11 +347,13 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
 
         reqs = extract_requirements(raw.title, raw.description)
         occupation = raw.occupation_id or infer_occupation(raw.title, reqs)
+    from . import fairness as _fair
     from . import jobmeta as _jm
     from . import salary as _sal
 
     _meta = _jm.detect(title=raw.title, city=raw.city, description=raw.description,
                        source_arrangement=raw.arrangement)
+    _fairness = tuple(_fair.scan(raw.title, raw.description))
     _salary = _sal.extract(raw.description)
     _salary_status = (
         "found" if _salary
@@ -377,6 +382,7 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
         experience_level=_meta.experience_level,
         salary=_salary,
         salary_status=_salary_status,
+        fairness_flags=_fairness,
         url=raw.url,
         posted_at=raw.posted_at,
         refreshed_at=raw.refreshed_at,

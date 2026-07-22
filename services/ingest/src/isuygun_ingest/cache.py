@@ -26,10 +26,12 @@ from pathlib import Path
 from isuygun_core.domain import JobPosting, Requirement
 
 from .pipeline import NormalizedPosting, RawPosting
+from .fairness import FairnessFlag
 from .salary import Salary
 
 #: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
-_LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py")
+_LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py",
+                "fairness.py")
 
 #: **Çekim** mantığını belirleyen dosyalar. Ayrı bir parmak izi gerekir çünkü
 #: bunlar değiştiğinde ham kayıtların kendisi geçersizleşir; yeniden normalize
@@ -109,6 +111,7 @@ def _posting_to_dict(p: NormalizedPosting) -> dict:
         "work_arrangement": p.work_arrangement,
         "employment_type": p.employment_type,
         "experience_level": p.experience_level,
+        "fairness_flags": [asdict(f) for f in p.fairness_flags],
     }
 
 
@@ -131,6 +134,7 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
         work_arrangement=d.get("work_arrangement"),
         employment_type=d.get("employment_type"),
         experience_level=d.get("experience_level"),
+        fairness_flags=tuple(FairnessFlag(**f) for f in d.get("fairness_flags", [])),
     )
 
 

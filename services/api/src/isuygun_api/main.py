@@ -89,6 +89,13 @@ class ExplanationLineOut(BaseModel):
     action_label: str | None = None
 
 
+class FairnessFlagOut(BaseModel):
+    category: str
+    note: str
+    evidence: str
+    severity: str = "hard"
+
+
 class JobSummary(BaseModel):
     job_id: str
     title: str
@@ -142,6 +149,9 @@ class JobSummary(BaseModel):
     employment_type: str | None = None
     #: senior | entry | null
     experience_level: str | None = None
+    #: Ayrımcı/dışlayıcı dil işaretleri (D-042). Boş = temiz. Hüküm değil,
+    #: bilgilendirme; kullanıcıya haklarını hatırlatır.
+    fairness_flags: list[FairnessFlagOut] = []
 
 
 class JobDetail(JobSummary):
@@ -401,6 +411,11 @@ def _summary(posting, result, exp) -> JobSummary:
         work_arrangement=getattr(posting, "work_arrangement", None),
         employment_type=getattr(posting, "employment_type", None),
         experience_level=getattr(posting, "experience_level", None),
+        fairness_flags=[
+            FairnessFlagOut(category=f.category, note=f.note,
+                            evidence=f.evidence, severity=f.severity)
+            for f in getattr(posting, "fairness_flags", ())
+        ],
     )
 
 
