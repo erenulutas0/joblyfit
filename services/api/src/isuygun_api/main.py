@@ -114,6 +114,8 @@ class FeedOut(BaseModel):
         ),
     )
     profile_is_empty: bool
+    #: Profil kalıcı mı? False ise sunucu kapanınca kaybolur — arayüz uyarır.
+    profile_is_persistent: bool = True
     ingest: dict
     #: Arayüzdeki filtre seçenekleri — korpustan türetilir, sabit liste değil.
     facets: dict = Field(default_factory=dict)
@@ -353,6 +355,7 @@ def add_fact(body: FactIn) -> ProfileOut:
     STORE.pending_cv_suggestions = [
         s for s in STORE.pending_cv_suggestions if s["key"] != body.key
     ]
+    STORE.store.save_suggestions("local", STORE.pending_cv_suggestions)
     return get_profile()
 
 
@@ -399,6 +402,7 @@ async def upload_cv(file: UploadFile) -> dict:
         }
         for s in result.suggestions
     ]
+    STORE.store.save_suggestions("local", STORE.pending_cv_suggestions)
     return {
         "page_count": result.page_count,
         "char_count": result.char_count,
@@ -482,6 +486,7 @@ def feed() -> FeedOut:
         evaluated=_group_by_role([s for _, s in evaluated]),
         unevaluated=_group_by_role(unevaluated),
         profile_is_empty=not STORE.profile.facts,
+        profile_is_persistent=STORE.is_persistent,
         ingest=STORE.ingest_summary,
         facets={
             "cities": sorted({j.city for j in every if j.city}),

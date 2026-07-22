@@ -1,16 +1,18 @@
-"""Uygulama durumu — şimdilik bellekte.
+"""Uygulama durumu.
 
-**Bu kalıcı depolama DEĞİLDİR.** Stack kararı PostgreSQL'dir (ADR-001); bu modül
-onun yerine geçen geçici bir katmandır ve süreç kapanınca veri kaybolur. Amacı,
-şema ve API sözleşmesini kalıcılık kurulmadan önce çalışır halde doğrulamaktır.
+İki tür veri var ve ikisi **farklı yerlerde** tutulur:
 
-Kalıcılığa geçerken değişecek tek yer burasıdır: API katmanı ``Store``
-arayüzünü kullanır, doğrudan dict'e dokunmaz.
+* **Kullanıcı profili** kalıcıdır (:mod:`storage`) — süreç kapansa da kalır.
+* **İlan korpusu** bellektedir ve dış kaynaktan gelir; tazeliği vardır ve
+  ``.cache/`` altında ayrı yönetilir (D-024). Kalıcı kılınması anlamsız olurdu:
+  ilan kapanır, veritabanındaki kopya yaşamaya devam eder.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 from isuygun_core.domain import CareerProfile, ProfileFact, VerificationState
 from isuygun_ingest.pipeline import (
@@ -19,17 +21,43 @@ from isuygun_ingest.pipeline import (
     run_live_ingest,
 )
 
+from .storage import MemoryProfileStore, ProfileStore, open_store
 from .taxonomy import CatalogItem, build_catalog, selectable
+
+PROFILE_ID = "local"
+
+#: Profil veritabanının yeri. `ISUYGUN_DB=:memory:` verilirse kalıcılık kapanır
+#: (testler bunu kullanır).
+def _db_path() -> Path | None:
+    raw = os.environ.get("ISUYGUN_DB", "")
+    if raw == ":memory:":
+        return None
+    if raw:
+        return Path(raw)
+    return Path(__file__).resolve().parents[4] / ".data" / "profile.db"
 
 
 @dataclass
 class Store:
     postings: dict[str, NormalizedPosting] = field(default_factory=dict)
     catalog: list[CatalogItem] = field(default_factory=list)
-    profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id="local"))
+    profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id=PROFILE_ID))
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
     ingest_summary: dict = field(default_factory=dict)
+    store: ProfileStore = field(default_factory=lambda: open_store(_db_path()))
+
+    def __post_init__(self) -> None:
+        self.profile = self.store.load(PROFILE_ID)
+        self.pending_cv_suggestions = self.store.load_suggestions(PROFILE_ID)
+
+    @property
+    def is_persistent(self) -> bool:
+        return not isinstance(self.store, MemoryProfileStore)
+
+    def _persist(self) -> None:
+        self.store.save(self.profile)
+        self.store.save_suggestions(PROFILE_ID, self.pending_cv_suggestions)
 
     # -- ilanlar -----------------------------------------------------------
 
@@ -105,11 +133,13 @@ class Store:
             ),
         )
         self.profile = replace(self.profile, facts=facts)
+        self._persist()
 
     def remove_fact(self, key: str) -> None:
         self.profile = replace(
             self.profile, facts=tuple(f for f in self.profile.facts if f.key != key)
         )
+        self._persist()
 
     def verify_fact(self, key: str) -> None:
         """Belgeyi 'doğrulanmış' yapar.
@@ -127,13 +157,16 @@ class Store:
             for f in self.profile.facts
         )
         self.profile = replace(self.profile, facts=facts)
+        self._persist()
 
     def set_occupations(self, occupation_ids: list[str]) -> None:
         self.profile = replace(self.profile, occupation_ids=tuple(occupation_ids))
+        self._persist()
 
     def reset_profile(self) -> None:
-        self.profile = CareerProfile(profile_id="local")
+        self.profile = CareerProfile(profile_id=PROFILE_ID)
         self.pending_cv_suggestions = []
+        self._persist()
 
 
 STORE = Store()

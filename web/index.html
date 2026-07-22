@@ -565,6 +565,11 @@ function viewFeed(){
   const i=FEED.ingest||{};
   const anyFilter=F.q||F.city||F.cluster||F.band||F.employer;
 
+  const volatile=FEED.profile_is_persistent===false?`
+    <div class="notice warn" style="margin:14px 0">
+      <strong>Profilin kalıcı değil.</strong> Veritabanı açılamadı; girdiğin
+      bilgiler sunucu kapanınca kaybolacak.
+    </div>`:'';
   const emptyNote=FEED.profile_is_empty?`
     <div class="notice" style="margin:14px 0">
       <strong>Profilin henüz boş.</strong> Bu yüzden ilanların çoğu
@@ -588,7 +593,7 @@ function viewFeed(){
       okunmasınlar.
     </div>${un.map(card).join('')}`:'';
 
-  return `${emptyNote}${filterBar()}
+  return `${volatile}${emptyNote}${filterBar()}
     <div class="sec"><h2>Sana göre değerlendirilenler</h2>
       <span class="count">${ev.length}</span><span class="sp"></span></div>
     ${evBlock}${unBlock}

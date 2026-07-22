@@ -601,3 +601,31 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 - **Consequence:** Arayüzde dördüncü bir eylem etiketi var: "Süreyi ekle".
 - **Denetlenebilirlik:** `test_missing_duration_is_not_reported_as_missing_skill`,
   `test_absent_skill_still_says_missing`.
+
+---
+
+## D-027 — Profil kalıcılığı SQLite ile; PostgreSQL hedef olarak duruyor
+
+- **Status:** Confirmed (2026-07-21) — **ADR-001'i değiştirmez**, sırasını değiştirir
+- **Date:** 2026-07-21
+- **Decision:** Kullanıcı profili artık kalıcı. Depolama bir **arayüz** ardına
+  alındı (`storage.ProfileStore`); bugünkü uygulaması SQLite. PostgreSQL
+  uygulaması yazıldığında değişecek tek yer `open_store`'dur — API ve arayüz
+  katmanı hiç dokunulmaz.
+- **Reason:** ADR-001 PostgreSQL diyor ve bu karar geçerli. Ama bu makinede
+  **Docker daemon çalışmıyor**; PostgreSQL kodu yazılsa koşturulup sınanamazdı.
+  Çalıştığı görülmemiş altyapı kodu teslim etmek, çalışan bir şey teslim etmek
+  değildir. SQLite bugün doğrulanabiliyor ve kullanıcının gerçek şikâyetini
+  (her yeniden başlatmada profilin kaybolması) çözüyor.
+- **Alternatives:** PostgreSQL'i doğrulamadan yazmak (reddedildi — yukarıdaki
+  gerekçe). Kalıcılığı ertelemek (reddedildi — sorun her oturumda tekrarlıyordu).
+- **Consequence:** `.data/profile.db` dosyası oluşur (git'te değil).
+  **İlan korpusu kalıcı kılınmadı** ve bu bilinçli: ilanlar dış kaynaktan gelir,
+  tazelikleri vardır (D-024) ve veritabanındaki kopya kapanmış bir ilanı
+  yaşatmaya devam ederdi. Korpus `.cache/` altında ayrı yönetiliyor.
+  Açılış süresi hâlâ ~35 sn — bu extraction maliyeti, kalıcılıkla ilgisiz.
+- **Denetlenebilirlik:** `services/api/tests/test_storage.py`. Özellikle
+  `test_tampered_verification_does_not_pass_the_gate`: veritabanından gelen
+  tanınmayan doğrulama değeri **en güvenli** duruma düşer. Sessizce `verified`
+  kabul etmek, D-012'nin bütün gate mantığını veritabanı üzerinden atlatılabilir
+  yapardı.
