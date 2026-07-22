@@ -177,3 +177,64 @@ def test_jooble_in_fetch_fingerprint():
     from isuygun_ingest import cache
 
     assert "adapters/public_apis.py" in cache._FETCH_FILES
+
+
+# ---------------------------------------------------------------------------
+# Ülke sitesi / host uyumu (D-041)
+# ---------------------------------------------------------------------------
+
+
+def test_host_is_configurable(monkeypatch):
+    """Host ülke sitesidir ve ayarlanabilir: tr.jooble.org anahtarı Türkiye
+    verir, jooble.org vermez."""
+    monkeypatch.setenv("ISUYGUN_JOOBLE_KEY", "k")
+    monkeypatch.setenv("ISUYGUN_JOOBLE_HOST", "tr.jooble.org")
+    calls = _mock_post(monkeypatch, _SAMPLE)
+    pa.fetch_jooble("src-api-jooble", queries=("x",), pages=1)
+    assert calls[0][0].startswith("https://tr.jooble.org/api/")
+
+
+def test_default_host_is_turkey_site(monkeypatch):
+    monkeypatch.setenv("ISUYGUN_JOOBLE_KEY", "k")
+    monkeypatch.delenv("ISUYGUN_JOOBLE_HOST", raising=False)
+    calls = _mock_post(monkeypatch, _SAMPLE)
+    pa.fetch_jooble("src-api-jooble", queries=("x",), pages=1)
+    assert "tr.jooble.org" in calls[0][0]
+
+
+def test_zero_jobs_is_not_silent(monkeypatch):
+    """Sorgular çalışıp 0 ilan dönerse (host/anahtar ülke uyumsuzluğu) sessiz
+    dönmek yanıltıcı olurdu — bu tam olarak jooble.org anahtarının Türkiye'de
+    yaşadığı durum. Rehber mesajla hata yükseltilir."""
+    monkeypatch.setenv("ISUYGUN_JOOBLE_KEY", "k")
+
+    def empty(url, body):
+        return {"totalCount": 0, "jobs": []}
+
+    monkeypatch.setattr(pa, "_post_json", empty)
+    with pytest.raises(pa.FetchError) as e:
+        pa.fetch_jooble("src-api-jooble", queries=("x",), pages=1)
+    assert "0 ilan" in str(e.value) and "tr.jooble.org" in str(e.value)
+
+
+def test_api_key_never_leaks_in_errors(monkeypatch):
+    """Anahtar URL'de; hiçbir hata mesajı ham anahtarı taşımamalı — yoksa
+    ingest raporuna, arayüze ve önbelleğe sızar."""
+    secret = "super-secret-key-123"
+    monkeypatch.setenv("ISUYGUN_JOOBLE_KEY", secret)
+
+    def forbidden(url, body):
+        raise pa.FetchError(pa._mask_key(f"{url} → HTTP 403"))
+
+    monkeypatch.setattr(pa, "_post_json", forbidden)
+    with pytest.raises(pa.FetchError) as e:
+        pa.fetch_jooble("src-api-jooble", queries=("x",), pages=1)
+    assert secret not in str(e.value), "anahtar hata mesajına sızdı!"
+    assert "***" in str(e.value)
+
+
+def test_mask_key_helper():
+    assert pa._mask_key("https://tr.jooble.org/api/abc-123 → HTTP 403") == \
+        "https://tr.jooble.org/api/*** → HTTP 403"
+    # /api/ olmayan URL'ler dokunulmaz (Arbeitnow gibi meşru yollar korunur).
+    assert pa._mask_key("no key here") == "no key here"

@@ -244,10 +244,30 @@ def fetch_himalayas(source_id: str, *, pages: int = 8, limit: int = 20) -> list[
 # Jooble (TR + global) — toplayıcı, Türkiye hacminin ana kaynağı (D-038)
 # --------------------------------------------------------------------------
 
-#: Jooble anahtarı ortam değişkeninden okunur — koda gömülmez. Kullanıcıya özel
-#: ve ücretsizdir: jooble.org/api/about. Yoksa kaynak temizce atlanır.
+#: Jooble anahtarı ortam değişkeninden okunur — koda gömülmez. Yoksa kaynak
+#: temizce atlanır.
 _JOOBLE_ENV = "ISUYGUN_JOOBLE_KEY"
-_JOOBLE_URL = "https://jooble.org/api/"
+
+#: Jooble **ülke sitesi başına ayrı indeks ve ayrı anahtar** kullanır (D-041).
+#: Uluslararası ``jooble.org`` Türkiye'yi tanımaz — "Turkey"yi ABD'deki bir
+#: kasaba (Turkey, NC) sanır ve İstanbul/Ankara için 0 döner. Gerçek Türkiye
+#: ilanları ``tr.jooble.org``'dadır ve o kendi anahtarını ister. Host ve konum
+#: bu yüzden yapılandırılabilir; varsayılan Türkiye hedefidir.
+_JOOBLE_HOST_ENV = "ISUYGUN_JOOBLE_HOST"
+_JOOBLE_LOC_ENV = "ISUYGUN_JOOBLE_LOCATION"
+_JOOBLE_HOST_DEFAULT = "tr.jooble.org"
+_JOOBLE_LOC_DEFAULT = "Türkiye"
+
+
+def _mask_key(text: str) -> str:
+    """URL'deki API anahtarını gizler: ``/api/<token>`` → ``/api/***``.
+
+    Anahtar hata mesajına sızarsa ingest raporuna, oradan arayüze ve önbelleğe
+    yazılır. Hiçbir hata metni ham anahtarı taşımamalı.
+    """
+    import re as _re
+
+    return _re.sub(r"(/api/)[^/\s?]+", r"\1***", text)
 
 #: Türkiye'yi geniş taramak için meslek tohumları. Jooble ``keywords`` +
 #: ``location`` **ikisini de** zorunlu tutuyor; tek geniş sorgu yerine kümelerimizi
@@ -276,11 +296,11 @@ def _post_json(url: str, payload: dict) -> object:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        raise FetchError(f"{url} → HTTP {e.code}") from e
+        raise FetchError(_mask_key(f"{url} → HTTP {e.code}")) from e
     except urllib.error.URLError as e:
-        raise FetchError(f"{url} → {e.reason}") from e
+        raise FetchError(_mask_key(f"{url} → {e.reason}")) from e
     except Exception as e:
-        raise FetchError(f"{url} → {type(e).__name__}: {e}") from e
+        raise FetchError(_mask_key(f"{url} → {type(e).__name__}: {e}")) from e
 
 
 def _jooble_description(j: dict) -> str:
@@ -306,17 +326,19 @@ def _jooble_description(j: dict) -> str:
 
 
 def fetch_jooble(source_id: str, *, queries: tuple[str, ...] = JOOBLE_QUERIES,
-                 location: str = "Türkiye", per_page: int = 40,
+                 location: str | None = None, per_page: int = 40,
                  pages: int = 2) -> list[RawPosting]:
-    """Jooble'dan Türkiye ilanları. Her tohum sorgusu bağımsızdır.
+    """Jooble ülke sitesinden ilanlar. Her tohum sorgusu bağımsızdır.
 
-    Anahtar yoksa kaynak atlanır ama **sessizce değil**: hata mesajı ingest
-    raporunda görünür ve kullanıcıya ne yapması gerektiğini söyler. Boş dönmek,
-    kaynağın kapandığını gizlemekle aynı hata olurdu.
+    **Host ülke sitesidir ve anahtarla eşleşmelidir (D-041):** ``tr.jooble.org``
+    anahtarı Türkiye ilanlarını verir; ``jooble.org`` (uluslararası) anahtarı
+    Türkiye'yi tanımaz. Host ``ISUYGUN_JOOBLE_HOST``, konum
+    ``ISUYGUN_JOOBLE_LOCATION`` ile ayarlanır.
 
-    Geniş tohum sorguları ağır örtüşür (aynı ilan birden çok terime düşer), bu
-    yüzden batch içinde ``id`` ile tekilleştirilir — ingest'in Geçit A/B dedupe'u
-    zaten var ama aynı kaydı iki kez normalize etmenin anlamı yok.
+    Anahtar yoksa kaynak atlanır ama **sessizce değil**: hata ingest raporunda
+    görünür. Anahtar URL'de olduğu için hata mesajları maskelenir (:func:`_mask_key`).
+
+    Geniş tohum sorguları örtüşür; batch içinde ``id`` ile tekilleştirilir.
     """
     import os
 
@@ -324,10 +346,13 @@ def fetch_jooble(source_id: str, *, queries: tuple[str, ...] = JOOBLE_QUERIES,
     if not key:
         raise FetchError(
             f"{_JOOBLE_ENV} tanımlı değil — Jooble atlandı. Ücretsiz anahtar: "
-            "jooble.org/api/about, sonra ortam değişkenine ekle."
+            "jooble.org/api/about, sonra .env.local'e ekle."
         )
 
-    url = _JOOBLE_URL + key
+    host = os.environ.get(_JOOBLE_HOST_ENV, "").strip() or _JOOBLE_HOST_DEFAULT
+    if location is None:
+        location = os.environ.get(_JOOBLE_LOC_ENV, "").strip() or _JOOBLE_LOC_DEFAULT
+    url = f"https://{host}/api/{key}"
     out: list[RawPosting] = []
     seen: set[str] = set()
     failures: list[str] = []
@@ -368,9 +393,22 @@ def fetch_jooble(source_id: str, *, queries: tuple[str, ...] = JOOBLE_QUERIES,
                 )
 
     if failures and not out:
+        hint = ""
+        if "403" in failures[0]:
+            hint = (f" — anahtar '{host}' için geçersiz olabilir; ülke sitesi "
+                    f"anahtarla eşleşmeli (bkz. ISUYGUN_JOOBLE_HOST, D-041).")
         raise FetchError(
-            f"Jooble: {len(failures)}/{len(queries)} sorgu başarısız, hiç ilan "
-            f"alınamadı — {failures[0]}"
+            f"Jooble ({host}): {len(failures)}/{len(queries)} sorgu başarısız, "
+            f"hiç ilan alınamadı — {failures[0]}{hint}"
+        )
+    # Sorgular başarılı ama hiç ilan yok: sessiz dönmek yanıltıcı olurdu.
+    # En olası sebep host/konum/anahtar uyumsuzluğu (ör. jooble.org anahtarı
+    # 'Türkiye'yi tanımıyor); kullanıcı bunu bilmeli.
+    if not out and not failures:
+        raise FetchError(
+            f"Jooble ({host}, konum='{location}'): sorgular çalıştı ama 0 ilan "
+            f"döndü. Muhtemelen host/anahtar ülke uyumsuzluğu — Türkiye için "
+            f"tr.jooble.org anahtarı gerekir (ISUYGUN_JOOBLE_HOST, D-041)."
         )
     return out
 

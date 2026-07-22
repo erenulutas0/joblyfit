@@ -1073,3 +1073,41 @@ testleri eklendi (`test_same_page_different_gh_jid_do_not_merge_in_cluster`).
 **Ders:** Bu hata birim testlerden geçti (temiz yol-tabanlı URL'ler kullanıyordu)
 ama gerçek veride patladı. Kaynaklar-arası dedupe kararları mutlaka gerçek
 korpusta, yanlış-birleşme denetimiyle ölçülmeli.
+
+---
+
+## D-041 — Jooble ülke sitesi başına ayrı indeks/anahtar; uluslararası anahtar Türkiye'yi tanımaz
+
+- **Date:** 2026-07-23
+- **Status:** Accepted (ve önemli bir düzeltme)
+- **Nasıl bulundu:** Kullanıcı jooble.org/api/about'tan ücretsiz anahtar aldı.
+  Canlı çekimde Jooble **0 Türkiye ilanı** döndürdü ama hata da vermedi. Doğrudan
+  API denemesi kök nedeni ortaya çıkardı.
+- **Bulgu (canlı doğrulandı 2026-07-23):**
+  - Anahtar **çalışıyor**: `it`/New York → 4842, `nurse`/USA → 37835.
+  - Ama Türkiye sorguları 0: `Istanbul` → 0, `Ankara` → 0, `Türkiye` → 0.
+  - `Turkey` (İngilizce) → 1198 ama bunlar **Türkiye değil, "Turkey, North
+    Carolina" (ABD kasabası)** — konumlar "Turkey, NC", şirketler ABD'li,
+    kaynak appcast.io.
+  - `tr.jooble.org/api/{anahtar}` → **403**: uluslararası anahtar TR indeksinde
+    geçersiz.
+- **Sonuç:** Jooble ülke sitesi başına **ayrı indeks ve ayrı anahtar** kullanır.
+  Uluslararası jooble.org anahtarı Türkiye'ye erişemez. Türkiye için
+  tr.jooble.org'da ayrı kayıt gerekir — ve o form **Website** ister
+  (Careerjet'teki domain engelinin aynısı).
+- **Kod kararı:** Host (`ISUYGUN_JOOBLE_HOST`, varsayılan tr.jooble.org) ve konum
+  (`ISUYGUN_JOOBLE_LOCATION`) yapılandırılabilir yapıldı. Doğru ülke anahtarı
+  geldiğinde kod değişmeden çalışır. Yanlış host/anahtar → 403 ya da 0-ilan →
+  **rehber mesajla hata** (sessiz dönmek yanıltıcı olurdu).
+- **Güvenlik düzeltmesi:** Anahtar URL'de (`/api/{key}`). Hata mesajları URL'i
+  taşıyordu → ingest raporuna, arayüze, önbelleğe **anahtar sızabilirdi**.
+  `_mask_key` ile tüm Jooble hata mesajlarında `/api/<token>` → `/api/***`.
+  Gerçek 403 üzerinde doğrulandı: anahtar sızmıyor.
+- **Ders (araştırma boşluğu):** D-038'de Jooble'ı önerirken tr.jooble.org'un
+  12k ilanını ve REST API'nin varlığını doğrulamıştım ama **jooble.org
+  anahtarının TR indeksine erişip erişmediğini** doğrulamamıştım. Ülke-sitesi
+  ayrımı gözden kaçtı. Dış entegrasyonlar kabul edilmeden önce **gerçek anahtarla
+  gerçek veri** üzerinde uçtan uca doğrulanmalı.
+- **Açık kalan (OPEN-25):** Türkiye aggregator'larının hepsi (tr.jooble.org,
+  Careerjet) kayıt için **Website/domain** istiyor. Domain, Türkiye hacminin
+  önündeki tek gerçek engel haline geldi.

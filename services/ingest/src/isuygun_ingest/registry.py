@@ -231,13 +231,15 @@ REGISTRY: dict[str, SourceRecord] = {
             permission_evidence=(
                 "jooble.org/api/about — resmî public REST API. Amacı belgede "
                 "açıkça 'webmaster'ların Jooble sonuçlarını kendi sitesinde "
-                "göstermesi' olarak tanımlı; her ilan kaynağa giden `link` taşır "
-                "ve model sonucu gösterip kaynağa yönlendirmektir. Ücretsiz "
-                "anahtar kayıtla alınır (ISUYGUN_JOOBLE_KEY). Türkiye hacminin "
-                "ana kaynağı; kendisi Kariyer.net/SecretCV gibi panolardan agrege "
-                "eder (doğrulandı 2026-07-22, help.jooble.org REST API dokümanı). "
-                "NOT: anahtar alınırken Jooble API kullanım şartları kullanıcı "
-                "tarafından onaylanmalıdır — commit öncesi gözden geçirilecek."
+                "göstermesi' olarak tanımlı; her ilan kaynağa `link` taşır. "
+                "KRİTİK (D-041): Jooble ülke sitesi başına AYRI indeks ve AYRI "
+                "anahtar kullanır. Uluslararası jooble.org anahtarı Türkiye'yi "
+                "TANIMAZ ('Turkey'yi ABD'deki Turkey, NC kasabası sanır; "
+                "İstanbul/Ankara 0 döner — canlı doğrulandı 2026-07-23). Türkiye "
+                "için tr.jooble.org'da ayrı kayıt gerekir (form Website ister — "
+                "Careerjet'teki domain engelinin aynısı). Host ISUYGUN_JOOBLE_HOST "
+                "ile ayarlanır. NOT: anahtar alınırken Jooble API kullanım "
+                "şartları kullanıcı tarafından onaylanmalıdır (hukuki görüş değil)."
             ),
             attribution_required=True, min_poll_hours=12.0,
             redistribution_policy="link-back-required",
