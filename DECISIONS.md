@@ -999,3 +999,56 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   üç haneyi yakalıyordu. Gerçek korpus hep ayraçlı ("$120,000") olduğundan
   bugüne dek patlamamıştı. `+` (zorunlu) yapıldı; eski biçimler bozulmadı,
   düz sayılar artık çıkıyor.
+
+---
+
+## D-039 — Kaynaklar arası dedupe: URL eşitliği + kaynak katmanı
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Jooble bir **toplayıcı**: aynı ilanı hem şirketin ATS'sinden
+  (doğrudan çektiğimiz, tam açıklamalı) hem Jooble'dan (snippet) alabiliriz.
+  İŞKUR eklenirse devlet ilanlarında da örtüşme olur. Mevcut iki geçit (A:
+  employer|title|city eşitliği, B: içerik benzerliği) **aynı kaynak içi**
+  kopyalar için tasarlanmıştı; kaynaklar arası için yetersiz çünkü Jooble
+  işvereni gizleyebiliyor (Geçit A kaçar) ve yalnızca snippet veriyor (Geçit B
+  düşük benzerlik).
+- **Decision (Geçit U — URL eşitliği):** İki kayıt aynı normalize URL'e
+  çözülüyorsa **tanım gereği aynı ilandır** ve birleştirilir. Toplayıcı
+  kaynağa link verdiği için, Jooble'ın `link`'i bizim doğrudan çektiğimiz ATS
+  URL'iyle çakışır. URL eşitliği kesindir — içerik benzerliğinin aksine
+  yanlış-birleştirme riski taşımaz.
+- **URL normalizasyonu:** şema + `www.` atılır, host küçük harf, query/fragment
+  (takip parametreleri) atılır. **En az iki yol segmenti** şartı: "/company/
+  job-123" belirli bir ilandır ama "/jobs" gibi sığ yol farklı ilanları
+  paylaşabilir → anahtar üretmez. Kaynaklarımızın hepsi kimliği **yolda**
+  taşır, query'de değil.
+- **Decision (kaynak katmanı):** Birleşen kümede kullanıcıya **en zengin**
+  kopya gösterilir: doğrudan şirket ATS'si (tam açıklama + gerçek işveren +
+  ilk-yayın tarihi) > açıklamalı public API > Arbeitsagentur (açıklamasız) >
+  Jooble (snippet + işveren gizli olabilir). `pick_canonical` önce katmana,
+  sonra işveren görünürlüğüne, sonra en erken tarihe bakar.
+- **Asimetri korunur:** URL eşitliği %100 güvenli olduğu için agresif
+  birleştirilir; belirsiz (farklı URL, snippet-vs-tam-metin) durumlar mevcut
+  muhafazakâr geçitlere bırakılır — kaçan birleştirme kopyayı iki kez gösterir
+  (hafif), yanlış birleştirme gerçek ilanı gizler (ağır).
+- **Ölçüm ertelendi:** Gerçek kaynaklar-arası örtüşme oranı Jooble canlı
+  olunca ölçülecek; şimdiden spekülatif ayar yapılmaz.
+
+---
+
+## D-040 — Sırlar `.env.local`'de, git'e girmez; anahtar varlığı önbelleği geçersizler
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** Jooble API anahtarı bir sırdır. `launch.json` git'te izleniyor —
+  anahtar oraya yazılırsa commit'e sızardı.
+- **Decision:** Sırlar `.env.local`'den (zaten .gitignore'da) okunur; uygulama
+  açılışta yükler (`_load_local_env`). Zaten tanımlı değişken **ezilmez** (dış
+  ortam önceliklidir, CI/prod dosyasız çalışır). `launch.json`'daki sır alanı
+  kaldırıldı; izlenen `.env.local.example` yalnızca şablondur.
+- **Anahtar varlığı çekim parmak izine katıldı:** Anahtar bir ortam
+  değişkeni, dosya değil; adaptör dosyaları değişmeden çekilecek kaynak kümesi
+  değişebilir. Katmasaydık kullanıcı anahtarı ekler, önbellek "taze" görünür ve
+  Jooble hiç çekilmezdi — D-028/D-036'nın önlediği sessiz bayatlık, bir katman
+  daha aşağıda. Artık anahtar eklenince parmak izi değişir → yeniden çekim.

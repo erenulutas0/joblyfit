@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import unicodedata
+import urllib.parse
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from itertools import combinations
@@ -168,6 +169,22 @@ class NormalizedPosting:
         return f"{self.employer_key}|{self.title_key}|{self.city_key}"
 
     @property
+    def url_key(self) -> str:
+        """Geçit U: normalize edilmiş ilan URL'i — **kaynaklar arası** dedupe.
+
+        Toplayıcılar (Jooble) çoğu zaman ilanın **asıl** sayfasına link verir;
+        biz aynı ilanı şirketin ATS'sinden de doğrudan çekiyor olabiliriz. İki
+        kayıt aynı URL'e çözülüyorsa **tanım gereği aynı ilandır** — bu, içerik
+        benzerliğinin aksine yanlış-birleştirme riski taşımaz (D-039).
+
+        Yalnızca **belirli bir ilana** işaret eden URL'ler anahtar üretir: yol
+        bileşeni olmayan (çıplak alan adı) ya da boş URL'ler ``""`` döner ve
+        birleştirmede kullanılmaz — yoksa aynı kariyer ana sayfasını paylaşan
+        farklı ilanlar yanlışlıkla tek sayılırdı.
+        """
+        return _normalize_url(self.url)
+
+    @property
     def blocking_key_b(self) -> str:
         """Geçit B: employer'DAN ve başlıktan BAĞIMSIZ aday bloğu.
 
@@ -178,6 +195,46 @@ class NormalizedPosting:
         olmayan) kopyaların da yakalanmasını sağlar — audit SCR-02.
         """
         return f"{self.city_key}|{self.job.occupation_id}"
+
+
+def _normalize_url(url: str) -> str:
+    """URL'i karşılaştırılabilir hale getirir.
+
+    Şema ve ``www.`` atılır, host küçük harfe indirilir, query/fragment
+    (takip parametreleri) atılır. **En az iki yol segmenti** şartı vardır:
+    "/company/job-123" belirli bir ilandır ama "/jobs" gibi sığ bir yol farklı
+    ilanları paylaşabilir, o yüzden anahtar üretmez — yanlış birleştirmeyi
+    önlemek için. Kaynaklarımızın hepsi (Lever/Greenhouse/Ashby/Recruitee ve
+    çoğu TR panosu) ilan kimliğini **yolda** taşır, query'de değil.
+    """
+    if not url:
+        return ""
+    try:
+        p = urllib.parse.urlsplit(url.strip())
+    except ValueError:
+        return ""
+    host = (p.netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    segments = [s for s in (p.path or "").split("/") if s]
+    if not host or len(segments) < 2:
+        return ""
+    return host + "/" + "/".join(segments)
+
+
+#: Kaynak güvenilirlik/zenginlik katmanı — düşük = daha yetkili. Aynı ilan
+#: birden çok kaynakta çıkarsa en zengin kopya kalır (D-039): doğrudan şirket
+#: ATS'si tam açıklama + gerçek işveren + ilk-yayın tarihi taşır; toplayıcı
+#: yalnızca snippet ve "son görülme" verir.
+def _source_tier(job_id: str) -> int:
+    sid = job_id.split(":", 1)[0]
+    if sid.startswith("src-ats-"):
+        return 0                        # doğrudan şirket panosu — en zengin
+    if sid == "src-api-jooble":
+        return 3                        # toplayıcı: snippet + işveren gizli olabilir
+    if sid == "src-api-arbeitsagentur":
+        return 2                        # açıklama metni yok
+    return 1                            # açıklamalı public API'ler / fixture
 
 
 def _fingerprint(text: str) -> str:
@@ -360,6 +417,19 @@ def cluster(
         for other in group[1:]:
             union(group[0].job.job_id, other.job.job_id)
 
+    # Geçit U — aynı normalize URL = aynı ilan (D-039). Kaynaklar arası temel
+    # dedupe lever'i: toplayıcının kaynağa verdiği link, bizim doğrudan çektiğimiz
+    # ATS URL'iyle çakışırsa iki kayıt tek sayılır. URL eşitliği tanım gereği
+    # kesindir; içerik benzerliğinin aksine yanlış-birleştirme riski taşımaz.
+    buckets_u: dict[str, list[NormalizedPosting]] = {}
+    for p in postings:
+        k = p.url_key
+        if k:
+            buckets_u.setdefault(k, []).append(p)
+    for group in buckets_u.values():
+        for other in group[1:]:
+            union(group[0].job.job_id, other.job.job_id)
+
     # Geçit B — kaba blok + çift bazlı içerik karşılaştırması.
     oversized: list[str] = []
     buckets_b: dict[str, list[NormalizedPosting]] = {}
@@ -394,15 +464,18 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 def pick_canonical(group: list[NormalizedPosting]) -> NormalizedPosting:
     """Kopya kümesinden kullanıcıya gösterilecek kaydı seçer.
 
-    İşvereni açıkça yazan kayıt tercih edilir; agency'nin gizlediği sürüm
-    kullanıcıya daha az bilgi verir (FR-206). Eşitlikte en erken yayın tarihi.
+    Öncelik sırası: (1) **kaynak katmanı** — doğrudan şirket ATS'si toplayıcıya
+    yeğlenir, çünkü tam açıklama + gerçek işveren + ilk-yayın tarihi taşır;
+    toplayıcı yalnızca snippet verir. (2) İşvereni açıkça yazan kayıt (agency'nin
+    gizlediği sürüm daha az bilgi verir, FR-206). (3) En erken yayın tarihi.
     """
     # employer_key katlanmış olduğu için işaretler de katlanmış yazılır.
     _ANON = ("gizli", "belirtilmemis", "firma adi", "gizli firma")
 
-    def rank(p: NormalizedPosting) -> tuple[int, str]:
+    def rank(p: NormalizedPosting) -> tuple[int, int, str]:
         anonymous = any(w in p.employer_key for w in _ANON)
-        return (1 if anonymous else 0, p.posted_at or "9999")
+        return (_source_tier(p.job.job_id), 1 if anonymous else 0,
+                p.posted_at or "9999")
 
     return min(group, key=rank)
 

@@ -51,9 +51,27 @@ def _hash_files(names: tuple[str, ...]) -> str:
     return h.hexdigest()[:16]
 
 
+def _source_config_marker() -> str:
+    """Çekilecek kaynak kümesini **runtime config** ile değiştiren durumlar.
+
+    Adaptör dosyaları değişmese de, bir anahtarın eklenmesi çekilecek kaynak
+    kümesini büyütür: Jooble anahtarsızken atlanıyor, anahtar gelince çekiliyor.
+    Bunu parmak izine katmazsak kullanıcı anahtarı ekler, önbellek "taze"
+    görünür ve Jooble hiç çekilmez — D-028/D-036'nın önlediği sessiz bayatlık,
+    bir katman daha aşağıda.
+    """
+    import os
+
+    return "j1" if os.environ.get("ISUYGUN_JOOBLE_KEY", "").strip() else "j0"
+
+
 def fetch_fingerprint() -> str:
-    """Çekim mantığının kimliği. Değişirse ham kayıtlar da geçersizdir."""
-    return _hash_files(_FETCH_FILES)
+    """Çekim mantığının + kaynak konfigürasyonunun kimliği.
+
+    Değişirse ham kayıtlar geçersizdir: ya adaptör değişti (farklı alan okunuyor
+    olabilir) ya da çekilecek kaynak kümesi değişti (yeni anahtar).
+    """
+    return f"{_hash_files(_FETCH_FILES)}:{_source_config_marker()}"
 
 
 def extraction_fingerprint() -> str:

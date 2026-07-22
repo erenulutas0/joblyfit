@@ -11,6 +11,7 @@ OpenAPI şeması ``/openapi.json`` adresinden alınır; TypeScript tipleri bunda
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -35,8 +36,30 @@ from .store import STORE
 
 MAX_CV_BYTES = 10 * 1024 * 1024
 
+def _load_local_env() -> None:
+    """`.env.local` varsa ortam değişkenlerine yükler.
+
+    Sırlar (Jooble API anahtarı gibi) **git'e girmemeli**; `.env.local`
+    .gitignore'dadır ve koda gömülmez. Zaten tanımlı bir değişken **ezilmez**:
+    dış ortam (launch.json / sistem) önceliklidir, böylece CI veya prod'da
+    dosya olmadan da çalışır.
+    """
+    path = Path(__file__).resolve().parents[4] / ".env.local"
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _load_local_env()
     STORE.load()
     yield
 
