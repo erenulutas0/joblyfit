@@ -857,3 +857,62 @@ Kaynağı yazılamayan karar `Proposed` kalır.
   iddianın kendisini test eder: "+N" dedikten sonra değerlendirilemeyen sayısı
   gerçekten düşmeli, iddia gerçekleşenden düşük olmamalı ve sapma %15'i
   geçmemeli.
+
+---
+
+## D-035 — İlanın **yaşı** ile **canlılığı** ayrı şeylerdir
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Nasıl bulundu:** Kullanıcı, tekrar tespiti için gereken geçmişi
+  biriktirmek üzere bilgisayarı sürekli açık tutamayacağını söyledi. Bunun
+  üzerine "geçmiş biriktirmeden bugün elde edilebilecek bir sinyal var mı"
+  diye bakıldı — ve veri en baştan beri oradaydı.
+- **Bulunan hata:** Greenhouse adapter'ı `posted_at` alanını **`updated_at`**
+  değerinden dolduruyordu. `updated_at` ilan her düzenlendiğinde yenilenir;
+  `first_published` ise gerçek yayın tarihidir ve API onu da veriyor.
+- **Ölçüm (12 Greenhouse panosu, 1980 ilan):**
+  - İki tarihin farklı olduğu ilan: **%79**
+  - Gizlenen gün, medyan: **60**; en uç örnek: **1920 gün** (5+ yıl)
+  - 45 günlük tazelik eşiğini aşan ama "taze" görünen: **%45**
+- **Neden ciddi:** Kullanıcının açık isteği "geçmiş işler çıkmasın"dı (D-024).
+  Korpusun çoğunluğu Greenhouse olduğu için bu söz tutulmuyordu. Dahası
+  araştırmanın en sık şikâyeti olan **hayalet ilan**ı ifşa etmek yerine
+  büyütüyorduk: 96 gündür açık bir ilana "5 gün önce" diyorduk.
+- **Decision:** İki kavram ayrılır ve ikisi de saklanır.
+  - `posted_at` = gerçek ilk yayın. **Yaş** bundan hesaplanır ve kullanıcıya
+    gösterilir ("96 gündür açık").
+  - `refreshed_at` = kaynağın son güncellemesi. **Eleme** bundan yapılır.
+- **Neden eleme yaşa bağlanmadı:** Yaşa bağlansaydı, açık olduğunu
+  *bildiğimiz* ilanların %45'i gizlenirdi — ATS onları hâlâ listeliyor, yani
+  başvurulabilirler. Kullanıcıya yardım değil, fırsat saklamak olurdu. Doğru
+  davranış: göstermek ama yaşını **açıkça** söylemek. Karar kullanıcının,
+  bilgi bizim sorumluluğumuz.
+- **Arayüz:** 45 günü aşan ilanlarda "N gündür açık" rozeti ve isteğe bağlı
+  "uzun süredir açıkları gizle" filtresi. Rozet, son güncelleme tarihini de
+  ipucu olarak taşır.
+- **Yan bulgu:** Lever ve Ashby'nin `workplaceType` alanı adapter tarafından
+  yakalanıyor ama **hiç kullanılmıyordu**; jobmeta regex'le tahmin ediyordu.
+  Kaynağın kendi beyanı artık önceliklidir — tahmin yalnızca beyan yokken
+  devreye girer.
+- **Lever tuzağı:** Lever tarihleri milisaniye epoch verir, ISO dize değil;
+  `updatedAt` de `createdAt` gibi dönüştürülmelidir.
+
+---
+
+## D-036 — Çekim mantığının ayrı parmak izi
+
+- **Date:** 2026-07-22
+- **Status:** Accepted
+- **Context:** D-028 önbelleği **çıkarım** mantığı değiştiğinde geçersiz
+  kılıyordu. Ama D-035'te değişen şey adapter'dı — yani **çekim** mantığı.
+  Ham kayıtlar önbellekte eski (yanlış) tarihle duruyordu ve düzeltmenin
+  hiçbir etkisi görünmeyecekti: tam olarak D-028'in önlemek için yazıldığı
+  sessiz bayatlık, bir katman aşağıda.
+- **Decision:** `fetch_fingerprint()` — `adapters/` dosyalarının hash'i.
+  Değişirse **ham** kayıtlar geçersizdir ve yeniden çekim yapılır.
+- **İki parmak izi bağımsızdır ve olması gereken budur:** çıkarım değişimi
+  yeniden çekim gerektirmez (43 sn), çekim değişimi gerektirir (~195 sn).
+  Tek parmak iziyle her sözlük değişikliği 151 panoyu yeniden çekerdi.
+- **Denetlenebilirlik:** `test_changed_fetch_logic_invalidates_raw_records`
+  ve `test_fetch_and_extraction_fingerprints_are_independent`.

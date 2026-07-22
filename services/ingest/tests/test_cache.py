@@ -128,3 +128,47 @@ def test_partial_write_does_not_destroy_existing_cache(written, monkeypatch):
 
     assert path.read_bytes() == original, "eski önbellek bozuldu"
     assert cache.read(path, 6) is not None
+
+
+# ---------------------------------------------------------------------------
+# Çekim parmak izi (D-035)
+# ---------------------------------------------------------------------------
+
+
+def test_changed_fetch_logic_invalidates_raw_records(tmp_path, monkeypatch):
+    """Adapter değişince ham kayıtlar da geçersiz olmalı.
+
+    D-028 yalnızca **çıkarım** mantığını koruyordu. Greenhouse adapter'ı
+    ilanın yaşını yanlış alandan okuyordu; düzeltildiğinde önbellekteki ham
+    kayıtlar eski tarihi taşımaya devam edecekti ve düzeltmenin hiçbir etkisi
+    görünmeyecekti — tam olarak parmak izi mekanizmasının önlediği hata, bir
+    katman aşağıda.
+    """
+    from isuygun_ingest import cache
+    from isuygun_ingest.pipeline import RawPosting
+
+    path = tmp_path / "c.json"
+    raw = RawPosting(source_id="src-fixture-001", source_posting_ref="r",
+                     url="https://e.invalid/x", title="T", employer="E", city="C")
+    cache.write(path, raws=[raw], postings=[], meta={})
+    assert cache.read(path, 24) is not None
+
+    monkeypatch.setattr(cache, "fetch_fingerprint", lambda: "degisti")
+    assert cache.read(path, 24) is None, "çekim mantığı değişti, ham kayıt geçersiz olmalı"
+
+
+def test_fetch_and_extraction_fingerprints_are_independent(tmp_path, monkeypatch):
+    """Çıkarım değişimi yeniden **çekim** gerektirmemeli — ham kayıt korunur."""
+    from isuygun_ingest import cache
+    from isuygun_ingest.pipeline import RawPosting
+
+    path = tmp_path / "c.json"
+    raw = RawPosting(source_id="src-fixture-001", source_posting_ref="r",
+                     url="https://e.invalid/x", title="T", employer="E", city="C")
+    cache.write(path, raws=[raw], postings=[], meta={})
+
+    monkeypatch.setattr(cache, "extraction_fingerprint", lambda: "degisti")
+    got = cache.read(path, 24)
+    assert got is not None, "çıkarım değişimi ham kaydı düşürmemeli"
+    assert got["raws"], "ham kayıtlar korunmalı"
+    assert got["postings"] is None, "işlenmiş kayıtlar geçersiz olmalı"

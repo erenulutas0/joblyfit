@@ -333,3 +333,60 @@ def test_every_api_source_has_a_fetcher():
 
     for r in registry.api_sources():
         assert r.source_id in FETCHERS, r.source_id
+
+
+# ---------------------------------------------------------------------------
+# Yaş vs canlılık ayrımı (D-035)
+# ---------------------------------------------------------------------------
+
+
+def _posting(posted_at, refreshed_at):
+    from isuygun_ingest.pipeline import RawPosting, normalize
+
+    return normalize(RawPosting(
+        source_id="src-fixture-001", source_posting_ref="r",
+        url="https://e.invalid/x", title="Engineer", employer="Acme",
+        city="Berlin", description="Some role.",
+        posted_at=posted_at, refreshed_at=refreshed_at,
+    ), adapter_version="test")
+
+
+def test_old_posting_kept_alive_by_refresh_is_not_dropped():
+    """96 gündür açık ama dün güncellenmiş ilan **elenmez**.
+
+    ATS onu hâlâ listeliyor, yani açık. Elemek, açık olduğunu bildiğimiz bir
+    fırsatı gizlemek olurdu.
+    """
+    from datetime import date, timedelta
+    from isuygun_ingest.pipeline import is_fresh
+
+    today = date.today()
+    p = _posting(str(today - timedelta(days=96)), str(today - timedelta(days=1)))
+    assert is_fresh(p)
+
+
+def test_true_age_is_reported_not_the_refresh_date():
+    """Yaş gerçek yayın tarihinden okunur — asıl düzeltilen hata buydu."""
+    from datetime import date, timedelta
+    from isuygun_ingest.pipeline import days_open
+
+    today = date.today()
+    p = _posting(str(today - timedelta(days=96)), str(today - timedelta(days=1)))
+    assert days_open(p) == 96, "yaş güncelleme tarihinden okunuyor — ilan taze görünür"
+
+
+def test_abandoned_posting_is_dropped():
+    """Uzun süredir dokunulmamış ilan elenir: canlılık sinyali yok."""
+    from datetime import date, timedelta
+    from isuygun_ingest.pipeline import is_fresh
+
+    today = date.today()
+    p = _posting(str(today - timedelta(days=200)), str(today - timedelta(days=180)))
+    assert not is_fresh(p)
+
+
+def test_unknown_dates_still_survive():
+    """D-024 korunur: tarihi bilinmeyen ilan elenmez."""
+    from isuygun_ingest.pipeline import is_fresh
+
+    assert is_fresh(_posting(None, None))

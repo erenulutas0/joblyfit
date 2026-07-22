@@ -218,14 +218,25 @@ def _cheap_fold(text: str) -> str:
     return fold(text) if _TR_CHARS.intersection(text) else text.lower()
 
 
-def detect(*, title: str, city: str, description: str) -> JobMeta:
+#: Kaynağın kendi çalışma-biçimi alanı (Lever/Ashby ``workplaceType``).
+#: Bu bir *beyan*dır, bizim tahminimiz değil — metinden regex'le çıkarmaya
+#: göre her zaman üstündür ve önce ona bakılır.
+_SOURCE_ARRANGEMENT = {
+    "remote": "remote", "hybrid": "hybrid",
+    "onsite": "onsite", "on-site": "onsite", "on_site": "onsite",
+}
+
+
+def detect(*, title: str, city: str, description: str,
+           source_arrangement: str = "") -> JobMeta:
     """İlanın üç ekseni. Kanıt yoksa ``None`` — "belirtilmemiş" bir cevaptır."""
+    declared = _SOURCE_ARRANGEMENT.get((source_arrangement or "").strip().lower())
     folded_title = _cheap_fold(title or "")
     # Açıklamanın tamamı taranır ama katlanmış hâli üzerinden: "UZAKTAN
     # ÇALIŞMA" ile "uzaktan çalışma" aynı ilandır.
     folded_text = _cheap_fold(f"{title or ''} {description or ''}")
     return JobMeta(
-        work_arrangement=_arrangement(folded_title, city or "", folded_text),
+        work_arrangement=declared or _arrangement(folded_title, city or "", folded_text),
         employment_type=_employment(folded_title, folded_text),
         experience_level=_experience(folded_title),
     )

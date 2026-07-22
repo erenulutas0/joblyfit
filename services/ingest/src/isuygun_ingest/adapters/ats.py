@@ -142,7 +142,12 @@ def _lever(board: Board) -> list[RawPosting]:
                 title=j.get("text") or "",
                 employer=board.employer,
                 city=cats.get("location") or "",
+                # Kaynağın kendi beyanı regex tahmininden üstündür; bu alan
+                # yakalanıyordu ama kullanılmıyordu (bkz. jobmeta.detect).
                 arrangement=j.get("workplaceType") or "",
+                # Lever tarihleri **milisaniye epoch** verir, ISO dize değil;
+                # `createdAt` gibi bu da dönüştürülmeli.
+                refreshed_at=_ms_to_date(j.get("updatedAt")),
                 occupation_id="",           # extract katmanı dolduracak
                 posted_at=_ms_to_date(j.get("createdAt")),
                 description=_lever_description(j),
@@ -192,7 +197,15 @@ def _greenhouse(board: Board) -> list[RawPosting]:
                 employer=board.employer,
                 city=(j.get("location") or {}).get("name") or "",
                 occupation_id="",
-                posted_at=(j.get("updated_at") or "")[:10] or None,
+                # `first_published` ilanın **gerçek** yayın tarihidir;
+                # `updated_at` her düzenlemede yenilenir. Önceden `updated_at`
+                # kullanılıyordu ve ölçüldü: örneklenen 1980 ilanın %79'unda
+                # ikisi farklı, medyan **60 gün** gizleniyordu (en uç örnek
+                # 1920 gün). Kullanıcıya "5 gün önce" denen ilan aslında 96
+                # gündür açıktı — hayalet ilan aldatmacasını ifşa etmek yerine
+                # büyütüyorduk ve 45 günlük tazelik eşiği (D-024) deliniyordu.
+                posted_at=(j.get("first_published") or j.get("updated_at") or "")[:10] or None,
+                refreshed_at=(j.get("updated_at") or "")[:10] or None,
                 description=html_to_text(_unescape(j.get("content", ""))),
             )
         )
@@ -215,6 +228,7 @@ def _recruitee(board: Board) -> list[RawPosting]:
                 city=city,
                 occupation_id="",
                 posted_at=(j.get("published_at") or "")[:10] or None,
+                refreshed_at=(j.get("updated_at") or "")[:10] or None,
                 description=html_to_text(j.get("description", "")),
             )
         )
@@ -236,7 +250,10 @@ def _ashby(board: Board) -> list[RawPosting]:
                 title=j.get("title") or "",
                 employer=board.employer,
                 city=j.get("location") or "",
+                # Kaynağın kendi beyanı regex tahmininden üstündür; bu alan
+                # yakalanıyordu ama kullanılmıyordu (bkz. jobmeta.detect).
                 arrangement=j.get("workplaceType") or "",
+                refreshed_at=(j.get("updatedAt") or "")[:10] or None,
                 occupation_id="",
                 posted_at=(j.get("publishedAt") or "")[:10] or None,
                 description=html_to_text(j.get("descriptionHtml", ""))

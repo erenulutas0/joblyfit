@@ -31,6 +31,30 @@ from .salary import Salary
 #: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
 _LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py")
 
+#: **Çekim** mantığını belirleyen dosyalar. Ayrı bir parmak izi gerekir çünkü
+#: bunlar değiştiğinde ham kayıtların kendisi geçersizleşir; yeniden normalize
+#: etmek yetmez, yeniden **çekmek** gerekir.
+#:
+#: Bu ayrım pahalı bir dersle eklendi: Greenhouse adapter'ı ilanın yaşını
+#: `updated_at`ten okuyordu (her düzenlemede yenilenen tarih) ve ilanlar
+#: gerçekte olduğundan medyan 60 gün daha taze görünüyordu. Adapter düzeltildi
+#: ama önbellekteki ham kayıtlar eski tarihi taşımaya devam edecekti —
+#: düzeltmenin hiçbir etkisi görünmezdi.
+_FETCH_FILES = ("adapters/ats.py", "adapters/public_apis.py")
+
+
+def _hash_files(names: tuple[str, ...]) -> str:
+    here = Path(__file__).parent
+    h = hashlib.sha256()
+    for name in names:
+        h.update((here / name).read_bytes())
+    return h.hexdigest()[:16]
+
+
+def fetch_fingerprint() -> str:
+    """Çekim mantığının kimliği. Değişirse ham kayıtlar da geçersizdir."""
+    return _hash_files(_FETCH_FILES)
+
 
 def extraction_fingerprint() -> str:
     """Çıkarım mantığının kimliği.
@@ -40,11 +64,7 @@ def extraction_fingerprint() -> str:
     demektir ve o hatanın belirtisi ("değişikliğim işe yaramıyor") kodda
     aranır, önbellekte değil.
     """
-    here = Path(__file__).parent
-    h = hashlib.sha256()
-    for name in _LOGIC_FILES:
-        h.update((here / name).read_bytes())
-    return h.hexdigest()[:16]
+    return _hash_files(_LOGIC_FILES)
 
 
 # --------------------------------------------------------------------------
@@ -63,6 +83,7 @@ def _posting_to_dict(p: NormalizedPosting) -> dict:
         "job_text": p.job_text,
         "url": p.url,
         "posted_at": p.posted_at,
+        "refreshed_at": p.refreshed_at,
         "fetched_at": p.fetched_at,
         "provenance": p.provenance,
         "salary": asdict(p.salary) if p.salary else None,
@@ -85,6 +106,7 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
         employer_key=d["employer_key"], title_key=d["title_key"],
         city_key=d["city_key"], content_fingerprint=d["content_fingerprint"],
         job_text=d["job_text"], url=d["url"], posted_at=d["posted_at"],
+        refreshed_at=d.get("refreshed_at"),
         fetched_at=d["fetched_at"], provenance=d["provenance"],
         salary=Salary(**d["salary"]) if d.get("salary") else None,
         salary_status=d.get("salary_status", "not_stated"),
@@ -120,6 +142,11 @@ def read(path: Path, max_age_hours: float) -> dict | None:
     if (datetime.now() - fetched_at).total_seconds() > max_age_hours * 3600:
         return None
 
+    # Çekim mantığı değiştiyse ham kayıtlar da geçersizdir: adapter artık
+    # farklı bir alan okuyor olabilir ve eski kayıtlarda o alan yok.
+    if blob.get("fetch_fingerprint") != fetch_fingerprint():
+        return None
+
     fresh_logic = blob.get("extraction_fingerprint") == extraction_fingerprint()
     try:
         raws = [RawPosting(**r) for r in blob["raws"]]
@@ -139,6 +166,7 @@ def write(path: Path, *, raws: list[RawPosting],
     payload = {
         "fetched_at": datetime.now().isoformat(),
         "extraction_fingerprint": extraction_fingerprint(),
+        "fetch_fingerprint": fetch_fingerprint(),
         "meta": meta,
         "raws": [asdict(r) for r in raws],
         "postings": [_posting_to_dict(p) for p in postings],

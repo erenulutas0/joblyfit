@@ -193,6 +193,8 @@ select{padding:9px 11px; border:1px solid var(--rule-2); border-radius:7px;
   flex-wrap:wrap; align-items:center}
 .card-meta b{color:var(--ink-2); font-weight:600}
 .card-meta .dot{color:var(--ink-4)}
+.longOpen{font-size:11.5px; font-weight:600; color:var(--unknown);
+  background:var(--unknown-soft); padding:2px 8px; border-radius:5px}
 .pay{font-size:11.5px; font-weight:700; color:var(--match);
   background:var(--match-soft); padding:2px 8px; border-radius:5px}
 .pay.none{color:var(--ink-4); background:var(--paper-2); font-weight:500}
@@ -418,7 +420,7 @@ tr:last-child td{border-bottom:0}
 const API='/api';
 let VIEW='feed', CATALOG=[], PROFILE=null, FEED=null, SOURCES=null, UNLOCKS=null;
 const F={q:'', city:'', cluster:'', band:'', employer:'', region:'', age:'', sort:'match',
-         pay:'', work:'', exp:'', etype:'', cur:'', minpay:''};
+         pay:'', work:'', exp:'', etype:'', cur:'', minpay:'', fresh:''};
 
 /** Sunucudan gelen tam metin arama sonucu (job_id kümesi) ya da null.
  *
@@ -506,6 +508,19 @@ function payLabel(j){
   return `<span class="pay none">maaş yazmıyor</span>`;
 }
 
+/** "Uzun süredir açık" rozeti.
+ *
+ *  Araştırma, hayalet ilanı (aylardır açık duran, gerçekte doldurulmayacak
+ *  ilan) en sık şikâyetlerden biri olarak gösterdi. Bunu ölçebiliyoruz ama
+ *  ilanı **elemiyoruz**: hâlâ açık olabilir. Karar kullanıcının, bilgi bizim
+ *  sorumluluğumuz. */
+function longOpenLabel(j){
+  if(!j.long_open) return '';
+  const t=`İlk yayın ${j.age_days} gün önce`+
+    (j.refreshed_days!=null?`, son güncelleme ${j.refreshed_days} gün önce`:'');
+  return `<span class="longOpen" title="${esc(t)}">${j.age_days} gündür açık</span>`;
+}
+
 function ageLabel(j){
   if(j.age_days==null) return `<span class="age unk" title="Kaynak yayın tarihi vermedi">tarih bilinmiyor</span>`;
   if(j.age_days<=1) return `<span class="age new">bugün</span>`;
@@ -522,6 +537,7 @@ function matches(j){
   if(F.age && j.age_days!=null && j.age_days>Number(F.age)) return false;
   // "Okunamadı" olanlar elenmez: maaşını yazmış ama biz çıkaramamış olabiliriz.
   if(F.pay==='yes' && j.salary_status!=='found') return false;
+  if(F.fresh==='yes' && j.long_open) return false;
   // Birleştirilmiş konumlara da bakılır; yoksa o şehirdeki ilan kaybolur.
   if(F.city && j.city!==F.city && !(j.other_locations||[]).includes(F.city)) return false;
   if(F.cluster && j.occupation_id!==F.cluster) return false;
@@ -596,6 +612,7 @@ function card(j){
             esc(j.other_locations.join(', '))}">+${j.other_locations.length} konum</span>`:''}
           <span class="dot">·</span>${ageLabel(j)}
           ${payLabel(j)}
+          ${longOpenLabel(j)}
           ${j.occupation_id?`<span class="dot">·</span>${esc(j.occupation_id)}`:''}
           ${(j.regions||[]).filter(r=>r!=='Diğer').map(r=>
             `<span class="rgn">${esc(r)}</span>`).join('')}
@@ -727,6 +744,9 @@ function filterBar(){
       <span class="fl-label">Yayın</span>
       ${[['','Tümü'],['7','Son 7 gün'],['14','Son 14 gün'],['30','Son 30 gün']].map(([v,l])=>
         `<button class="chip" data-age="${v}" aria-pressed="${F.age===v}">${l}</button>`).join('')}
+      ${(fx.long_open_count||0)?`<button class="chip" data-fresh="${F.fresh==='yes'?'':'yes'}"
+        aria-pressed="${F.fresh==='yes'}">Uzun süredir açıkları gizle
+        <b style="opacity:.7">${fx.long_open_count}</b></button>`:''}
       <span class="fl-label" style="margin-left:14px">Maaş</span>
       ${[['','Tümü'],['yes','Sadece maaşı yazanlar']].map(([v,l])=>
         `<button class="chip" data-pay="${v}" aria-pressed="${F.pay===v}">${l}${
@@ -885,7 +905,8 @@ async function viewJob(id){
         <div class="card-meta"><b>${esc(j.employer)}</b>
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
           <span class="dot">·</span>${ageLabel(j)}
-          ${payLabel(j)}</div>
+          ${payLabel(j)}
+          ${longOpenLabel(j)}</div>
       </div>
 
       ${j.verification_notice?`<div class="notice" style="margin-bottom:16px">${esc(j.verification_notice)}</div>`:''}
@@ -1326,16 +1347,17 @@ document.addEventListener('click',async ev=>{
     repaintFeed(); return;
   }
 
-  const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-pay],[data-clear]');
+  const chip=ev.target.closest('[data-cluster],[data-band],[data-region],[data-age],[data-pay],[data-fresh],[data-clear]');
   if(chip){
     if(chip.dataset.clear!==undefined){
       Object.assign(F,{q:'',city:'',cluster:'',band:'',employer:'',region:'',age:'',pay:'',
-                       work:'',exp:'',etype:'',cur:'',minpay:''});
+                       work:'',exp:'',etype:'',cur:'',minpay:'',fresh:''});
       SEARCH_IDS=null; SEARCH_INFO=null;
       return repaintFeed();
     }
     if(chip.dataset.age!==undefined) F.age=chip.dataset.age;
     if(chip.dataset.pay!==undefined) F.pay=chip.dataset.pay;
+    if(chip.dataset.fresh!==undefined) F.fresh=chip.dataset.fresh;
     if(chip.dataset.cluster!==undefined) F.cluster=chip.dataset.cluster;
     if(chip.dataset.band!==undefined) F.band=chip.dataset.band;
     if(chip.dataset.region!==undefined){

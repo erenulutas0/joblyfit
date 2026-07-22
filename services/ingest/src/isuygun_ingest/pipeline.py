@@ -117,6 +117,10 @@ class RawPosting:
     arrangement: str = ""
     occupation_id: str = ""
     posted_at: str | None = None
+    #: Kaynağın ilanı son güncellediği tarih. `posted_at` ile karıştırılmaz:
+    #: biri "ne zaman açıldı", diğeri "hâlâ ilgileniliyor mu" sorusunu
+    #: yanıtlar ve ikisi karıştırılınca eski ilan taze görünür.
+    refreshed_at: str | None = None
     description: str = ""
     is_public_sector: bool = False
     raw_requirements: list[dict] = field(default_factory=list)
@@ -132,6 +136,10 @@ class NormalizedPosting:
     job_text: str
     url: str
     posted_at: str | None
+    #: Kaynağın son güncelleme tarihi — "hâlâ ilgileniliyor mu" sinyali.
+    #: Tazelik bunun üzerinden ölçülür; **yaş** ise `posted_at`ten. İkisini
+    #: karıştırmak, 96 gündür açık bir ilanı "5 gün önce" göstermekti.
+    refreshed_at: str | None
     fetched_at: str
     provenance: dict
     #: İlan metninden okunan maaş. `None` iki şey olabilir; ayrımı
@@ -259,7 +267,8 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
     from . import jobmeta as _jm
     from . import salary as _sal
 
-    _meta = _jm.detect(title=raw.title, city=raw.city, description=raw.description)
+    _meta = _jm.detect(title=raw.title, city=raw.city, description=raw.description,
+                       source_arrangement=raw.arrangement)
     _salary = _sal.extract(raw.description)
     _salary_status = (
         "found" if _salary
@@ -290,6 +299,7 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
         salary_status=_salary_status,
         url=raw.url,
         posted_at=raw.posted_at,
+        refreshed_at=raw.refreshed_at,
         fetched_at=datetime.now().isoformat(timespec="seconds"),
         provenance={
             "source_id": raw.source_id,
@@ -465,9 +475,27 @@ def age_in_days(posted_at: str | None, *, today: date | None = None) -> int | No
 
 
 def is_fresh(posting: NormalizedPosting, max_age_days: int = MAX_AGE_DAYS) -> bool:
-    """İlan hâlâ gösterilecek kadar taze mi? Tarihi bilinmeyen ilan **elenmez**."""
-    age = age_in_days(posting.posted_at)
+    """İlan hâlâ gösterilecek kadar canlı mı? Tarihi bilinmeyen ilan **elenmez**.
+
+    Eleme **son hareket** tarihine bakar (`refreshed_at`, yoksa `posted_at`),
+    ilanın yaşına değil. İkisi bilinçli olarak ayrılmıştır:
+
+    * **Yaş** (`posted_at`) kullanıcıya gösterilir: "bu ilan 96 gündür açık"
+      bilmesi gereken bir şeydir ve hayalet ilan şüphesinin temelidir.
+    * **Canlılık** (`refreshed_at`) elemeyi belirler: ATS ilanı hâlâ
+      listeliyorsa ve işveren dokunmaya devam ediyorsa, ilan açıktır.
+
+    Elemeyi yaşa bağlamak, açık olduğunu bildiğimiz ilanların %45'ini
+    gizlerdi — kullanıcıya yardım değil, fırsat saklamak olurdu. Doğru
+    davranış: göstermek ama yaşını **açıkça** söylemek.
+    """
+    age = age_in_days(posting.refreshed_at or posting.posted_at)
     return age is None or age <= max_age_days
+
+
+def days_open(posting: NormalizedPosting) -> int | None:
+    """İlanın kaç gündür açık olduğu — gerçek yayın tarihinden."""
+    return age_in_days(posting.posted_at)
 
 def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
     """Panoları çeker. Aynı host'a ait istekler sıralı, farklı host'lar paralel.

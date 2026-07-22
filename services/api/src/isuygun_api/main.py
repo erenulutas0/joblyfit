@@ -92,8 +92,14 @@ class JobSummary(BaseModel):
     #: Aynı rolün diğer konumları. Bunlar **ayrı ilanlardır** (her birinin kendi
     #: URL'i var) ve birleştirilmez; yalnızca listede tek satır olarak gösterilir.
     other_locations: list[str] = []
-    #: İlanın yaşı (gün). null = yayın tarihi bilinmiyor (D-024).
+    #: İlanın yaşı (gün) — **gerçek ilk yayın** tarihinden. null = bilinmiyor.
     age_days: int | None = None
+    #: Kaynağın ilanı son güncellediği tarihten bu yana geçen gün. Elemede bu
+    #: kullanılır; `age_days` ise kullanıcıya gösterilir. İkisini karıştırmak,
+    #: 96 gündür açık bir ilanı "5 gün önce" göstermekti (D-035).
+    refreshed_days: int | None = None
+    #: İlan uzun süredir mi açık? Hayalet ilan şüphesinin somut göstergesi.
+    long_open: bool = False
     #: İlanda yazan maaş — kaynaktaki birimiyle, dönüştürülmeden.
     salary_text: str | None = None
     #: found | not_stated | unreadable. "Yazmamış" ile "okuyamadım" ayrıdır:
@@ -266,6 +272,16 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     return out
 
 
+#: "Uzun süredir açık" eşiği. Tazelik eşiğiyle (D-024) aynı sayı: 45 günü
+#: aşan bir ilan, elenmese bile kullanıcının bilmesi gereken bir yaştadır.
+LONG_OPEN_DAYS = 45
+
+
+def _is_long_open(posting) -> bool:
+    age = age_in_days(posting.posted_at)
+    return age is not None and age > LONG_OPEN_DAYS
+
+
 def _yearly(s) -> float | None:
     """Maaşın **alt sınırının** yıllık karşılığı.
 
@@ -350,6 +366,8 @@ def _summary(posting, result, exp) -> JobSummary:
         matched_requirements=[o.requirement.label for o in result.met][:5],
         regions=sorted(regions.classify(posting.job.city)),
         age_days=age_in_days(posting.posted_at),
+        refreshed_days=age_in_days(getattr(posting, "refreshed_at", None)),
+        long_open=_is_long_open(posting),
         salary_text=_salary_text(posting),
         salary_currency=getattr(getattr(posting, "salary", None), "currency", None),
         salary_min_yearly=_yearly(getattr(posting, "salary", None)),
@@ -672,6 +690,7 @@ def feed() -> FeedOut:
             "employment_types": _axis_counts(every, "employment_type"),
             "experience_levels": _axis_counts(every, "experience_level"),
             "currencies": _currency_counts(every),
+            "long_open_count": sum(1 for j in every if j.long_open),
             "regions": [
                 {"name": r, "count": sum(1 for j in every if r in j.regions)}
                 for r in regions.ALL
