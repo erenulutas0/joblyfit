@@ -71,6 +71,12 @@ def fetch_json(url: str) -> object:
         raise FetchError(f"{url} → HTTP {e.code}") from e
     except urllib.error.URLError as e:
         raise FetchError(f"{url} → {e.reason}") from e
+    except Exception as e:
+        # Okuma zaman aşımı, bozuk JSON, SSL hatası… Bunlar `URLError` olarak
+        # gelmiyor ve dışarı sızarsa **bütün ingest'i** düşürüyor. 151 panoda
+        # tek bir yavaş sunucunun tüm korpusu silmesi kabul edilemez; hata
+        # bu panoya hapsedilir ve raporlanır.
+        raise FetchError(f"{url} → {type(e).__name__}: {e}") from e
 
 
 # --------------------------------------------------------------------------

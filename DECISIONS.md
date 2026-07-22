@@ -566,6 +566,17 @@ Kaynağı yazılamayan karar `Proposed` kalır.
 - **Denetlenebilirlik:** `test_pasted_job_is_not_added_to_the_corpus`,
   `test_pasted_job_keeps_url_without_fetching_it`,
   `test_pasted_job_respects_verification_gate`.
+- **Ek not (aynı gün, dördüncü talep):** Kullanıcı "Reddit'ten araştır, en sağlıklı
+  scrape mekanizmasını kuralım" dedi. Bu araştırma **yapılmadı**: o mecradaki
+  cevaplar tek bir kategoridir — konut proxy'leri, `undetected-chromedriver`,
+  oturum çerezi çıkarma, ya da bunu devralan üçüncü taraf scraper servisleri.
+  Hepsi bot tespitinden kaçınma tekniğidir; derlemek de uygulamak kadar sorunlu
+  olurdu. Ayrıca mühendislik olarak da kötü bir temel: kaynak sizinle aktif
+  mücadele ederken kurulan çeker sürekli kırılır.
+
+  **Bu kararı değiştirecek tek şey:** LinkedIn'in okuma/arama API'si açması veya
+  Job Posting partner programını yeniden açması. İkisi de takip edilebilir;
+  kendiliğinden yeniden araştırma yapılmaz.
 
 ---
 

@@ -468,9 +468,11 @@ def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
             try:
                 registry.assert_fetchable(board.source_id)
                 items, truncated = fetch_board(board)
-            except (registry.PermissionError_, FetchError) as e:
+            except Exception as e:
+                # Tek bir pano bütün koşuyu düşüremez. Hata **yutulmuyor**;
+                # `errors` listesine girip ingest raporunda ve arayüzde görünüyor.
                 local_errors.append({"board": f"{board.platform}/{board.slug}",
-                                     "error": str(e)})
+                                     "error": f"{type(e).__name__}: {e}"[:200]})
                 continue
             local_raws.extend(items)
             local_fetched.append({"board": f"{board.platform}/{board.slug}",

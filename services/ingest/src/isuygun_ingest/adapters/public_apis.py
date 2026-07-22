@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from ..pipeline import RawPosting
 from .ats import USER_AGENT, FetchError, _throttle, html_to_text
 
-TIMEOUT = 25
+TIMEOUT = 40
 
 
 def _get(url: str, headers: dict | None = None) -> object:
@@ -46,6 +46,8 @@ def _get(url: str, headers: dict | None = None) -> object:
         raise FetchError(f"{url} → HTTP {e.code}") from e
     except urllib.error.URLError as e:
         raise FetchError(f"{url} → {e.reason}") from e
+    except Exception as e:
+        raise FetchError(f"{url} → {type(e).__name__}: {e}") from e
 
 
 def _date(value: str | None) -> str | None:
@@ -83,10 +85,23 @@ BA_QUERIES: tuple[str, ...] = (
 
 
 def fetch_arbeitsagentur(source_id: str, *, per_query: int = 25) -> list[RawPosting]:
+    """13 ayrı meslek sorgusu yapar; her biri bağımsızdır.
+
+    Sorgular tek bir ``try`` içinde olduğunda tek bir zaman aşımı **on üçünü
+    birden** siliyordu — gerçek bir koşuda Almanya mavi yaka ilanlarının tamamı
+    böyle kayboldu. Kaynağın tamamen erişilemez olduğu durum ayrı: hiçbir sorgu
+    tutmazsa hata yükseltilir, çünkü sessizce boş dönmek kaynağın kapandığını
+    gizler.
+    """
     out: list[RawPosting] = []
+    failures: list[str] = []
     for was in BA_QUERIES:
         q = urllib.parse.urlencode({"was": was, "size": per_query, "page": 1})
-        data = _get(f"{_BA_BASE}?{q}", _BA_KEY)
+        try:
+            data = _get(f"{_BA_BASE}?{q}", _BA_KEY)
+        except FetchError as e:
+            failures.append(f"{was}: {str(e)[-60:]}")
+            continue
         for j in (data or {}).get("stellenangebote", []):
             ort = (j.get("arbeitsort") or {})
             city = " ".join(
@@ -111,6 +126,12 @@ def fetch_arbeitsagentur(source_id: str, *, per_query: int = 25) -> list[RawPost
                     description=j.get("beruf") or "",
                 )
             )
+
+    if failures and not out:
+        raise FetchError(
+            f"Arbeitsagentur: {len(failures)}/{len(BA_QUERIES)} sorgu başarısız, "
+            f"hiç ilan alınamadı — {failures[0]}"
+        )
     return out
 
 

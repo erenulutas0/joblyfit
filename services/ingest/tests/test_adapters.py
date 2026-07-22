@@ -309,3 +309,87 @@ def test_date_parser_handles_source_formats():
     assert public_apis._date("2026-07-21") == "2026-07-21"
     assert public_apis._date(None) is None
     assert public_apis._date("bilinmiyor") is None
+
+
+# --------------------------------------------------------------------------
+# Dayanıklılık — tek pano bütün koşuyu düşüremez
+# --------------------------------------------------------------------------
+
+
+def test_read_timeout_becomes_fetch_error(monkeypatch):
+    """Ham `TimeoutError` dışarı sızarsa bütün ingest düşer.
+
+    151 panoyla koşarken bu gerçekten oldu: tek bir yavaş sunucu tüm korpusu
+    sildi. Zaman aşımı `URLError` olarak gelmiyor; açıkça sarılmalı.
+    """
+    def boom(*a, **k):
+        raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr(ats.urllib.request, "urlopen", boom)
+    with pytest.raises(ats.FetchError) as e:
+        ats.fetch_json("https://example.invalid/x")
+    assert "TimeoutError" in str(e.value)
+
+
+def test_malformed_json_becomes_fetch_error(monkeypatch):
+    class _Resp:
+        status = 200
+        def read(self): return b"<html>bu JSON degil</html>"
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(ats.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    with pytest.raises(ats.FetchError):
+        ats.fetch_json("https://example.invalid/x")
+
+
+def test_one_failing_board_does_not_kill_the_run(monkeypatch):
+    """Bir pano patlarsa diğerleri toplanmaya devam etmeli."""
+    from isuygun_ingest import pipeline, registry
+
+    calls = {"n": 0}
+
+    def flaky(board, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise TimeoutError("yavaş sunucu")
+        return ([], 0)
+
+    monkeypatch.setattr("isuygun_ingest.adapters.ats.fetch_board", flaky)
+    boards = registry.BOARDS[:3]
+    raws, fetched, errors = pipeline._fetch_all_boards(boards)
+
+    assert len(errors) == 1, "hata yutulmuş ya da koşu düşmüş"
+    assert "TimeoutError" in errors[0]["error"]
+    assert len(fetched) == len(boards) - 1, "diğer panolar toplanmamış"
+
+
+def test_arbeitsagentur_survives_a_single_failing_query(monkeypatch):
+    """Bir meslek sorgusu düşerse diğerleri toplanmaya devam etmeli.
+
+    Gerçek bir koşuda tek zaman aşımı 13 sorgunun **tamamını** sildi ve
+    Almanya mavi yaka ilanları o tur hiç görünmedi.
+    """
+    calls = {"n": 0}
+
+    def flaky(url, headers=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise public_apis.FetchError("timed out")
+        return ARBEITSAGENTUR
+
+    monkeypatch.setattr(public_apis, "_get", flaky)
+    monkeypatch.setattr(public_apis, "BA_QUERIES", ("Lagerhelfer", "Koch", "Elektriker"))
+    items = public_apis.fetch_arbeitsagentur("src-api-arbeitsagentur")
+    assert len(items) == 2, "düşen sorgu diğerlerini de sildi"
+
+
+def test_arbeitsagentur_raises_when_everything_fails(monkeypatch):
+    """Hiçbir sorgu tutmazsa sessizce boş dönmemeli — kaynak kapanmış olabilir."""
+    def always_fail(url, headers=None):
+        raise public_apis.FetchError("timed out")
+
+    monkeypatch.setattr(public_apis, "_get", always_fail)
+    monkeypatch.setattr(public_apis, "BA_QUERIES", ("Lagerhelfer", "Koch"))
+    with pytest.raises(public_apis.FetchError):
+        public_apis.fetch_arbeitsagentur("src-api-arbeitsagentur")
