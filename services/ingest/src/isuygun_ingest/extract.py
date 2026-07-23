@@ -20,19 +20,32 @@ from isuygun_core.domain import Requirement
 from . import lexicon
 from .pipeline import fold
 
+# Bölüm işaretleri **yalnızca başlık konumunda** aranır: satır başında, olası
+# markdown/madde imlerinden (``##``, ``*``, ``-``, ``•``) sonra.
+#
+# Bu şart pahalı bir hatayla eklendi. Desenler serbest metinde de eşleşiyordu ve
+# **bir kelime bütün ilanı sakatlıyordu**: "ability to use consultative,
+# *benefits* based selling…" cümlesindeki "benefits" yan-haklar bölümü sanılıyor,
+# o noktadan sonraki bütün şartlar atılıyordu. Gerçek korpusta **624 ilandan
+# hiçbir şart çıkarılamıyordu** ve bu, eşleşmeleri topluca zayıflatıyordu.
+_HEADING = r"(?:^|\n)[ \t]*(?:#{1,6}[ \t]*|[*\-•][ \t]*)?"
+
 # "Aranan nitelikler" başlığından sonrası zorunluluk sinyali taşır.
 _REQ_SECTION = re.compile(
+    _HEADING +
     r"(aranan nitelik|genel nitelik|nitelikler|gereksinim|qualification|requirement|"
     r"what you.{0,10}ll need|who you are|we.{0,5}re looking for|beklenen|aday(?:lar)?(?:da|dan) beklen)",
     re.I,
 )
 _NICE_SECTION = re.compile(
+    _HEADING +
     r"(tercih (?:sebebi|edilen)|nice to have|bonus|plus if|artı olarak|avantaj)", re.I
 )
 # Yan haklar bölümü şart DEĞİLDİR. "What We Offer" altında geçen "İngilizce" veya
 # "eğitim" gibi terimleri şart saymak, ilanın istemediği bir şeyi istiyormuş gibi
 # göstermek olurdu.
 _BENEFIT_SECTION = re.compile(
+    _HEADING +
     r"(what we offer|we offer|benefits|perks|yan haklar|sunduklarimiz|"
     r"neler sunuyoruz|why join|our culture)", re.I
 )

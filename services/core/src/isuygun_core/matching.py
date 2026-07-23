@@ -200,8 +200,16 @@ def match(
         and not o.requirement.is_legal_eligibility
     )
 
-    if outcomes and (coverage == 0.0 or discriminative_assessed == 0):
-        # İki durum da aynı sonuca çıkar: elimizde bant kuracak kanıt yok.
+    if not outcomes or coverage == 0.0 or discriminative_assessed == 0:
+        # Üç durum da aynı sonuca çıkar: elimizde bant kuracak kanıt yok.
+        #
+        # (0) İlandan **hiç şart çıkarılamadı**. Bu, bilgisizliğin en uç hali
+        #     ve bir zamanlar kontrolün DIŞINDA kalıyordu (`outcomes and ...`):
+        #     boş liste skorlamaya düşüyor, skor 0 çıkıyor ve ilan "zayıf
+        #     eşleşme" etiketi alıyordu. Gerçek korpusta **472 ilan** böyle
+        #     yanlış etiketlenmişti — kullanıcıya "sen uymuyorsun" deniyordu,
+        #     oysa doğrusu "bu ilanı okuyamadık"tı. D-019'un önlemek için
+        #     yazıldığı hatanın ta kendisi.
         #
         # (a) Hiçbir şart değerlendirilemedi. Skor 0 çıkar ve bu "zayıf
         #     eşleşme"ye dönerdi — oysa sistemin söylediği "uymuyorsun" değil,

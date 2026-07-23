@@ -1183,3 +1183,54 @@ korpusta, yanlış-birleşme denetimiyle ölçülmeli.
   olmayınca yeni pano eklendiğinde önbellek "taze" görünüyor ve pano hiç
   çekilmiyordu. Kalıp artık net: **çekilecek veriyi belirleyen her şey parmak
   izine girer.**
+
+---
+
+## D-044 — İki eşleştirme hatası: şartsız ilana bant verilmesi ve bölüm işaretinin cümle içinde yakalanması
+
+- **Date:** 2026-07-24
+- **Status:** Accepted
+- **Nasıl bulundu:** Kullanıcı yeni mezun bir yazılım mühendisi CV'si yükledi
+  (Java + Spring) ve "Spring Boot Development Camp" ilanının **"Zayıf eşleşme"**
+  etiketi aldığını bildirdi: *"eşleştirmeler de zayıf gibime geldi."* Haklıydı —
+  iki ayrı hata vardı ve ikisi de eşleşmeleri topluca sakatlıyordu.
+
+### Hata 1 — Şartsız ilan "zayıf eşleşme" etiketi alıyordu (D-019 ihlali)
+
+`matching.py`'deki koruma şöyleydi: `if outcomes and (coverage == 0.0 or ...)`.
+Baştaki `outcomes and` şu demek: **şart listesi tamamen boşsa bu kontrolü atla.**
+Yani bilgisizliğin en uç hali kontrolün dışında kalıyor, skorlamaya düşüyor,
+skor 0 çıkıyor ve ilan "zayıf eşleşme" oluyordu.
+
+**Ölçüm: 472 ilan** böyle yanlış etiketlenmişti. Kullanıcıya *"sen uymuyorsun"*
+deniyordu; doğrusu *"bu ilanı okuyamadık"*tı. D-019 tam bunu önlemek için
+yazılmıştı — koruma yazılmış ama en uç durumu dışarıda bırakmıştı.
+
+Düzeltme: `if not outcomes or coverage == 0.0 or discriminative_assessed == 0`.
+
+### Hata 2 — Tek kelime bütün ilanı sakatlıyordu
+
+Bölüm işaretleri (`what we offer`, `benefits`, `requirements`…) **serbest metinde**
+de eşleşiyordu. Gerçek bir ilandan:
+
+> "ability to use consultative, **benefits** based selling to help partners…"
+
+Bu bir **satış tekniği**, yan haklar bölümü değil. Ama "benefits" yakalanınca o
+noktadan **sonraki bütün şartlar** "yan hak" sayılıp atılıyordu. O ilanda
+`lexicon.scan` "salesforce"u buluyor, `extract_requirements` **sıfır** şart
+döndürüyordu.
+
+Düzeltme: bölüm işaretleri yalnızca **başlık konumunda** aranır — satır başında,
+olası `##` / `*` / `-` / `•` imlerinden sonra.
+
+**Ölçüm:** şartsız ilan 624 → **487**; ilan başına ortalama 3.0 şart.
+
+- **Korunan davranış:** gerçek `## What We Offer` başlığı altındaki terimler hâlâ
+  elenir — ilanın istemediği bir şeyi istiyormuş gibi göstermemek için (bu
+  koruma kaybedilmedi, testle sabitlendi).
+- **Ders:** Her iki hata da "koruma yazıldı ama sınırı yanlış çizildi" tipinde.
+  Birincisi en uç durumu dışarıda bıraktı, ikincisi fazla geniş davrandı.
+  İkisi de ancak **gerçek korpusta ve kullanıcı şikâyetiyle** görünür oldu.
+- **Açık kalan:** Kalan 487 şartsız ilanın çoğu iş geliştirme / satış / tasarım /
+  ortaklık rolleri; sözlük teknoloji ve mavi yaka odaklı, bu meslek alanları
+  henüz yok (OPEN-23).

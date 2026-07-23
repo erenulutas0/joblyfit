@@ -390,3 +390,51 @@ def test_unknown_dates_still_survive():
     from isuygun_ingest.pipeline import is_fresh
 
     assert is_fresh(_posting(None, None))
+
+
+# ---------------------------------------------------------------------------
+# Bölüm başlığı tespiti (D-044)
+# ---------------------------------------------------------------------------
+
+
+def test_benefit_word_mid_sentence_does_not_kill_requirements():
+    """"benefits" cümle içinde geçince sonraki şartlar atılmamalı.
+
+    Gerçek korpustan: "ability to use consultative, benefits based selling…"
+    Bu bir satış tekniği, yan haklar bölümü değil. Desen çıplak kelimeyi
+    yakalayınca o noktadan **sonraki her şey** eleniyordu ve tek bir kelime
+    bütün ilanı sakatlıyordu (624 ilan şartsız kalmıştı).
+    """
+    from isuygun_ingest.extract import extract_requirements
+
+    reqs = extract_requirements(
+        "Account Executive",
+        "## Responsibilities\n"
+        "Use consultative, benefits based selling with partners.\n"
+        "Experience with Salesforce is required.",
+    )
+    assert any(r.key == "crm" for r in reqs), [r.key for r in reqs]
+
+
+def test_real_benefit_heading_still_excludes_requirements():
+    """Gerçek yan-haklar **başlığı** altındakiler şart sayılmamalı — bu koruma
+    kaybedilmemeli (ilanın istemediği şeyi istiyormuş gibi göstermek)."""
+    from isuygun_ingest.extract import extract_requirements
+
+    reqs = extract_requirements(
+        "Developer",
+        "## Requirements\nPython experience needed.\n\n"
+        "## What We Offer\nEnglish courses and Excel training.",
+    )
+    keys = {r.key for r in reqs}
+    assert "python" in keys
+    assert "english" not in keys and "excel" not in keys, keys
+
+
+def test_section_markers_require_heading_position():
+    """Bölüm işaretleri satır başında (opsiyonel #/-/* ile) aranır."""
+    from isuygun_ingest.extract import _BENEFIT_SECTION
+
+    assert _BENEFIT_SECTION.search("## What We Offer\nfoo")
+    assert _BENEFIT_SECTION.search("- Benefits\nfoo")
+    assert not _BENEFIT_SECTION.search("we use benefits based selling daily")
