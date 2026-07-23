@@ -71,14 +71,19 @@ LinkedIn (okuma API'si yok, D-025) · Jooble (**D-041:** ülke sitesi başına a
 anahtar; jooble.org "Turkey"yi ABD kasabası sanıyor) · Türk ATS panoları
 (**D-043:** 98 aday tarandı, yalnızca +1 pano). Kalan tek yol aggregator ve o
 **domain istiyor → OPEN-26**. TR kaynakları ayrıca izne bağlı (OPEN-19).
-**Soğuk açılış ~7 dk sürüyor ve o süre boyunca site kapalı** — `STORE.load()`
-lifespan'i blokluyor; önbellekten servis edip yenilemeyi arka plana almak gerekiyor. Arbeitsagentur liste
-ucu açıklama metni vermiyor. Profil **kalıcı** (D-027): PostgreSQL (`docker compose up -d`, port 5435) →
-SQLite → bellek düşme zinciri; ilan korpusu kalıcı
-değil ve bu bilinçli (tazelik, D-024) — `.cache/` altında 6 saat TTL. Açılış
-~35 sn: bu extraction maliyeti, kalıcılıkla ilgisiz.
+Arbeitsagentur liste ucu açıklama metni vermiyor.
 
-Açılış **1.2 sn** (D-028: önbellek işlenmiş kayıtları da tutuyor).
+**Açılış süresi iki farklı şey** ve karıştırılmamalı:
+- **Sıcak açılış 1.2 sn** — önbellek geçerli (D-028: işlenmiş kayıtlar da tutuluyor).
+- **Soğuk açılış ~7 dk** — parmak izi değişince (adapter/sözlük/registry) tam
+  yeniden çekim: 100 Greenhouse panosu tek host'ta `Crawl-delay: 1` ile sıraya
+  giriyor. **Bu süre boyunca site tamamen kapalı**, çünkü `STORE.load()` lifespan'i
+  blokluyor. Düzeltilmesi gereken bir kusur: önbellekten hemen servis edip
+  yenilemeyi arka plana almak gerekiyor.
+
+Profil **kalıcı** (D-027): PostgreSQL (`docker compose up -d`, port 5435) → SQLite →
+bellek düşme zinciri. İlan korpusu kalıcı değil ve bu bilinçli (tazelik, D-024) —
+`.cache/` altında 6 saat TTL.
 
 Sıradaki: Next.js'e taşıma · TR kaynakları · rakip şikâyet araştırması sonrası
 sağlamlaştırma.
