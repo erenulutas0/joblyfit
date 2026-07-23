@@ -30,6 +30,20 @@ CREATE TABLE IF NOT EXISTS profile (
     occupation_ids  TEXT NOT NULL DEFAULT ''
 );
 
+-- İsimli profillerin üst verisi (D-045). Kullanıcı birden çok profil tutar
+-- ("Eren-Computer Engineer", "Eren-Mavi yaka") ve aralarında geçiş yapar.
+-- Buradaki alanlar matching'e GİRMEZ; yalnızca onboarding tercihleri ve
+-- gösterim içindir. `attrs` esnek bir JSON kovasıdır (bölge, özel anahtar
+-- kelimeler) — şema her yeni tercih için değişmesin diye.
+CREATE TABLE IF NOT EXISTS profile_meta (
+    profile_id  TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    collar      TEXT,
+    attrs       TEXT NOT NULL DEFAULT '{}',
+    created_at  TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (profile_id) REFERENCES profile(profile_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS profile_fact (
     profile_id   TEXT NOT NULL,
     key          TEXT NOT NULL,
@@ -58,6 +72,10 @@ class ProfileStore(Protocol):
     def save(self, profile: CareerProfile) -> None: ...
     def load_suggestions(self, profile_id: str) -> list[dict]: ...
     def save_suggestions(self, profile_id: str, items: list[dict]) -> None: ...
+    # -- isimli profiller (D-045) --
+    def list_profiles(self) -> list[dict]: ...
+    def save_meta(self, meta: dict) -> None: ...
+    def delete_profile(self, profile_id: str) -> None: ...
     def close(self) -> None: ...
 
 
@@ -149,6 +167,45 @@ class SqliteProfileStore:
                  for i in items],
             )
 
+    # -- isimli profiller (D-045) ------------------------------------------
+
+    def list_profiles(self) -> list[dict]:
+        import json
+
+        rows = self._db.execute(
+            "SELECT profile_id, name, collar, attrs, created_at "
+            "FROM profile_meta ORDER BY created_at"
+        ).fetchall()
+        return [
+            {"id": pid, "name": name, "collar": collar,
+             "attrs": json.loads(attrs or "{}"), "created_at": created}
+            for pid, name, collar, attrs, created in rows
+        ]
+
+    def save_meta(self, meta: dict) -> None:
+        import json
+
+        with self._db:
+            # FK için profil satırı var olmalı; yeni profilde henüz save()
+            # çağrılmamış olabilir.
+            self._db.execute(
+                "INSERT OR IGNORE INTO profile (profile_id) VALUES (?)", (meta["id"],)
+            )
+            self._db.execute(
+                "INSERT INTO profile_meta (profile_id, name, collar, attrs, created_at) "
+                "VALUES (?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET "
+                "name = excluded.name, collar = excluded.collar, attrs = excluded.attrs",
+                (meta["id"], meta["name"], meta.get("collar"),
+                 json.dumps(meta.get("attrs", {}), ensure_ascii=False),
+                 meta.get("created_at", "")),
+            )
+
+    def delete_profile(self, profile_id: str) -> None:
+        with self._db:
+            # ON DELETE CASCADE fact/meta'yı siler; cv_suggestion FK'siz, elle.
+            self._db.execute("DELETE FROM cv_suggestion WHERE profile_id = ?", (profile_id,))
+            self._db.execute("DELETE FROM profile WHERE profile_id = ?", (profile_id,))
+
     def close(self) -> None:
         self._db.close()
 
@@ -159,6 +216,7 @@ class MemoryProfileStore:
     def __init__(self) -> None:
         self._profiles: dict[str, CareerProfile] = {}
         self._suggestions: dict[str, list[dict]] = {}
+        self._meta: dict[str, dict] = {}
 
     def load(self, profile_id: str) -> CareerProfile:
         return self._profiles.get(profile_id) or CareerProfile(profile_id=profile_id)
@@ -171,6 +229,17 @@ class MemoryProfileStore:
 
     def save_suggestions(self, profile_id: str, items: list[dict]) -> None:
         self._suggestions[profile_id] = list(items)
+
+    def list_profiles(self) -> list[dict]:
+        return sorted(self._meta.values(), key=lambda m: m.get("created_at", ""))
+
+    def save_meta(self, meta: dict) -> None:
+        self._meta[meta["id"]] = dict(meta)
+
+    def delete_profile(self, profile_id: str) -> None:
+        self._profiles.pop(profile_id, None)
+        self._suggestions.pop(profile_id, None)
+        self._meta.pop(profile_id, None)
 
     def close(self) -> None:
         pass
@@ -266,6 +335,39 @@ class PostgresProfileStore:
                     [(profile_id, i["key"], json.dumps(i, ensure_ascii=False))
                      for i in items],
                 )
+
+    def list_profiles(self) -> list[dict]:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "SELECT profile_id, name, collar, attrs, created_at "
+                "FROM profile_meta ORDER BY created_at"
+            )
+            return [
+                {"id": pid, "name": name, "collar": collar,
+                 "attrs": attrs or {}, "created_at": str(created or "")}
+                for pid, name, collar, attrs, created in cur.fetchall()
+            ]
+
+    def save_meta(self, meta: dict) -> None:
+        import json
+
+        with self._db.transaction(), self._db.cursor() as cur:
+            cur.execute(
+                "INSERT INTO profile (profile_id) VALUES (%s) ON CONFLICT DO NOTHING",
+                (meta["id"],),
+            )
+            cur.execute(
+                "INSERT INTO profile_meta (profile_id, name, collar, attrs) "
+                "VALUES (%s, %s, %s, %s::jsonb) ON CONFLICT (profile_id) DO UPDATE SET "
+                "name = EXCLUDED.name, collar = EXCLUDED.collar, attrs = EXCLUDED.attrs",
+                (meta["id"], meta["name"], meta.get("collar"),
+                 json.dumps(meta.get("attrs", {}), ensure_ascii=False)),
+            )
+
+    def delete_profile(self, profile_id: str) -> None:
+        with self._db.transaction(), self._db.cursor() as cur:
+            cur.execute("DELETE FROM cv_suggestion WHERE profile_id = %s", (profile_id,))
+            cur.execute("DELETE FROM profile WHERE profile_id = %s", (profile_id,))
 
     def close(self) -> None:
         self._db.close()

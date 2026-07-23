@@ -15,6 +15,16 @@ CREATE TABLE IF NOT EXISTS profile (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- İsimli profillerin üst verisi (D-045). Matching'e GİRMEZ; onboarding
+-- tercihleri ve gösterim içindir. `attrs` esnek JSON (bölge, özel kelimeler).
+CREATE TABLE IF NOT EXISTS profile_meta (
+    profile_id  TEXT PRIMARY KEY REFERENCES profile(profile_id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    collar      TEXT CHECK (collar IN ('white', 'blue') OR collar IS NULL),
+    attrs       JSONB NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- `verification` bir CHECK ile sınırlanır.
 --
 -- Bu satır D-012'nin veritabanı düzeyindeki karşılığıdır: uygulama katmanı

@@ -11,10 +11,16 @@
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pathlib import Path
 
 from isuygun_core.domain import CareerProfile, ProfileFact, VerificationState
+
+
+def _now() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 from isuygun_ingest import search
 from isuygun_ingest.pipeline import (
     NormalizedPosting,
@@ -48,6 +54,9 @@ class Store:
     profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id=PROFILE_ID))
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
+    #: Şu an etkin profil (D-045). Kullanıcı isimli profiller arasında geçer;
+    #: bütün profil işlemleri bu id üzerinde çalışır.
+    active_id: str = PROFILE_ID
     ingest_summary: dict = field(default_factory=dict)
     store: ProfileStore = field(
         default_factory=lambda: open_store(
@@ -56,8 +65,24 @@ class Store:
     )
 
     def __post_init__(self) -> None:
-        self.profile = self.store.load(PROFILE_ID)
-        self.pending_cv_suggestions = self.store.load_suggestions(PROFILE_ID)
+        # Geriye dönük uyum: daha önce tek profil ("local") vardı. Meta boşsa
+        # ama o profilde veri varsa, onu "Varsayılan" adıyla meta'ya taşı ki
+        # eski kullanıcı verisi kaybolmasın.
+        metas = self.store.list_profiles()
+        if not metas:
+            existing = self.store.load(PROFILE_ID)
+            if existing.facts or existing.occupation_ids:
+                self.store.save_meta({
+                    "id": PROFILE_ID, "name": "Varsayılan", "collar": None,
+                    "attrs": {}, "created_at": _now(),
+                })
+                metas = self.store.list_profiles()
+        self.active_id = metas[0]["id"] if metas else PROFILE_ID
+        self._load_active()
+
+    def _load_active(self) -> None:
+        self.profile = self.store.load(self.active_id)
+        self.pending_cv_suggestions = self.store.load_suggestions(self.active_id)
 
     @property
     def is_persistent(self) -> bool:
@@ -70,7 +95,69 @@ class Store:
 
     def _persist(self) -> None:
         self.store.save(self.profile)
-        self.store.save_suggestions(PROFILE_ID, self.pending_cv_suggestions)
+        self.store.save_suggestions(self.active_id, self.pending_cv_suggestions)
+
+    # -- isimli profiller (D-045) ------------------------------------------
+
+    def list_profiles(self) -> list[dict]:
+        metas = self.store.list_profiles()
+        for m in metas:
+            m["is_active"] = m["id"] == self.active_id
+            m["fact_count"] = len(self.store.load(m["id"]).facts)
+        return metas
+
+    def create_profile(self, name: str, *, collar: str | None = None,
+                       attrs: dict | None = None, activate: bool = True) -> str:
+        """Yeni isimli profil oluşturur ve id'sini döner."""
+        pid = f"p-{uuid.uuid4().hex[:12]}"
+        self.store.save(CareerProfile(profile_id=pid))
+        self.store.save_meta({
+            "id": pid, "name": name.strip() or "Profil", "collar": collar,
+            "attrs": attrs or {}, "created_at": _now(),
+        })
+        if activate:
+            self.active_id = pid
+            self._load_active()
+        return pid
+
+    def activate(self, profile_id: str) -> None:
+        if profile_id not in {m["id"] for m in self.store.list_profiles()}:
+            raise KeyError(f"Profil yok: {profile_id!r}")
+        self.active_id = profile_id
+        self._load_active()
+
+    def rename_profile(self, profile_id: str, name: str) -> None:
+        metas = {m["id"]: m for m in self.store.list_profiles()}
+        if profile_id not in metas:
+            raise KeyError(f"Profil yok: {profile_id!r}")
+        m = metas[profile_id]
+        m["name"] = name.strip() or m["name"]
+        self.store.save_meta(m)
+
+    def update_meta(self, profile_id: str, *, collar: str | None = None,
+                    attrs: dict | None = None) -> None:
+        metas = {m["id"]: m for m in self.store.list_profiles()}
+        if profile_id not in metas:
+            raise KeyError(f"Profil yok: {profile_id!r}")
+        m = metas[profile_id]
+        if collar is not None:
+            m["collar"] = collar
+        if attrs is not None:
+            m["attrs"] = {**m.get("attrs", {}), **attrs}
+        self.store.save_meta(m)
+
+    def delete_profile(self, profile_id: str) -> None:
+        """Profili siler. Son profili silmek yasak — sistemde en az bir profil
+        kalmalı, yoksa kullanıcı hiçbir yere yazamaz."""
+        metas = self.store.list_profiles()
+        if profile_id not in {m["id"] for m in metas}:
+            raise KeyError(f"Profil yok: {profile_id!r}")
+        if len(metas) <= 1:
+            raise ValueError("Son profil silinemez.")
+        self.store.delete_profile(profile_id)
+        if self.active_id == profile_id:
+            self.active_id = next(m["id"] for m in metas if m["id"] != profile_id)
+            self._load_active()
 
     # -- ilanlar -----------------------------------------------------------
 
@@ -183,7 +270,8 @@ class Store:
         self._persist()
 
     def reset_profile(self) -> None:
-        self.profile = CareerProfile(profile_id=PROFILE_ID)
+        """Etkin profilin **içeriğini** temizler (profili silmez)."""
+        self.profile = CareerProfile(profile_id=self.active_id)
         self.pending_cv_suggestions = []
         self._persist()
 

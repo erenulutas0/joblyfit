@@ -486,6 +486,89 @@ def set_occupations(body: OccupationsIn) -> ProfileOut:
     return get_profile()
 
 
+# --------------------------------------------------------------------------
+# İsimli profiller (D-045)
+# --------------------------------------------------------------------------
+
+
+class ProfileMetaOut(BaseModel):
+    id: str
+    name: str
+    collar: str | None = None
+    attrs: dict = Field(default_factory=dict)
+    created_at: str = ""
+    is_active: bool = False
+    fact_count: int = 0
+
+
+class ProfileCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    #: white | blue | null
+    collar: str | None = None
+    #: Onboarding tercihleri: bölge, özel anahtar kelimeler vb.
+    attrs: dict = Field(default_factory=dict)
+    #: Onboarding'de seçilen katalog alanları — profile doğrudan yazılır.
+    fact_keys: list[str] = Field(default_factory=list)
+
+
+class ProfilePatchIn(BaseModel):
+    name: str | None = None
+    collar: str | None = None
+    attrs: dict | None = None
+
+
+@app.get("/api/profiles", response_model=list[ProfileMetaOut])
+def list_profiles() -> list[ProfileMetaOut]:
+    return [ProfileMetaOut(**m) for m in STORE.list_profiles()]
+
+
+@app.post("/api/profiles", response_model=list[ProfileMetaOut])
+def create_profile(body: ProfileCreateIn) -> list[ProfileMetaOut]:
+    """Yeni isimli profil oluşturur, etkinleştirir ve seçilen alanları yazar."""
+    STORE.create_profile(body.name, collar=body.collar, attrs=body.attrs)
+    for key in body.fact_keys:
+        item = STORE.catalog_item(key)
+        # D-013: yasal uygunluk alanları profile yazılmaz; sessizce atlanır.
+        if item is not None and not item.is_legal_eligibility:
+            try:
+                STORE.set_fact(key)
+            except (KeyError, ValueError):
+                pass
+    return list_profiles()
+
+
+@app.post("/api/profiles/{profile_id}/activate", response_model=list[ProfileMetaOut])
+def activate_profile(profile_id: str) -> list[ProfileMetaOut]:
+    try:
+        STORE.activate(profile_id)
+    except KeyError:
+        raise HTTPException(404, "Profil bulunamadı.")
+    return list_profiles()
+
+
+@app.patch("/api/profiles/{profile_id}", response_model=list[ProfileMetaOut])
+def patch_profile(profile_id: str, body: ProfilePatchIn) -> list[ProfileMetaOut]:
+    try:
+        if body.name is not None:
+            STORE.rename_profile(profile_id, body.name)
+        if body.collar is not None or body.attrs is not None:
+            STORE.update_meta(profile_id, collar=body.collar, attrs=body.attrs)
+    except KeyError:
+        raise HTTPException(404, "Profil bulunamadı.")
+    return list_profiles()
+
+
+@app.delete("/api/profiles/{profile_id}", response_model=list[ProfileMetaOut])
+def delete_profile(profile_id: str) -> list[ProfileMetaOut]:
+    try:
+        STORE.delete_profile(profile_id)
+    except KeyError:
+        raise HTTPException(404, "Profil bulunamadı.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return list_profiles()
+
+
 class UnlockSuggestionOut(BaseModel):
     key: str
     label: str

@@ -458,3 +458,59 @@ def test_years_requirement_reported_with_evidence(client):
     outcome = match(job, profile).outcomes[0]
     assert outcome.state == "unmet"
     assert "5" in outcome.evidence and "1" in outcome.evidence
+
+
+# ---------------------------------------------------------------------------
+# İsimli çoklu profil (D-045)
+# ---------------------------------------------------------------------------
+
+
+def test_create_and_switch_named_profiles(client):
+    """"Eren-Computer Engineer" / "Eren-Mavi yaka" senaryosu: iki profil, ayrı
+    veri, geçiş yapınca doğru profil etkin olur."""
+    client.post("/api/profiles", json={"name": "Eren-Computer Engineer",
+                                        "collar": "white", "fact_keys": ["python"]})
+    white = client.get("/api/profiles").json()
+    active = next(m for m in white if m["is_active"])
+    assert active["name"] == "Eren-Computer Engineer"
+    assert active["collar"] == "white"
+    # aktif profilde python var
+    assert any(f["key"] == "python" for f in client.get("/api/profile").json()["facts"])
+
+    client.post("/api/profiles", json={"name": "Eren-Mavi yaka", "collar": "blue"})
+    # yeni profil etkin ve BOŞ — önceki profilin verisi sızmamalı
+    assert client.get("/api/profile").json()["facts"] == []
+
+    # geri geç: python yine görünür
+    white_id = next(m["id"] for m in client.get("/api/profiles").json()
+                    if m["name"] == "Eren-Computer Engineer")
+    client.post(f"/api/profiles/{white_id}/activate")
+    assert any(f["key"] == "python" for f in client.get("/api/profile").json()["facts"])
+
+
+def test_rename_profile(client):
+    client.post("/api/profiles", json={"name": "İlk isim"})
+    pid = next(m["id"] for m in client.get("/api/profiles").json() if m["is_active"])
+    client.patch(f"/api/profiles/{pid}", json={"name": "Yeni isim"})
+    assert any(m["name"] == "Yeni isim" for m in client.get("/api/profiles").json())
+
+
+def test_cannot_delete_last_profile(client):
+    profiles = client.get("/api/profiles").json()
+    # tek profile inene kadar sil
+    while len(profiles) > 1:
+        victim = next(m["id"] for m in profiles if not m["is_active"])
+        client.delete(f"/api/profiles/{victim}")
+        profiles = client.get("/api/profiles").json()
+    last = profiles[0]["id"]
+    r = client.delete(f"/api/profiles/{last}")
+    assert r.status_code == 400, "son profil silinememeli"
+
+
+def test_delete_active_profile_switches_to_another(client):
+    client.post("/api/profiles", json={"name": "A"})
+    client.post("/api/profiles", json={"name": "B"})   # B etkin
+    b_id = next(m["id"] for m in client.get("/api/profiles").json() if m["is_active"])
+    client.delete(f"/api/profiles/{b_id}")
+    # bir profil hâlâ etkin olmalı (kullanıcı boşta kalmamalı)
+    assert any(m["is_active"] for m in client.get("/api/profiles").json())
