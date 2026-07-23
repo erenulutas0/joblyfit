@@ -1108,7 +1108,7 @@ korpusta, yanlış-birleşme denetimiyle ölçülmeli.
   anahtarının TR indeksine erişip erişmediğini** doğrulamamıştım. Ülke-sitesi
   ayrımı gözden kaçtı. Dış entegrasyonlar kabul edilmeden önce **gerçek anahtarla
   gerçek veri** üzerinde uçtan uca doğrulanmalı.
-- **Açık kalan (OPEN-25):** Türkiye aggregator'larının hepsi (tr.jooble.org,
+- **Açık kalan (OPEN-26):** Türkiye aggregator'larının hepsi (tr.jooble.org,
   Careerjet) kayıt için **Website/domain** istiyor. Domain, Türkiye hacminin
   önündeki tek gerçek engel haline geldi.
 
@@ -1173,7 +1173,7 @@ korpusta, yanlış-birleşme denetimiyle ölçülmeli.
 - **Bu, önceki bir değerlendirmemi düzeltiyor.** Kullanıcıya "Jooble sandığım
   kadar kritik olmayabilir, Türk ATS panolarını eklemek hızlı yol" demiştim.
   Ölçüm bunun **tersini** gösterdi: Türkiye hacmi için aggregator (tr.jooble.org
-  / Careerjet) gerçekten gerekli ve o da domain'e bağlı (OPEN-25).
+  / Careerjet) gerçekten gerekli ve o da domain'e bağlı (OPEN-26).
 - **Eklenen:** `("src-ats-ashby", "ashby", "biggergames", "Bigger Games")`.
   Diğer bulunan panolar (Insider/Picus/Peak, ~86 ilan) **eklenmedi**: TR ilanı
   taşımıyorlar ve korpus zaten ABD/AB ağırlıklı; misyona katkısız hacim

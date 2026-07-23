@@ -621,3 +621,41 @@ değerleri, taxonomy standardı, harici AI servis izni) T-008 ve T-004 ile kapan
 - Initial task breakdown [TASKS.md](TASKS.md) içine eklendi (T-001…T-020).
 - Bilinen eksik: hedef pazar, başlangıç source listesi ve business model kullanıcı
   onayı bekliyor (bkz. CONTEXT.md → Açık Konular).
+
+## 2026-07-22/23 — Saha araştırması ürüne dönüştü (D-029…D-043)
+
+Saha araştırmasının bulduğu şikâyetler tek tek kapatıldı; her biri **önce gerçek
+korpusta ölçüldü**, sonra kuruldu.
+
+- **Maaş (D-029):** üç durumlu — yazıyor / ilan yazmamış / okunamadı. "Yazmamış"
+  ile "okuyamadım" ayrı; ikisini karıştırmak maaşını yazan ilana haksızlık olurdu.
+  Kur çevirisi yok. Ölçüm: %37 bulundu. Eşik filtresi tek para birimi içinde.
+- **İlan yaşı ≠ canlılığı (D-035):** Greenhouse adapter'ı yaşı `updated_at`ten
+  okuyordu; `first_published` varken. Ölçüm: ilanların **%79'unda** iki tarih
+  farklı, medyan **60 gün** gizleniyordu (en uç 1920 gün). "Geçmiş işler
+  çıkmasın" sözü korpusun çoğunluğu için tutulmuyordu.
+- **Arama (D-031):** ilan **metninde** arama + `"tam öbek"` / `-dışla`.
+  "forklift" 0 sonuç veriyordu, gerçekte 13 ilan vardı.
+- **Kıdem merdiveni (D-037):** ikili senior/entry yerine 7 basamak. %55
+  işaretsiz kalıyor ve bu gizlenmiyor.
+- **Profil önerileri (D-034):** "şunu eklersen ≈N ilan değerlendirilebilir olur".
+  İlanların %68'i değerlendirilemiyordu — bu bir hata değildi (D-019/021/022
+  doğru çalışıyordu), eksik olan yönlendirmeydi.
+- **Kaynaklar arası dedupe (D-039):** URL eşitliği + kaynak katmanı.
+- **Ayrımcılık kalkanı (D-042):** işaretle + bilgilendir, **hüküm verme** (T-008).
+  6/6 yakalama, 0/6 yanlış pozitif. ATS korpusu temiz olduğu için dormant;
+  Türkiye verisiyle görünür.
+
+**Türkiye hacmi araştırıldı, üç kapı da kapalı çıktı:**
+LinkedIn (okuma API'si yok) · Jooble (**D-041:** ülke sitesi başına ayrı anahtar;
+jooble.org "Turkey"yi ABD kasabası sanıyor) · Türk ATS panoları (**D-043:** 98 aday
+tarandı, +12 ilan — Türk şirketleri bu platformları kullanmıyor).
+**Kalan tek yol aggregator ve o domain istiyor → OPEN-26.**
+
+**Yol boyunca yakalanan kendi hatalarım** (hepsi gerçek veriyle çıktı):
+URL dedupe'un 319 gerçek ilanı gizlemesi (kimlik query'deydi, atıyordum) ·
+`salary._NUM`'un ayraçsız sayıyı bozması · `registry.py`'nin çekim parmak izinde
+olmaması (aynı sessiz bayatlığın **üçüncü** tekrarı) · Jooble anahtarının hata
+mesajlarıyla sızabilmesi.
+
+Test: 191 → **349**.

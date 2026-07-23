@@ -34,6 +34,56 @@
 
 ---
 
+## 2026-07-23 — Saha araştırması ürüne döndü; Türkiye üç kapıdan da kapalı
+
+**Bu session'da yapılanlar:**
+- Saha araştırmasının şikâyetleri kapatıldı: maaş (D-029), ilan yaşı/hayalet ilan
+  (D-035), tam metin arama + operatörler (D-031), kıdem merdiveni (D-037), profil
+  açma önerileri (D-034), kaynaklar arası dedupe (D-039), ayrımcılık kalkanı (D-042).
+- Sırlar `.env.local`'e taşındı (D-040), Jooble anahtarı bağlandı.
+- CV → öneri → profil → iş önerisi zinciri **uçtan uca test edildi** (5 yeni test).
+- Test 191 → **349**.
+
+**Yarım kalanlar (dosya/konum ile):**
+- **Jooble dormant:** `adapters/public_apis.py::fetch_jooble` hazır ama
+  `ISUYGUN_JOOBLE_HOST=tr.jooble.org` için **TR anahtarı yok** (mevcut jooble.org
+  anahtarı 403 alıyor). Domain gelince `.env.local`'e yazılıp çalışacak.
+- **Ayrımcılık kalkanı dormant:** `fairness.py` çalışıyor ama ATS korpusu temiz
+  olduğu için yalnızca 1 ilanı işaretliyor; Türkiye verisiyle anlam kazanacak.
+- Next.js taşınması (D-001) hâlâ ertelendi; arayüz tek dosya `web/index.html`.
+
+**Bir sonraki session'ın ilk adımı:**
+- Kullanıcı domain aldıysa: Cloudflare Pages'e statik arayüzü kur → tr.jooble.org
+  başvurusu → anahtar → `ISUYGUN_JOOBLE_HOST` → Türkiye hacmini ölç.
+- Almadıysa: OPEN-27 (monetizasyon) ya da match kalibrasyonu (T-006b).
+
+**Bu session'da alınan kararlar / yeni assumption'lar:**
+- D-029…D-043 — hepsi DECISIONS.md'ye işlendi ✔
+- OPEN-26 (domain) ve OPEN-27 (monetizasyon) CONTEXT.md'ye eklendi ✔
+
+**Yeni open question'lar:**
+- OPEN-26: Türkiye hacmi için domain ne zaman alınacak? (tüm TR aggregator'ları
+  kayıtta Website istiyor)
+- OPEN-27: Monetizasyon modeli ve ücretsiz/ücretli sınırı
+
+**Dikkat edilmesi gerekenler / tuzaklar:**
+- **Jooble ülke sitesi tuzağı (D-041):** jooble.org anahtarı ≠ tr.jooble.org.
+  Uluslararası indeks "Turkey"yi ABD'deki kasaba (Turkey, NC) sanıyor ve
+  İstanbul/Ankara için **0** döner. Anahtar hangi ülke sitesinden alındıysa host
+  da o olmalı.
+- **Parmak izi kuralı (üç kez ihlal edildi):** çekilecek **veriyi** belirleyen her
+  şey `cache._FETCH_FILES`'a girer. `registry.py` unutulmuştu — yeni pano
+  ekleniyor, önbellek "taze" görünüyor, pano hiç çekilmiyordu.
+- **URL dedupe:** iş kimliği çoğu şirkette **query'de** (`?gh_jid=`). Query'yi
+  atmak bir şirketin tüm ilanlarını tek URL'e çökertip **319 gerçek ilanı
+  gizlemişti**. Yanlış birleştirme, kaçan birleştirmeden çok daha ağırdır.
+- **Türk şirketleri Greenhouse/Lever/Ashby kullanmıyor** (D-043, 98 aday tarandı).
+  ATS genişletme Türkiye için düşük tavanlı; aggregator şart.
+- Windows PowerShell `Out-File -Encoding utf8` **BOM** ekler; `.env.local`
+  `utf-8-sig` ile okunur.
+
+---
+
 ## 2026-07-21 — LinkedIn 4. kez reddedildi; 151 pano
 
 **Bu session'da yapılanlar:**

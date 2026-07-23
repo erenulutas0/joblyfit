@@ -10,7 +10,7 @@
 > değiştiyse Şu Anki Faz / Aktif Hedef / Open Question Index güncellenir ve aşağıdaki
 > tarih yenilenir.
 
-_Last updated: 2026-07-21 (açılış 35 sn → 1.2 sn, D-028; 191 test)_
+_Last updated: 2026-07-23 (saha araştırması ürüne döndü, D-029…D-043; 349 test)_
 
 ## Ne İnşa Ediyoruz?
 
@@ -42,14 +42,17 @@ kuralı ise **izin iddiasının kanıtsız yazılamaması**dır.
 
 ## Aktif Hedef
 
-**Gerçek ilanlarla çalışan uygulama** — **151 ATS panosu** + 4 public API'den
-**~5810 ilan çekiliyor, 694'i eski olduğu için eleniyor, ~5043 gösteriliyor.**
-(ABD 2254 · Avrupa 1602 · Uzaktan 994 · Diğer 856 · Türkiye 21)
-**191 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
+**Gerçek ilanlarla çalışan uygulama** — **152 ATS panosu** + 5 public API'den
+**5811 ilan çekiliyor, 722'si eski olduğu için eleniyor, 4424 gösteriliyor.**
+(ABD 2061 · Avrupa 1346 · Uzaktan 892 · Diğer 775 · **Türkiye 26**)
+**349 test geçiyor** ve GitHub Actions'ta üç iş olarak koşuyor (Python testleri ·
 arayüz sözdizimi · kaynak izni denetimi).
 
-Arama yapısı: serbest metin · bölge · şehir · işveren · meslek alanı · durum ·
-**yayın tarihi (son 7/14/30 gün)** · sıralama (uygunluk / en yeni / işveren).
+Arama yapısı: **ilan metninde tam metin arama** (`"tam öbek"` · `-dışla`, D-031) ·
+bölge · şehir · işveren · meslek alanı · durum · yayın tarihi · **çalışma biçimi**
+(uzaktan/hibrit/ofisten) · **kıdem merdiveni** (stajyer→yönetici, D-037) ·
+**çalışma türü** · **maaş eşiği** (tek para birimi içinde, D-029) ·
+**uzun süredir açıkları gizle** (D-035) · sıralama · **kayıtlı aramalar** (D-033).
 Ayrıca **"İlan yapıştır"** sekmesi: başka bir sitede görülen ilanın metni aynı
 değerlendirmeden geçirilebilir (D-025) — sunucu o adrese istek atmaz.
 
@@ -57,8 +60,19 @@ değerlendirmeden geçirilebilir (D-025) — sunucu o adrese istek atmaz.
 aşçı, bakım, kaynakçı; ABD tarafından Carvana (oto teknisyeni, nakliye), Gopuff
 (depo, dağıtım), Lucid Motors (üretim), One Medical (sağlık), Flexport (lojistik).
 
-**Bilinen sınırlar:** Türkiye hacmi hâlâ çok düşük — TR kaynakları izne bağlı
-(OPEN-19), Careerjet/Jooble kullanıcı kaydı ister (OPEN-24). Arbeitsagentur liste
+**Kullanıcıya dürüstlük katmanı:** maaş üç durumlu (yazıyor / ilan yazmamış /
+okunamadı — 1734 ilanda okunuyor) · ilan **yaşı ≠ canlılığı** (D-035: gerçek ilk
+yayın gösterilir, 388 ilan "uzun süredir açık" işaretli) · "şunu eklersen ≈N ilan
+değerlendirilebilir olur" önerileri (D-034) · **ayrımcılık kalkanı** (D-042:
+işaretle + bilgilendir, hüküm verme; ATS korpusu temiz olduğu için şimdilik 8 ilan).
+
+**Bilinen sınırlar:** Türkiye hacmi hâlâ çok düşük (26) ve **üç kapı da kapalı**:
+LinkedIn (okuma API'si yok, D-025) · Jooble (**D-041:** ülke sitesi başına ayrı
+anahtar; jooble.org "Turkey"yi ABD kasabası sanıyor) · Türk ATS panoları
+(**D-043:** 98 aday tarandı, yalnızca +1 pano). Kalan tek yol aggregator ve o
+**domain istiyor → OPEN-26**. TR kaynakları ayrıca izne bağlı (OPEN-19).
+**Soğuk açılış ~7 dk sürüyor ve o süre boyunca site kapalı** — `STORE.load()`
+lifespan'i blokluyor; önbellekten servis edip yenilemeyi arka plana almak gerekiyor. Arbeitsagentur liste
 ucu açıklama metni vermiyor. Profil **kalıcı** (D-027): PostgreSQL (`docker compose up -d`, port 5435) →
 SQLite → bellek düşme zinciri; ilan korpusu kalıcı
 değil ve bu bilinçli (tazelik, D-024) — `.cache/` altında 6 saat TTL. Açılış
@@ -156,6 +170,8 @@ Sıradaki iş: **T-022B saha çalışması** (kullanıcı) · izin taslakların�
 | OPEN-23 | Profil alanı ↔ ilan şartı eşlemesi için ontoloji (ESCO benzeri) ne zaman ve nasıl kurulacak? | pre-build | [lexicon.py](services/ingest/src/isuygun_ingest/lexicon.py) | T-016 | Open — **kısmen azaltıldı:** elle yazılmış 82 terimlik paylaşılan sözlük kuruldu; ilan ve CV aynı sözlüğe eşleniyor. Serbest metin anlaşılmıyor |
 | OPEN-24 | Hangi ek ilan kaynakları eklenecek? **Careerjet publisher kaydı bir domain istiyor; uygulama yayına girene kadar bu kapı kapalı.** | pre-build | [DECISIONS.md](DECISIONS.md) | — | Open — **kullanıcı kararı.** **Kısmen kapandı (D-023):** Arbeitsagentur, Arbeitnow, The Muse, Himalayas eklendi. **Açık kalan:** ücretsiz kayıt gerektirenler (Adzuna, USAJOBS, Reed) ve TR için Careerjet/Jooble |
 | OPEN-25 | Registry, kaynak başına atıf / gecikme / yeniden-yayın şartlarını taşımalı mı? | pre-build | [registry.py](services/ingest/src/isuygun_ingest/registry.py) | OPEN-24 | **Kapandı (D-023, 2026-07-21)** — alanlar eklendi, testle denetleniyor |
+| OPEN-26 | Türkiye ilan hacmi için **domain** ne zaman alınacak? | build | [DECISIONS.md](DECISIONS.md) | OPEN-24 | Open — **kullanıcı kararı.** Türkiye'nin bütün meşru aggregator'ları (tr.jooble.org, Careerjet) kayıtta Website/domain istiyor. **D-041:** jooble.org anahtarı TR indeksine erişemez (ülke sitesi başına ayrı anahtar; "Turkey"yi ABD kasabası sanıyor). **D-043:** Türk ATS panosu taraması düşük tavanlı çıktı (98 aday → +12 ilan), yani aggregator gerçekten şart. Kod hazır; domain + tr.jooble.org anahtarı gelince `ISUYGUN_JOOBLE_HOST` ile çalışır |
+| OPEN-27 | Monetizasyon modeli ne olacak ve ücretsiz/ücretli sınırı nereden geçecek? | post-launch | [DECISIONS.md](DECISIONS.md) | OPEN-26 | Open — **kullanıcı kararı.** Ölçülen gerçek aralıklar: aggregator affiliate $0.05–0.25/tıklama (masrafı karşılar, iş kurmaz), işveren ilan ücreti $50–600/ilan (asıl gelir ama rakiplerin maaş gizlemesinin sebebi de bu). **Kısıt:** iş aramak ve eşleşmeyi görmek daima ücretsiz kalmalı; sıralama satılamaz (D-005 ile çelişir). En savunulabilir aday: işverene **ayrımcılık/uyum denetimi** (D-042 altyapısı hazır, iş arayanla çıkar çatışması yok) |
 
 **Kapanma kuralı:** Bir soru kapandığında sahibi dosyadaki `❓ OPEN` işareti cevabıyla
 değiştirilir, karar gerektiriyorsa DECISIONS.md'ye kayıt düşülür ve buradaki satırın
