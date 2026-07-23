@@ -42,7 +42,12 @@ _LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py",
 #: gerçekte olduğundan medyan 60 gün daha taze görünüyordu. Adapter düzeltildi
 #: ama önbellekteki ham kayıtlar eski tarihi taşımaya devam edecekti —
 #: düzeltmenin hiçbir etkisi görünmezdi.
-_FETCH_FILES = ("adapters/ats.py", "adapters/public_apis.py")
+#: `registry.py` de buradadır: **hangi panoların çekileceğini** o belirler.
+#: Yeni bir şirket panosu eklendiğinde parmak izi değişmezse önbellek "taze"
+#: görünür ve yeni pano hiç çekilmez — geliştirici panoyu ekler, ilanları
+#: göremez ve sebebini adapter'da arar. (D-036'nın üçüncü tekrarı; bu kalıp
+#: artık nettir: çekilecek **veriyi** belirleyen her şey parmak izine girer.)
+_FETCH_FILES = ("adapters/ats.py", "adapters/public_apis.py", "registry.py")
 
 
 def _hash_files(names: tuple[str, ...]) -> str:

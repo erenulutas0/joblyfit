@@ -260,7 +260,13 @@ BOARDS: tuple[tuple[str, str, str, str], ...] = (
     ("src-ats-lever", "lever", "iyzico", "iyzico"),
     ("src-ats-lever", "lever", "commencis", "Commencis"),
     ("src-ats-lever", "lever", "ciceksepeti", "Çiçeksepeti"),
+    ("src-ats-ashby", "ashby", "biggergames", "Bigger Games"),
     ("src-ats-recruitee", "recruitee", "macellan", "Macellan"),
+    # NOT (D-043): 98 Türk firması adayı 3 ATS platformunda tarandı; TR ilanı
+    # taşıyan **yalnızca** bu pano çıktı. Peak Games'in Lever panosunda konum
+    # alanı istihdam türüyle dolu ("Full-time"), Insider/Picus/Peak panoları
+    # ABD/Avrupa ilanı taşıyor. Türk şirketleri ağırlıkla Kariyer.net ve yerel
+    # ATS'ler kullanıyor — bu yol Türkiye için düşük tavanlı.
     # ---- Avrupa ----
     ("src-ats-greenhouse", "greenhouse", "adyen", "Adyen"),
     ("src-ats-greenhouse", "greenhouse", "wolt", "Wolt"),

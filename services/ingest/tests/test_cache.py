@@ -172,3 +172,15 @@ def test_fetch_and_extraction_fingerprints_are_independent(tmp_path, monkeypatch
     assert got is not None, "çıkarım değişimi ham kaydı düşürmemeli"
     assert got["raws"], "ham kayıtlar korunmalı"
     assert got["postings"] is None, "işlenmiş kayıtlar geçersiz olmalı"
+
+
+def test_new_board_invalidates_raw_cache(tmp_path, monkeypatch):
+    """Pano listesi değişince ham önbellek geçersiz olmalı (D-043).
+
+    Yeni bir şirket panosu eklendiğinde parmak izi değişmezse önbellek "taze"
+    görünür ve yeni pano hiç çekilmez — geliştirici panoyu ekler, ilanları
+    göremez. D-036'nın aynı sınıfı, üçüncü tekrarı.
+    """
+    from isuygun_ingest import cache
+
+    assert "registry.py" in cache._FETCH_FILES

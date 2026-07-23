@@ -1150,3 +1150,36 @@ korpusta, yanlış-birleşme denetimiyle ölçülmeli.
   askerlik yakalandı; 7 "native speaker" soft; sıfır yanlış pozitif.
 - **Denetlenebilirlik:** `services/ingest/tests/test_fairness.py`. fairness.py
   çıkarım parmak izinde (D-028).
+
+---
+
+## D-043 — Türk ATS panoları taraması: düşük tavan; aggregator gerçekten şart
+
+- **Date:** 2026-07-23
+- **Status:** Accepted (ve önceki bir değerlendirmemin düzeltmesi)
+- **Hipotez:** Türkiye ilan sayısı düşüktü (21) çünkü registry'deki 151 panonun
+  yalnızca 4'ü Türk firmasıydı. Daha çok Türk şirketi eklenirse hacim ciddi
+  artar — ve bu domain/anahtar gerektirmez.
+- **Ölçüm:** 98 Türk şirketi adayı × 3 ATS platformu (Lever/Greenhouse/Ashby)
+  tarandı. Sonuç: 6 pano bulundu, **TR ilanı taşıyan yalnızca 1 yeni pano**
+  (Bigger Games, 12 ilan, hepsi İstanbul). Çiçeksepeti zaten kayıtlıydı.
+  - Insider (Greenhouse): yalnızca New York/Singapur ilanları.
+  - Picus (Lever): New York/Londra/Barselona.
+  - Peak Games (Lever): konum alanı istihdam türüyle dolu ("Full-time") —
+    kullanılabilir konum yok, eklenirse şehir facet'ini kirletir.
+- **Sonuç:** **Türk şirketleri ağırlıkla Greenhouse/Lever/Ashby kullanmıyor.**
+  Türkiye pazarı Kariyer.net, secretcv ve yerel ATS'ler üzerinden dönüyor.
+  ATS genişletme yolu Türkiye için **düşük tavanlı**: 21 → 33.
+- **Bu, önceki bir değerlendirmemi düzeltiyor.** Kullanıcıya "Jooble sandığım
+  kadar kritik olmayabilir, Türk ATS panolarını eklemek hızlı yol" demiştim.
+  Ölçüm bunun **tersini** gösterdi: Türkiye hacmi için aggregator (tr.jooble.org
+  / Careerjet) gerçekten gerekli ve o da domain'e bağlı (OPEN-25).
+- **Eklenen:** `("src-ats-ashby", "ashby", "biggergames", "Bigger Games")`.
+  Diğer bulunan panolar (Insider/Picus/Peak, ~86 ilan) **eklenmedi**: TR ilanı
+  taşımıyorlar ve korpus zaten ABD/AB ağırlıklı; misyona katkısız hacim
+  eklemek gürültü olur.
+- **Yan düzeltme (parmak izi, D-036'nın üçüncü tekrarı):** `registry.py` çekim
+  parmak izine eklendi. Pano listesi çekilecek veriyi belirler; parmak izinde
+  olmayınca yeni pano eklendiğinde önbellek "taze" görünüyor ve pano hiç
+  çekilmiyordu. Kalıp artık net: **çekilecek veriyi belirleyen her şey parmak
+  izine girer.**

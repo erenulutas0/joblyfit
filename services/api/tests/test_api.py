@@ -374,3 +374,87 @@ def test_role_key_shared_between_grouping_and_counting():
     from isuygun_api.main import _role_key
 
     assert _role_key("ACME A.Ş.", "Yazılım Uzmanı") == _role_key("acme a.ş.", "yazılım uzmanı")
+
+
+# ---------------------------------------------------------------------------
+# CV → öneri → profil → iş önerisi zinciri (uçtan uca)
+# ---------------------------------------------------------------------------
+
+
+def test_cv_extracts_years_of_experience():
+    """CV'deki "8 yil agir vasita tecrubesi" **süre** olarak okunmalı.
+
+    Süre okunmazsa ilan "en az 5 yıl" istediğinde sonuç `unknown/missing_duration`
+    olur — kullanıcı sahip olduğu deneyimi kanıtlayamaz (D-026).
+    """
+    hits = {s.key: s.years for s in suggest_facts(_CV, STORE.catalog)}
+    assert hits.get("heavy_driving") == 8, hits
+
+
+def test_cv_suggestion_accepted_becomes_profile_fact(client, monkeypatch):
+    """Zincirin can alıcı halkası: öneri onaylanınca profile geçer ve
+    bekleyenlerden düşer."""
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    body = client.post("/api/profile/cv",
+                       files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")}).json()
+    key = body["suggestions"][0]["key"]
+
+    client.post("/api/profile/facts", json={"key": key})
+
+    profile = client.get("/api/profile").json()
+    assert key in {f["key"] for f in profile["facts"]}, "öneri profile geçmedi"
+    assert key not in {s["key"] for s in profile["pending_cv_suggestions"]}, \
+        "onaylanan öneri bekleyenlerde kaldı"
+
+
+def test_cv_driven_profile_improves_recommendations(client, monkeypatch):
+    """CV'den gelen alanlar kabul edilince değerlendirilebilen ilan sayısı artmalı.
+
+    "CV yükledim ama hiçbir şey değişmedi" şikâyetinin regresyon testi.
+    """
+    before = len(client.get("/api/feed").json()["evaluated"])
+
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    body = client.post("/api/profile/cv",
+                       files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")}).json()
+    for s in body["suggestions"]:
+        client.post("/api/profile/facts", json={"key": s["key"]})
+
+    after = len(client.get("/api/feed").json()["evaluated"])
+    assert after >= before, "CV kabul edildi ama değerlendirilen ilan sayısı düştü"
+
+
+def test_experience_filter_axis_is_exposed_and_consistent(client):
+    """Kıdem ekseni facet'te sayaçlı gelmeli ve sayaçlar gösterilen listeyle
+    tutarlı olmalı (D-030: rozet sayısı = filtre sonucu)."""
+    d = client.get("/api/feed").json()
+    levels = d["facets"].get("experience_levels")
+    assert levels, "deneyim ekseni facet'te yok"
+
+    shown = d["evaluated"] + d["unevaluated"]
+    for level, count in levels.items():
+        actual = sum(1 for j in shown
+                     if (j.get("experience_level") or "unspecified") == level)
+        assert actual == count, f"{level}: facet {count} ≠ gerçek {actual}"
+
+
+def test_years_requirement_reported_with_evidence(client):
+    """Yıl şartı karşılanmıyorsa gerekçe **sayıyla** gösterilmeli — kullanıcı
+    neyin eksik olduğunu görebilmeli."""
+    from isuygun_core import match
+    from isuygun_core.domain import (
+        CareerProfile, JobPosting, ProfileFact, Requirement,
+    )
+
+    profile = CareerProfile(profile_id="t", facts=(
+        ProfileFact(key="python", category="skill",
+                    verification="user_asserted", years=1),))
+    job = JobPosting(
+        job_id="j", title="Backend", employer="X", city="İstanbul",
+        occupation_id="Yazılım ve veri", source="t",
+        requirements=(Requirement(key="python", label="Python", kind="required",
+                                  category="skill", min_years=5,
+                                  extraction_confidence=0.9),))
+    outcome = match(job, profile).outcomes[0]
+    assert outcome.state == "unmet"
+    assert "5" in outcome.evidence and "1" in outcome.evidence
