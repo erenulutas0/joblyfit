@@ -274,7 +274,15 @@ def _mask_key(text: str) -> str:
 #: karşılayan tohumlar kullanılır. Bölge-özgüllük sorgudan DEĞİL, dönen ilanın
 #: ``location`` alanından gelir (regions.py sınıflandırır, şehir filtresi çalışır)
 #: — böylece tüm Türkiye tek çekimde taranır, il il sorgu gerekmez.
+#: TÜRKÇE KARAKTER KRİTİK (2026-07-24 ölçümü): ``"yazilim"`` 10 ilan döndürürken
+#: ``"yazılım"`` 985 döndürüyor — 98 kat fark. Jooble Türkçe gövdeyi harfi harfine
+#: eşliyor; ASCII'ye sadeleştirme buradaki hacmi yok eder. Tohumlar bu yüzden
+#: tam Türkçe yazılır ve öyle kalmalıdır.
 JOOBLE_QUERIES: tuple[str, ...] = (
+    # Boş sorgu = tüm ülke indeksi (ölçüm: totalCount 11338). Anahtar
+    # kelimelerimizin hiçbirine uymayan ilanlar YALNIZCA buradan gelir; ilk
+    # sırada çünkü en geniş kapsamı en az istekle verir.
+    "",
     "yazılım", "muhasebe", "satış", "pazarlama", "insan kaynakları",
     "mühendis", "sürücü şoför", "hemşire sağlık", "mağaza satış danışmanı",
     "üretim operatör", "depo lojistik", "garson aşçı", "öğretmen",
@@ -326,9 +334,19 @@ def _jooble_description(j: dict) -> str:
 
 
 def fetch_jooble(source_id: str, *, queries: tuple[str, ...] = JOOBLE_QUERIES,
-                 location: str | None = None, per_page: int = 40,
-                 pages: int = 2) -> list[RawPosting]:
+                 location: str | None = None, per_page: int = 100,
+                 pages: int = 10, max_requests: int = 120) -> list[RawPosting]:
     """Jooble ülke sitesinden ilanlar. Her tohum sorgusu bağımsızdır.
+
+    Varsayılanlar **ölçülmüş** API sınırlarıdır (tr.jooble.org, 2026-07-24):
+
+    * ``per_page=100`` — tavan. 500 istenirse API sessizce 20'ye düşürür.
+    * ``pages=10`` — tek sorgu ~10 sayfada kesilir (sayfa 12 boş döner). Yani
+      hiçbir sorgu 1000'den fazla ilan veremez; ülke indeksi 11338 olsa bile.
+      Hacim bu yüzden **tek geniş sorgudan değil**, örtüşen tohumların
+      birleşiminden gelir.
+    * ``max_requests`` — anahtarın 500 istek sınırı var (dönemi belirsiz).
+      Bütçe dolunca çekim durur; kalan tohumlar bir sonraki tazelemeye kalır.
 
     **Host ülke sitesidir ve anahtarla eşleşmelidir (D-041):** ``tr.jooble.org``
     anahtarı Türkiye ilanlarını verir; ``jooble.org`` (uluslararası) anahtarı
@@ -356,11 +374,17 @@ def fetch_jooble(source_id: str, *, queries: tuple[str, ...] = JOOBLE_QUERIES,
     out: list[RawPosting] = []
     seen: set[str] = set()
     failures: list[str] = []
+    used = 0    # harcanan istek sayısı — anahtarın 500 sınırını aşmamak için
 
     for kw in queries:
+        if used >= max_requests:
+            break
         for page in range(1, pages + 1):
+            if used >= max_requests:
+                break
             payload = {"keywords": kw, "location": location,
                        "page": page, "ResultOnPage": per_page}
+            used += 1
             try:
                 data = _post_json(url, payload)
             except FetchError as e:
