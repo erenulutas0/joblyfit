@@ -32,8 +32,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN:-localhost}
+    # DOMAIN'i .env.prod'dan doğrudan container ortamına al (D-049 fix). Önceki
+    # `${DOMAIN:-localhost}` interpolasyonu compose'un `.env` dosyasını okuyordu,
+    # bizimki `.env.prod` olduğu için `localhost`a düşüyor ve Caddy sertifikayı
+    # domain yerine localhost için alıyordu.
+    env_file: [.env.prod]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data        # sertifikalar — silinirse LE limitine takılırsın
