@@ -514,3 +514,56 @@ def test_delete_active_profile_switches_to_another(client):
     client.delete(f"/api/profiles/{b_id}")
     # bir profil hâlâ etkin olmalı (kullanıcı boşta kalmamalı)
     assert any(m["is_active"] for m in client.get("/api/profiles").json())
+
+
+def _upload_cv(client, monkeypatch):
+    """CV yükleme ucunu gerçekten çağırır (PDF ayrıştırma sahtelenir)."""
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    return client.post(
+        "/api/profile/cv",
+        files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")},
+    ).json()
+
+
+def test_cv_suggestions_survive_profile_switch(client, monkeypatch):
+    """Bekleyen CV önerileri **etkin profile** yazılmalı.
+
+    Regresyon: yükleme ucu önerileri sabit ``"local"`` id'sine kaydediyordu
+    (D-045 öncesi tek profil devrinden kalma). Profiller ``p-<uuid>`` olduğu için
+    öneriler var olmayan bir profile gidiyordu; okuma ise etkin profilden
+    yapılıyor. Sonuç: kullanıcı CV'sini yükleyip profil değiştirince bütün
+    öneriler kayboluyordu.
+
+    Test **ucun kendisini** çağırır; ``STORE.store.save_suggestions``'ı doğrudan
+    çağırmak hatalı satırı hiç çalıştırmaz ve test hatayla birlikte de geçer.
+    """
+    client.post("/api/profiles", json={"name": "CV sahibi"})
+    a_id = next(m["id"] for m in client.get("/api/profiles").json() if m["is_active"])
+
+    body = _upload_cv(client, monkeypatch)
+    onerilen = [s["key"] for s in body["suggestions"]]
+    assert onerilen, "CV en az bir alan önermeli (testin ön koşulu)"
+
+    client.post("/api/profiles", json={"name": "Baska profil"})   # başka profile geç
+    assert client.get("/api/profile").json()["pending_cv_suggestions"] == [], \
+        "öneriler profiller arasında sızmamalı"
+
+    client.post(f"/api/profiles/{a_id}/activate")
+    back = [s["key"] for s in client.get("/api/profile").json()["pending_cv_suggestions"]]
+    assert back == onerilen, "geri dönünce CV önerileri yerinde olmalı"
+
+
+def test_accepting_suggestion_persists_to_active_profile(client, monkeypatch):
+    """Öneri onaylanınca kalan liste etkin profile yazılmalı — sabit id'ye değil."""
+    client.post("/api/profiles", json={"name": "Onaylayan"})
+    a_id = next(m["id"] for m in client.get("/api/profiles").json() if m["is_active"])
+
+    onerilen = [s["key"] for s in _upload_cv(client, monkeypatch)["suggestions"]]
+    assert len(onerilen) >= 2, "bu test en az iki öneri gerektirir"
+    client.post("/api/profile/facts", json={"key": onerilen[0]})   # birini onayla
+
+    # Profil değiştir-geri dön: kalan öneriler diskten doğru okunmalı.
+    client.post("/api/profiles", json={"name": "Gecici"})
+    client.post(f"/api/profiles/{a_id}/activate")
+    left = [s["key"] for s in client.get("/api/profile").json()["pending_cv_suggestions"]]
+    assert left == onerilen[1:], "onaylanan düşmeli, kalanlar durmalı"

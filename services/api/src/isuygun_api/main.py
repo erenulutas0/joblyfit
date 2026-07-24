@@ -173,7 +173,9 @@ class JobSummary(BaseModel):
     work_arrangement: str | None = None
     #: part_time | contract | internship | null (tam zamanlı varsayılmaz)
     employment_type: str | None = None
-    #: senior | entry | null
+    #: Kıdem basamağı: intern | junior | mid | senior | lead | architect |
+    #: executive | null. null "orta seviye" DEĞİL, "belirtilmemiş" — ilanların
+    #: çoğu başlıkta kıdem söylemez ve bunu uydurmuyoruz (D-011).
     experience_level: str | None = None
     #: Ayrımcı/dışlayıcı dil işaretleri (D-042). Boş = temiz. Hüküm değil,
     #: bilgilendirme; kullanıcıya haklarını hatırlatır.
@@ -680,7 +682,10 @@ def add_fact(body: FactIn) -> ProfileOut:
     STORE.pending_cv_suggestions = [
         s for s in STORE.pending_cv_suggestions if s["key"] != body.key
     ]
-    STORE.store.save_suggestions("local", STORE.pending_cv_suggestions)
+    # Etkin profile yazılır. Sabit "local" idi (D-045 öncesi tek profil devri);
+    # profiller p-<uuid> olduğundan öneriler var olmayan bir profile gidiyor ve
+    # profil değişince/yeniden başlayınca kayboluyordu.
+    STORE.store.save_suggestions(STORE.active_id, STORE.pending_cv_suggestions)
     return get_profile()
 
 
@@ -727,7 +732,7 @@ async def upload_cv(file: UploadFile) -> dict:
         }
         for s in result.suggestions
     ]
-    STORE.store.save_suggestions("local", STORE.pending_cv_suggestions)
+    STORE.store.save_suggestions(STORE.active_id, STORE.pending_cv_suggestions)
     return {
         "page_count": result.page_count,
         "char_count": result.char_count,

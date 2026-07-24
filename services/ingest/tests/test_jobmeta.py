@@ -190,9 +190,112 @@ def test_highest_rung_wins_among_high_levels():
 
 def test_seniority_read_from_title_only():
     """Açıklamada "kıdemli mühendislerle çalışacaksın" geçmesi ilanı kıdemli
-    yapmaz — başlık işverenin kendi etiketidir."""
+    yapmaz — başlık işverenin kendi etiketidir.
+
+    Not (D-052): açıklamadaki *çıplak kelimeler* hâlâ sayılmaz. Yalnızca
+    sayılı ve çıpalı deneyim şartı ("en az 3 yıl deneyim") basamak türetir —
+    bkz. :func:`test_years_in_description_derive_level`.
+    """
     m = detect(title="Software Engineer",
                description="You will work closely with senior and principal engineers.")
+    assert m.experience_level is None
+
+
+# --- D-052: Türkçe esnaf merdiveni ----------------------------------------
+
+@pytest.mark.parametrize("title,level", [
+    ("Çırak Aranıyor", "intern"),
+    ("Oto Elektrik Çırağı", "intern"),
+    ("Kalfa Kaynakçı", "mid"),
+    ("Pastane Ustası", "senior"),
+    ("Pprc Tesisat Ustası", "senior"),
+    ("Usta Makine Ressamı", "senior"),
+    ("Şantiye Şefi", "lead"),
+    ("Teknik Şef", "lead"),
+    ("Enjeksiyon Vardiya Amiri", "lead"),
+    ("Vasıfsız Eleman", "junior"),
+])
+def test_turkish_trades_ladder(title, level):
+    """çırak → kalfa → usta Türkiye'nin esnaf merdivenidir ve mavi yakanın
+    intern/mid/senior karşılığıdır. Ölçüm: bunlar eklenmeden Türkçe başlıkların
+    yalnızca %3'ü işaretliydi (İngilizce %39)."""
+    assert detect(title=title).experience_level == level
+
+
+@pytest.mark.parametrize("title", [
+    "Mustafa Bey Market Elemanı",   # "usta" Mustafa'nın içinde — kelime başı değil
+    "Sefer Planlama Uzmanı",        # "sef" sefer'in içinde
+    "Amiral Gemisi Mağaza Elemanı", # "amir" amiral'in içinde
+])
+def test_turkish_stems_do_not_bleed_into_other_words(title):
+    """Gövde eşlemesi sonek yakalamalı ama kelime içine sızmamalı.
+
+    Bunlar gerçek tuzaklar: ``\\busta\\w*`` yazılsa "Mustafa" kıdemli olurdu,
+    ``\\bsef\\w*`` yazılsa "Sefer Planlama" amirlik sayılırdı.
+    """
+    assert detect(title=title).experience_level is None
+
+
+@pytest.mark.parametrize("title", [
+    "Mesul Müdür", "Teknik Müdür",      # müdür = rol türü (D-032 gerekçesi)
+    "Yönetici Asistanı",                # asistan; üst düzey değil
+    "Uzman Öğretici",                   # "uzman" her unvana eklenir
+    "E-Ticaretten Sorumlu Müdür",
+    "Deneyimli Aşçı",                   # deneyimli ama HANGİ basamak belirsiz
+    "Tecrübeli Satış Personeli",
+])
+def test_turkish_role_words_are_not_seniority(title):
+    """Ölçülüp **reddedilen** kelimeler. Hepsi korpusta sık geçiyor ama kıdem
+    ayırt etmiyor; basamağa yazmak uydurma kesinlik olurdu (D-011).
+
+    "deneyimli" gerçek bir sinyaldir — ama 2 yıl da 20 yıl da olabilir. Sayı
+    verildiğinde yıl kuralı devreye girer, verilmediğinde "belirtilmemiş" kalır.
+    """
+    assert detect(title=title).experience_level is None
+
+
+# --- D-052: açıklamadaki deneyim yılından türetme --------------------------
+
+@pytest.mark.parametrize("desc,level", [
+    ("En az 3 yıl deneyim aranmaktadır.", "mid"),
+    ("3 years of experience required", "mid"),
+    ("Minimum 5 yıl tecrübe şarttır.", "senior"),
+    ("8+ years experience", "senior"),
+    ("1 yıl deneyimli adaylar", "junior"),
+    ("0-1 yıl deneyim", "junior"),
+])
+def test_years_in_description_derive_level(desc, level):
+    """Başlık sessizse açıklamadaki sayılı deneyim şartı basamak verir.
+    Ölçüm: bu kural tüm korpusta 1261 ilanı daha işaretledi."""
+    assert detect(title="Personel Alınacaktır", description=desc).experience_level == level
+
+
+def test_title_beats_years_in_description():
+    """Başlık işverenin kendi etiketidir; açıklamadaki yıla göre üstündür."""
+    m = detect(title="Stajyer Mühendis",
+               description="En az 5 yıl deneyim gereklidir.")
+    assert m.experience_level == "intern"
+
+
+@pytest.mark.parametrize("desc", [
+    "1958 yılında kurulan firmamız sektörde güven vermektedir.",
+    "58 yıllık deneyimimizle hizmetinizdeyiz.",
+    "40 yıllık tecrübemizle Türkiye'nin lideriyiz.",
+])
+def test_company_own_experience_is_not_a_requirement(desc):
+    """En sinsi yanlış pozitif: şirketin kendi tecrübesi.
+
+    Çıpa ("deneyim" kelimesi) bunu elemiyor çünkü cümlede gerçekten geçiyor —
+    eleyen şey 15 yıl üst sınırıdır. Sınır olmadan "58 yıllık deneyimimizle"
+    ilanı kıdemli gösteriyordu (ölçümde 14 ilan).
+    """
+    assert detect(title="Personel", description=desc).experience_level is None
+
+
+def test_years_needs_anchor_word():
+    """Çıpasız sayı sayılmaz: "2 yıl sonra taşınacağız" kıdem şartı değildir."""
+    m = detect(title="Personel",
+               description="Ofisimiz 2 yıl sonra yeni binaya taşınacaktır.")
     assert m.experience_level is None
 
 

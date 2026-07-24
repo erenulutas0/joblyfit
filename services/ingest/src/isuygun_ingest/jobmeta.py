@@ -158,23 +158,79 @@ _CONTRACT_FALSE = re.compile(r"smart contract|contract test|contract negoti|"
 #: Ölçüm (5803 ilan): korpusun **%55'i işaretsiz** kalıyor ("Software Engineer"
 #: seviye söylemez). Bu boşluk gizlenmez; "belirtilmemiş" gerçek bir cevaptır
 #: (D-011) ve arayüzde kendi sayaçlı grubunda gösterilir.
+#:
+#: TÜRKÇE (D-052, 4664 TR ilanıyla ölçüldü): merdiven İngilizce başlıklarda
+#: %39, Türkçe başlıklarda **%3** işaretliyordu. Sebebi iki katmanlı:
+#:
+#: 1. Türkiye'nin esnaf merdiveni bambaşka: çırak → kalfa → usta. Bu basamaklar
+#:    mavi yakanın intern/mid/senior karşılığıdır ve hiçbiri listede yoktu.
+#: 2. Türkçe eklemeli: ``\busta\b`` "Pastane **Ustası**"nı kaçırır. Gövde
+#:    eşlemesi şef'i 2'den 49'a, usta'yı 6'dan 33'e çıkardı.
+#:
+#: Desenler ``fold()``lanmış (ASCII'ye indirgenmiş) başlığa uygulanır: "Şantiye
+#: Şefi" → ``santiye sefi``. Bu yüzden Türkçe desenler ASCII yazılır.
+#:
+#: KASITLI OLARAK DIŞARIDA BIRAKILANLAR — ölçülüp reddedildi:
+#:
+#: * ``müdür`` (39 ilan), ``yönetici`` (26), ``sorumlu`` (6): D-032'nin
+#:   ``manager`` gerekçesi birebir geçerli — bunlar kıdem değil **rol türü**
+#:   ("Yönetici Asistanı" bir asistandır, üst düzey değil).
+#: * ``uzman`` (40): Türkiye'de neredeyse her beyaz yaka unvanına eklenir
+#:   ("Uzman Öğretici"); kıdem ayırt etmez.
+#: * ``deneyimli`` / ``tecrübeli`` (18): "deneyimli" gerçek bir sinyaldir ama
+#:   **hangi basamak** olduğunu söylemez — 2 yıl da 20 yıl da olabilir. Bir
+#:   basamağa yazmak uydurma kesinlik olurdu (D-011). Sayı verildiğinde
+#:   :func:`_years_level` zaten yakalıyor.
 _LADDER: tuple[tuple[str, "re.Pattern[str]"], ...] = (
+    # `cirak` = çırak (esnaf çıraklığı) — stajyerin mavi yaka karşılığı.
+    # `[kg]` ünsüz yumuşaması için: çıra**k** → çıra**ğ**ı, katlanınca "ciragi".
     ("intern", re.compile(
         r"\bintern(?:ship)?\b|stajyer|\bstaj\b|praktikum|werkstudent|"
-        r"\btrainee\b|\bco-?op\b", re.I)),
+        r"\btrainee\b|\bco-?op\b|\bcira[kg]\w*|\bacemi\b", re.I)),
+    # `vasifsiz` = niteliksiz; işveren açıkça "deneyim aramıyorum" diyor.
     ("junior", re.compile(
         r"\bjunior\b|\bjr\.?\b|\bentry[- ]level\b|\bnew grad(?:uate)?\b|"
-        r"yeni mezun|\bgraduate (?:program|scheme|role)\b|\bapprentice\b", re.I)),
+        r"yeni mezun|\bgraduate (?:program|scheme|role)\b|\bapprentice\b|"
+        r"\bvasifsiz\b", re.I)),
     ("executive", re.compile(
         r"\bdirector\b|\bvp\b|\bvice president\b|\bchief\b|\bc[teof]o\b|"
         r"\bhead of\b|genel mudur", re.I)),
     ("architect", re.compile(r"\barchitect\b|\bmimar\b", re.I)),
+    # `sef` = şef (şantiye/mutfak şefi — amirlik unvanı). Sonek listesi bilinçli
+    # kapalı: `\bsef\w*` "sefer"i ("Sefer Planlama") yakalardı.
+    # `amir` aynı şekilde: `\bamir\b` "amiral"i almaz.
     ("lead", re.compile(
         r"\bstaff\b|\bprincipal\b|\bdistinguished\b|"
-        r"\blead\b(?!\s+(?:generation|gen\b))", re.I)),
-    ("senior", re.compile(r"\bsenior\b|\bsr\.?\b|\bsnr\b|kidemli", re.I)),
-    ("mid", re.compile(r"\bmid[- ]?level\b|\bintermediate\b|\bii\b", re.I)),
+        r"\blead\b(?!\s+(?:generation|gen\b))|"
+        r"\bsef(?:i|leri|ligi)?\b|\bamir(?:i|leri)?\b", re.I)),
+    # `usta` = esnaf merdiveninin tepesi (master). `\busta` "Mustafa"yı almaz:
+    # oradaki "usta" kelime başında değil.
+    ("senior", re.compile(
+        r"\bsenior\b|\bsr\.?\b|\bsnr\b|kidemli|\busta(?:si|lar|basi|ligi)?\b",
+        re.I)),
+    # `kalfa` = çıraklıktan sonraki basamak; usta değil — tam olarak "mid".
+    ("mid", re.compile(
+        r"\bmid[- ]?level\b|\bintermediate\b|\bii\b|\bkalfa\w*", re.I)),
 )
+
+#: Başlık sessizse **açıklamadaki deneyim yılı** son şanstır (D-052).
+#:
+#: Çıpa zorunlu: sayının yanında "deneyim/tecrübe/experience" geçmeli. Çıpasız
+#: ölçümde dağılım çöp doluydu — "1958 yılında kurulan firmamız" ``58 yıl``
+#: olarak sayılıyordu.
+#:
+#: ÜST SINIR 15 YIL, çünkü çıpa bile bir yanlış pozitif sınıfını geçiriyor:
+#: "**58 yıllık deneyimimizle**" — şirketin kendi tecrübesi, adaydan istenen
+#: şart değil. 15 üstü bir *şart* pratikte yok; o eşiğin üstündeki her eşleşme
+#: bu sınıftandı. Sınır konunca isabet TR'de %82, tüm korpusta %97.
+_YEARS_ANCHOR = r"(?:deneyim|tecrube|experience)"
+_YEARS_PATTERNS = (
+    re.compile(rf"\b(\d{{1,2}})\s*(?:\+|arti)?\s*(?:yil|sene|year)s?"
+               rf"[^.;\n]{{0,24}}?{_YEARS_ANCHOR}", re.I),
+    re.compile(rf"{_YEARS_ANCHOR}[^.;\n]{{0,24}}?\b(\d{{1,2}})\s*(?:\+|arti)?\s*"
+               rf"(?:yil|sene|year)s?", re.I),
+)
+_YEARS_MAX = 15
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +280,33 @@ def _experience(title: str) -> str | None:
     return None
 
 
+def _years_level(text: str) -> str | None:
+    """Açıklamada yazan deneyim yılından basamak türetir (D-052).
+
+    Yalnızca **başlık sessizse** çağrılır: başlık işverenin kendi etiketidir ve
+    her zaman metinden çıkarıma göre üstündür.
+
+    Eşik seçimi yaygın kullanıma göre: 0–1 yıl giriş, 2–4 yıl orta, 5+ kıdemli.
+    Bu bir *sınıflandırma* kararıdır, ilanın sözü değil — bu yüzden basamak
+    bilgisi filtrelemede kullanılır, eşleşme kanıtı olarak sunulmaz.
+    """
+    for pat in _YEARS_PATTERNS:
+        m = pat.search(text)
+        if not m:
+            continue
+        try:
+            years = int(m.group(1))
+        except (ValueError, IndexError):
+            continue
+        if years > _YEARS_MAX:
+            # Şirketin kendi tecrübesi ("58 yıllık deneyimimizle") — şart değil.
+            continue
+        if years <= 1:
+            return "junior"
+        return "mid" if years <= 4 else "senior"
+    return None
+
+
 _PROBES[id(_HYBRID)] = ("hybrid", "hibrit", "week")
 _PROBES[id(_REMOTE)] = ("remote", "uzaktan", "from home", "evden")
 _PROBES[id(_ONSITE)] = ("site", "office", "ofis", "yerinde")
@@ -257,5 +340,7 @@ def detect(*, title: str, city: str, description: str,
     return JobMeta(
         work_arrangement=declared or _arrangement(folded_title, city or "", folded_text),
         employment_type=_employment(folded_title, folded_text),
-        experience_level=_experience(folded_title),
+        # Başlık önce (işverenin kendi etiketi); sessizse açıklamadaki yıla düş.
+        experience_level=(_experience(folded_title)
+                          or _years_level(folded_text)),
     )
