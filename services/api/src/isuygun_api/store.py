@@ -179,7 +179,13 @@ class Store:
                 result = run_live_ingest(include_fixtures=include_fixtures,
                                          stale_ok=stale_ok)
             except Exception as e:  # ağ tamamen kapalıysa fixture'a düş
-                result = run_fixture_ingest()
+                try:
+                    result = run_fixture_ingest()
+                except Exception:
+                    # Üretim imajında fixture yok; o zaman boş korpusla aç.
+                    # Site ayakta kalır, bir sonraki tazeleme gerçek veriyi getirir.
+                    result = {"canonical_postings": {}, "source": "boş",
+                              "fetched": 0, "canonical": 0, "duplicates_merged": 0}
                 result = {**result, "errors": [{"board": "canlı ingest", "error": str(e)}],
                           "boards": [], "stale_dropped": 0}
         else:
@@ -216,7 +222,7 @@ class Store:
         bu metod sonra gerçek çekimi yapar ve sonucu yerine koyar. Hata olursa
         eski korpus yerinde kalır — site asla veriyi kaybetmez.
         """
-        self.load(live=True, stale_ok=False)
+        self.load(live=True, stale_ok=False, include_fixtures=False)
 
     def job(self, job_id: str) -> NormalizedPosting | None:
         return self.postings.get(job_id)

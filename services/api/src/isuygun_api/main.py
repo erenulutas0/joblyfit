@@ -69,7 +69,12 @@ async def lifespan(_: FastAPI):
     # anında ayağa kalk; ağ çekimini (gerekirse) arka planda yap ve sonucu yerine
     # koy. Cache 6 saatten eskiyse eskiden `STORE.load()` senkron re-fetch yapıyor
     # ve site ~7 dk boyunca hiç yanıt vermiyordu.
-    STORE.load(stale_ok=True)
+    #
+    # ``include_fixtures=False``: fixture'lar dev-only test verisidir (D-018) ve
+    # üretim imajına kopyalanmaz. Taze bir prod container'da cache boşken bunları
+    # istemek "Fixture dizini yok" ile açılışı çökertiyordu — canlı sitede
+    # istenmeyen "geliştirme" ilanları da göstermezler.
+    STORE.load(stale_ok=True, include_fixtures=False)
 
     async def _bg_refresh():
         # Açılışta bir kez tazele, sonra periyodik (D-049). Canlı sunucu uzun
