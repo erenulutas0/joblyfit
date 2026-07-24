@@ -58,6 +58,10 @@ class Store:
     #: bütün profil işlemleri bu id üzerinde çalışır.
     active_id: str = PROFILE_ID
     ingest_summary: dict = field(default_factory=dict)
+    #: Korpus her yüklendiğinde artar. Feed önbelleği (D-054) buna bakar: arka
+    #: planda tazeleme olduğunda önbellek kendiliğinden geçersizleşir, yoksa
+    #: kullanıcı saatlerce eski ilan listesini görürdü.
+    corpus_version: int = 0
     store: ProfileStore = field(
         default_factory=lambda: open_store(
             _db_path(), os.environ.get("ISUYGUN_DSN") or None
@@ -202,6 +206,7 @@ class Store:
             job_id: search.haystack(p) for job_id, p in self.postings.items()
         }
         self.catalog = build_catalog()
+        self.corpus_version += 1
         self.ingest_summary = {
             "source": result["source"],
             "fetched": result["fetched"],

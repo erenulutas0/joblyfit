@@ -104,3 +104,33 @@ def test_all_regions_are_reachable():
     for loc in ("Istanbul", "Berlin, Germany", "Austin, TX", "Remote", "Tokyo, Japan"):
         produced |= R.classify(loc)
     assert produced == set(R.ALL)
+
+
+def test_classify_result_is_isolated_per_caller():
+    """Önbellek (D-054) paylaşılan bir küme döndürmemeli.
+
+    `classify` sonuçları lru_cache'te tutulur. Aynı küme nesnesi çağıranlara
+    verilirse, bir yerde yapılan `add`/`discard` bütün ilanların bölgesini
+    sessizce değiştirir — 1502 ilan "İstanbul" dizesini paylaşıyor.
+    """
+    a = R.classify("Istanbul")
+    b = R.classify("Istanbul")
+    assert a == b
+    assert a is not b, "her çağıran kendi kümesini almalı"
+
+    a.add("UYDURMA")
+    assert "UYDURMA" not in R.classify("Istanbul"), "mutasyon önbelleğe sızmamalı"
+
+
+def test_classify_cache_does_not_change_results():
+    """Önbellek bir optimizasyondur; sonucu değiştirmemeli.
+
+    Aynı girdiler önbellek dolu ve boşken aynı sonucu vermeli.
+    """
+    ornekler = ["Istanbul", "Berlin, Germany", "Austin, TX", "Remote",
+                "Tokyo, Japan", "", "   ", "Vienna, VA, United States",
+                "Cardiff, London or Remote (UK)", "İzmir / Bornova"]
+    once = {loc: R.classify(loc) for loc in ornekler}
+    R._classify_cached.cache_clear()
+    sonra = {loc: R.classify(loc) for loc in ornekler}
+    assert once == sonra

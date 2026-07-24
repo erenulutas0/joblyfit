@@ -11,12 +11,14 @@ OpenAPI şeması ``/openapi.json`` adresinden alınır; TypeScript tipleri bunda
 
 from __future__ import annotations
 
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, Response, UploadFile
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -795,8 +797,56 @@ def _first_line(text: str) -> str:
     return "Başlıksız ilan"
 
 
+#: Feed önbelleği (D-054). Tek girdilik: anahtar değişince eskisi atılır.
+#:
+#: **Neden gerekti:** ``/api/feed`` her istekte korpusun tamamını yeniden
+#: değerlendiriyordu. Ölçüm (9266 ilan): tek istek **633 ms**, 10 eş zamanlı
+#: istek **6,3 saniye** duvar süresi — GIL yüzünden sıraya giriyorlar, yani
+#: saniyede ~1,6 istek. Kıyas: ``/api/health`` 1,2 ms.
+#:
+#: Sonuç ``(korpus sürümü, profil parmak izi)`` çiftinin **saf** fonksiyonudur:
+#: aynı korpus + aynı profil her zaman aynı feed'i verir. Bu yüzden önbellek
+#: bayat veri riski taşımaz; ikisinden biri değişince anahtar da değişir.
+_FEED_CACHE: dict = {}
+
+
+def _profile_fingerprint() -> tuple:
+    """Eşleşme sonucunu belirleyen profil durumu.
+
+    Bekleyen CV önerileri **dahil değildir**: onaylanana kadar eşleşmeyi
+    etkilemezler (D-014), dolayısıyla feed'i geçersizleştirmemeleri gerekir.
+    """
+    p = STORE.profile
+    return (
+        STORE.active_id,
+        tuple(sorted((f.key, f.verification, f.years) for f in p.facts)),
+        tuple(sorted(p.occupation_ids)),
+    )
+
+
 @app.get("/api/feed", response_model=FeedOut)
-def feed() -> FeedOut:
+def feed() -> Response:
+    """Feed. Yanıt **hazır JSON olarak** önbelleklenir.
+
+    ``response_model`` şema (OpenAPI → TS tipleri, ADR-001) için korunur ama
+    gövde elle serileştirilir: FastAPI'ye ``Response`` döndürmek model
+    doğrulamasını atlar. Ölçümde önbellek isabetinde bile 9266 ilanı her
+    istekte yeniden doğrulamak **173 ms** yiyordu; asıl hesap zaten yapılmışken
+    bu tamamen boşa giden işti.
+    """
+    key = (STORE.corpus_version, _profile_fingerprint())
+    hit = _FEED_CACHE.get(key)
+    if hit is None:
+        # Tek girdi tutulur: profil başına biriktirmek tek kullanıcılı mimaride
+        # (bkz. OPEN-24) sadece bellek yer.
+        _FEED_CACHE.clear()
+        hit = _FEED_CACHE[key] = json.dumps(
+            jsonable_encoder(_build_feed()), ensure_ascii=False,
+        ).encode("utf-8")
+    return Response(content=hit, media_type="application/json")
+
+
+def _build_feed() -> FeedOut:
     evaluated: list[tuple[int, JobSummary]] = []
     unevaluated: list[JobSummary] = []
 

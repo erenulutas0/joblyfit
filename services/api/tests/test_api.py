@@ -567,3 +567,106 @@ def test_accepting_suggestion_persists_to_active_profile(client, monkeypatch):
     client.post(f"/api/profiles/{a_id}/activate")
     left = [s["key"] for s in client.get("/api/profile").json()["pending_cv_suggestions"]]
     assert left == onerilen[1:], "onaylanan düşmeli, kalanlar durmalı"
+
+
+# ---------------------------------------------------------------------------
+# Feed önbelleği (D-054)
+# ---------------------------------------------------------------------------
+
+
+def test_feed_cache_invalidates_when_profile_changes(client):
+    """Önbellek profil değişikliğini kaçırmamalı.
+
+    Feed `(korpus sürümü, profil parmak izi)`'nin saf fonksiyonudur; beceri
+    eklemek eşleşmeyi değiştirir, dolayısıyla önbellek düşmelidir. Düşmezse
+    kullanıcı beceri ekler ama feed'i hiç değişmez — sessiz ve en can sıkıcı
+    hata sınıfı.
+    """
+    # Beklenen değerler MUTLAK: "değişti mi" karşılaştırması bayat önbellekle
+    # de tutabiliyor (iki taraf da aynı eski cevabı okur) ve test boşuna geçer.
+    bos = client.get("/api/feed").json()
+    assert bos["profile_is_empty"] is True
+    assert bos["evaluated"] == [], "boş profilde hiçbir ilan bantlanamaz"
+
+    _add(client, "heavy_driving", years=6)
+    dolu = client.get("/api/feed").json()
+    assert dolu["profile_is_empty"] is False, "önbellek boş profili döndürüyor"
+    assert dolu["evaluated"], "beceri eklendi ama hiçbir ilan değerlendirilmedi"
+    assert any("Şoför" in j["title"] for j in dolu["evaluated"])
+
+    client.delete("/api/profile/facts/heavy_driving")
+    geri = client.get("/api/feed").json()
+    assert geri["evaluated"] == [], "beceri silinince bantlar kalkmalı"
+    assert geri["profile_is_empty"] is True
+
+
+def test_feed_cache_invalidates_on_profile_switch(client):
+    """Profil değişince feed O profile ait olmalı — öncekinin kopyası değil."""
+    client.post("/api/profiles", json={"name": "Dolu"})
+    dolu_id = next(m["id"] for m in client.get("/api/profiles").json() if m["is_active"])
+    _add(client, "heavy_driving", years=6)
+    dolu = client.get("/api/feed").json()
+    assert dolu["evaluated"], "dolu profilde bantlanmış ilan olmalı"
+    dolu_n = len(dolu["evaluated"])
+
+    client.post("/api/profiles", json={"name": "Bos"})     # boş profil etkin
+    bos = client.get("/api/feed").json()
+    # Mutlak beklenti: boş profilde bant ÜRETİLEMEZ. "Dolu"nun önbelleği
+    # dönerse burada dolu liste görürüz.
+    assert bos["evaluated"] == [], "profil değişti ama önceki profilin feed'i geldi"
+    assert bos["profile_is_empty"] is True
+
+    client.post(f"/api/profiles/{dolu_id}/activate")
+    geri = client.get("/api/feed").json()
+    assert len(geri["evaluated"]) == dolu_n, "geri dönünce dolu profilin feed'i gelmeli"
+    assert geri["profile_is_empty"] is False
+
+
+def test_feed_cache_invalidates_on_corpus_refresh(client):
+    """Arka planda korpus tazelenince önbellek düşmeli.
+
+    Düşmezse kullanıcı saatlerce kapanmış ilanları görür — tazelemenin tamamı
+    boşa gider.
+    """
+    from isuygun_api.store import STORE
+
+    client.get("/api/feed")
+    STORE.corpus_version += 1          # tazeleme taklidi
+    STORE.postings = dict(list(STORE.postings.items())[:5])
+    tazelenmis = client.get("/api/feed").json()
+    assert len(tazelenmis["evaluated"]) + len(tazelenmis["unevaluated"]) <= 5, \
+        "korpus küçüldü ama feed eski listeyi verdi (önbellek düşmemiş)"
+
+
+def test_pending_cv_suggestions_do_not_invalidate_feed(client, monkeypatch):
+    """Bekleyen öneri eşleşmeyi etkilemez (D-014), feed'i geçersizleştirmemeli.
+
+    Etkilerse her CV yüklemesi bütün korpusun yeniden değerlendirilmesini
+    tetikler — hem gereksiz hem yavaş.
+    """
+    from isuygun_api.main import _FEED_CACHE
+
+    client.get("/api/feed")
+    anahtarlar = set(_FEED_CACHE.keys())
+    assert anahtarlar, "feed önbelleğe alınmalı"
+
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    client.post("/api/profile/cv",
+                files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")})
+    client.get("/api/feed")
+    assert set(_FEED_CACHE.keys()) == anahtarlar, \
+        "bekleyen öneri önbelleği düşürmemeli (onaylanmadan eşleşmeyi etkilemez)"
+
+
+def test_feed_response_matches_declared_schema(client):
+    """Gövde elle serileştiriliyor (response_model doğrulaması atlanıyor).
+
+    Bu bir performans kararı ama şemadan sapma riski taşır: FastAPI artık
+    alanları doğrulamıyor. Sözleşme testle korunur — OpenAPI'den TS tipi
+    üretiliyor (ADR-001), sessiz sapma istemcide kırılır.
+    """
+    from isuygun_api.main import FeedOut
+
+    r = client.get("/api/feed")
+    assert r.headers["content-type"].startswith("application/json")
+    FeedOut.model_validate(r.json())   # şemaya uymuyorsa burada patlar

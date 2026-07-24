@@ -13,6 +13,7 @@ birden fazla bölgeye düşebilir ve hiçbirine düşmeyebilir. Eşleşme buluna
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from .pipeline import fold
 
@@ -108,10 +109,23 @@ def classify(location: str) -> set[str]:
     hem :data:`EU` hem :data:`REMOTE`'tur. Hiçbiri tutmuyorsa :data:`OTHER`.
 
     Uzaktan çalışma coğrafyadan bağımsızdır ve her zaman ayrıca işaretlenir.
+
+    Sonuç **önbelleklenir** (D-054): bu saf bir metin→küme dönüşümüdür ve konum
+    dizeleri korpusta yoğun tekrar eder ("İstanbul" 1502 ilanda). Ölçümde
+    ``/api/feed`` her istekte bunu 10385 kez çağırıyordu ve ``fold`` + regex
+    maliyeti gecikmenin büyük kısmıydı.
+
+    Çağırana **kopya** döner: önbellek tek bir küme nesnesi tutar, onu paylaşmak
+    bir çağıranın mutasyonunu bütün ilanlara yayardı.
     """
-    s = fold(location or "")
+    return set(_classify_cached(location or ""))
+
+
+@lru_cache(maxsize=8192)
+def _classify_cached(location: str) -> frozenset[str]:
+    s = fold(location)
     if not s.strip():
-        return {OTHER}
+        return frozenset({OTHER})
 
     words = set(_tokens(s))
     out: set[str] = set()
@@ -138,7 +152,7 @@ def classify(location: str) -> set[str]:
     if any(m in s for m in _REMOTE):
         out.add(REMOTE)
 
-    return out or {OTHER}
+    return frozenset(out or {OTHER})
 
 
 def _tokens(folded: str) -> list[str]:
