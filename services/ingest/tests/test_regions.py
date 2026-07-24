@@ -134,3 +134,87 @@ def test_classify_cache_does_not_change_results():
     R._classify_cached.cache_clear()
     sonra = {loc: R.classify(loc) for loc in ornekler}
     assert once == sonra
+
+
+# ---------------------------------------------------------------------------
+# D-056 — şehir/il grubu
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("konum,anahtar", [
+    ("İstanbul", "istanbul"),
+    ("İstanbul Avrupa", "istanbul"),      # yaka eki
+    ("İstanbul Anadolu", "istanbul"),
+    ("Istanbul", "istanbul"),             # ASCII yazım
+    ("Istanbul, Turkey", "istanbul"),
+    ("Istanbul / Maslak", "istanbul"),
+    ("İstanbul, Kadıköy", "istanbul"),    # ilçe
+    ("Ankara, Çankaya", "ankara"),
+    ("İzmir / Bornova", "izmir"),
+    ("Kocaeli, Gebze", "kocaeli"),
+    ("Austin, TX", "austin"),
+    ("Berlin, Germany", "berlin"),
+    ("Washington, DC", "washington"),
+])
+def test_city_of_groups_same_city(konum, anahtar):
+    """Aynı il tek anahtarda toplanmalı.
+
+    Ölçüm (4284 TR ilanı): ham dizeyle sayılınca İstanbul 938 görünüyordu;
+    gerçek toplam 2594. "İstanbul (938)" yazan bir filtre ilanların çoğunu
+    gizlerdi — rozetteki sayı tıklanınca tutmalı.
+    """
+    assert R.city_of(konum)[0] == anahtar
+
+
+@pytest.mark.parametrize("konum", [
+    "Türkiye", "Turkey", "Germany", "United States", "Remote", "Uzaktan",
+    "Remote — United States", "Remote - US", "Remote - United States",
+    "Uzaktan Türkiye", "", "   ",
+])
+def test_country_and_remote_are_not_cities(konum):
+    """Ülke adı ve uzaktan çalışma şehir DEĞİLDİR.
+
+    "Türkiye" yazan 137 ilan şehir söylemiyor; onu bir şehir seçeneği yapmak
+    "belirtilmemiş"i uydurulmuş bir değere çevirirdi (D-011). "Remote — United
+    States" ise ölçümde 98 ilanla şehir listesinde görünüyordu.
+    """
+    assert R.city_of(konum)[0] == ""
+
+
+@pytest.mark.parametrize("konum", ["Baden-Württemberg", "Saint-Denis",
+                                   "Aix-en-Provence"])
+def test_hyphenated_city_names_survive(konum):
+    """Tireli **gerçek** şehir adları bölünmemeli.
+
+    Ayırıcı olarak boşluksuz tire kullanılsaydı "Baden-Württemberg" → "Baden"
+    olurdu. Bu yüzden yalnızca uzun tire ve *boşluklu* kısa tire böler.
+    """
+    anahtar, gosterim = R.city_of(konum)
+    assert "-" in anahtar and gosterim == konum
+
+
+def test_city_display_preserves_original_spelling():
+    """Gösterim adı ham yazımdan gelir — anahtar ASCII olsa da ekranda
+    Türkçe karakterler korunmalı."""
+    assert R.city_of("İstanbul Avrupa") == ("istanbul", "İstanbul")
+    assert R.city_of("İzmir / Bornova")[1] == "İzmir"
+
+
+def test_country_suffix_stripped_without_inventing_a_city():
+    """Ülke eki atılır ama geriye ülke kalırsa şehir uydurulmaz.
+
+    Alman iş ajansı ayırıcısız "Şehir Eyalet Ülke" gönderiyor; ülke eki
+    atılmazsa "München" ile "München Bayern Deutschland" ayrı iki şehir grubu
+    olur. Ama aynı kural "United States"i "United" adında bir şehre
+    çeviriyordu — bütün kelimeler ülke ekiyse sonuç "belirtilmemiş"tir.
+    """
+    assert R.city_of("München Bayern Deutschland")[0].startswith("munchen")
+    assert R.city_of("Berlin, Germany")[0] == "berlin"
+    for ulke in ("United States", "United Kingdom", "Deutschland", "Turkey"):
+        assert R.city_of(ulke)[0] == "", f"{ulke} şehir sayılmamalı"
+
+
+def test_new_york_is_not_treated_as_country_suffix():
+    """"York" ve "Jersey" ülke kelime listesinde geçse de şehir adıdır."""
+    assert R.city_of("New York")[0] == "new york"
+    assert R.city_of("New Jersey")[0] == "new jersey"

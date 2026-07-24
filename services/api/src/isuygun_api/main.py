@@ -166,6 +166,11 @@ class JobSummary(BaseModel):
     matched_requirements: list[str] = []
     #: Konumdan türetilen bölge etiketleri (bir ilan birden fazlasına ait olabilir)
     regions: list[str] = []
+    #: İlan konumundan çıkarılan **il/şehir** (D-056). Ham `city` filtre için
+    #: kullanılamaz: aynı il beş ayrı yazımla geliyor ("İstanbul",
+    #: "İstanbul Avrupa", "İstanbul, Kadıköy"…) ve her biri ayrı seçenek gibi
+    #: görünüyordu. Boş = şehir belirtilmemiş; bu uydurulmaz (D-011).
+    city_group: str = ""
     #: Aynı rolün diğer konumları. Bunlar **ayrı ilanlardır** (her birinin kendi
     #: URL'i var) ve birleştirilmez; yalnızca listede tek satır olarak gösterilir.
     other_locations: list[str] = []
@@ -354,6 +359,30 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     return out
 
 
+def _canonicalize_cities(*groups: list[JobSummary]) -> None:
+    """``city_group`` anahtarlarını tek bir **gösterim adına** çevirir (D-056).
+
+    Aynı il farklı yazımlarla geliyor ("İstanbul" / "Istanbul" / "İSTANBUL").
+    Anahtar hepsini birleştirir ama ekranda tek bir ad görünmeli; en çok
+    kullanılan yazım kazanır. Sabit bir il listesi tutmak yerine korpustan
+    türetilir: liste Türkiye dışında da (243 ABD, 421 Avrupa şehri) çalışır ve
+    yeni bir şehir geldiğinde elle güncelleme gerektirmez.
+    """
+    from collections import Counter
+
+    aday: dict[str, Counter] = {}
+    for g in groups:
+        for j in g:
+            if j.city_group:
+                aday.setdefault(j.city_group, Counter())[
+                    regions.city_of(j.city)[1]] += 1
+    ad = {k: c.most_common(1)[0][0] for k, c in aday.items() if c}
+    for g in groups:
+        for j in g:
+            if j.city_group:
+                j.city_group = ad.get(j.city_group, j.city_group)
+
+
 def _absorb_into(items: list[JobSummary],
                  winners: list[JobSummary]) -> list[JobSummary]:
     """``winners``'ta zaten olan rolleri ``items``'tan düşürür (D-055).
@@ -466,6 +495,9 @@ def _summary(posting, result, exp) -> JobSummary:
         ][:5],
         matched_requirements=[o.requirement.label for o in result.met][:5],
         regions=sorted(regions.classify(posting.job.city)),
+        # Şimdilik **anahtar** yazılır; gösterim adı korpus genelinde
+        # tekilleştirilip _canonicalize_cities() içinde yerine konur.
+        city_group=regions.city_of(posting.job.city)[0],
         age_days=age_in_days(posting.posted_at),
         refreshed_days=age_in_days(getattr(posting, "refreshed_at", None)),
         long_open=_is_long_open(posting),
@@ -918,6 +950,7 @@ def _build_feed() -> FeedOut:
     # ``other_locations``'a eklenir.
     shown_unevaluated = _absorb_into(
         _group_by_role(unevaluated), shown_evaluated)
+    _canonicalize_cities(shown_evaluated, shown_unevaluated)
     # Facet'ler **gösterilen** listeden sayılır. Gruplama öncesinden sayılırsa
     # rozet "1994 ilan" der, kullanıcı tıklar, 1678 ilan görür — sayının
     # kendisi yanlış olmasa da kullanıcıya verilen söz tutulmamış olur.

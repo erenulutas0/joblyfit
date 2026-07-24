@@ -251,6 +251,18 @@ a{color:var(--ph); text-decoration:none}
 .fo:hover{border-color:var(--ink-3); color:var(--ink)}
 .fo.on{border-color:var(--ph-line); background:var(--ph-soft); color:var(--ph)}
 .fo b{opacity:.5; font-weight:600; margin-left:5px}
+/* Şehir listesi uzun olabilir (Avrupa'da 421 grup) — kaydırılır, sayfa değil. */
+.fopts.scroll{max-height:132px; overflow-y:auto; padding-right:4px;
+  scrollbar-width:thin; align-content:flex-start}
+.fsearch{width:100%; max-width:260px; background:var(--panel-2);
+  border:1px solid var(--line); padding:8px 11px; font-family:var(--mono);
+  font-size:11.5px; margin-bottom:9px}
+.fsearch:focus{outline:none; border-color:var(--ph-line)}
+.fnote{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+  color:var(--ink-4); margin-top:7px}
+/* kıdem rozeti — kartta */
+.pill.lvl{background:rgba(89,200,255,.10); color:var(--mid);
+  border:1px solid rgba(89,200,255,.25)}
 .fclear{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
   text-transform:uppercase; color:var(--ink-4); padding:6px 0; margin-top:4px}
 .fclear:hover{color:var(--bad)}
@@ -466,12 +478,14 @@ function PAGE_EV(){return 40;}
 const S={profiles:[], catalog:[], feed:null, view:"load",
   q:"", region:"", shownEv:PAGE_EV(), ob:null,
   /* filtreler. Hepsi "" = kısıt yok. `fopen` panelin açık/kapalı hâli. */
-  f:{level:"", arr:"", emp:"", longOpen:false}, fopen:false,
+  f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
   /* profil paneli: null | "profile". `cv` son yükleme raporu. */
   panel:null, profile:null, cv:null};
 
 /* Kıdem merdiveni — sıra bilgi taşır (giriş → tepe), alfabetik değil.
    Etiketler kullanıcı dilinde; anahtarlar API'nin ürettiği değerler. */
+const LVL_LABEL={intern:"STAJYER", junior:"JUNIOR", mid:"MID", senior:"SENIOR",
+  lead:"LEAD", architect:"MİMAR", executive:"YÖNETİCİ"};
 const LEVELS=[["intern","STAJYER"],["junior","JUNIOR"],["mid","MID"],
   ["senior","SENIOR"],["lead","LEAD"],["architect","MİMAR"],
   ["executive","YÖNETİCİ"],["unspecified","BELİRTİLMEMİŞ"]];
@@ -713,6 +727,9 @@ const axisOk=(val,sel)=>!sel || (val||"unspecified")===sel;
 
 function matches(j){
   if(S.region && !(j.regions||[]).includes(S.region)) return false;
+  /* Şehir: backend'in çıkardığı il grubu (D-056). Ham `city` ile eşleşmek
+     "İstanbul Avrupa"yı "İstanbul"dan ayrı sayardı. */
+  if(S.f.city && (j.city_group||"")!==S.f.city) return false;
   if(!axisOk(j.experience_level,S.f.level)) return false;
   if(!axisOk(j.work_arrangement,S.f.arr)) return false;
   if(!axisOk(j.employment_type,S.f.emp)) return false;
@@ -724,7 +741,37 @@ function matches(j){
   return true;
 }
 const activeFilterCount=()=>
-  (S.f.level?1:0)+(S.f.arr?1:0)+(S.f.emp?1:0)+(S.f.longOpen?1:0);
+  (S.f.level?1:0)+(S.f.arr?1:0)+(S.f.emp?1:0)+(S.f.city?1:0)+(S.f.longOpen?1:0);
+
+/* Şehir seçenekleri **o an görünen** ilanlardan sayılır — sabit bir listeden
+   değil. Böylece "TÜRKİYE + SENIOR" seçiliyken çıkan şehir sayıları tıklayınca
+   gerçekten o kadar ilan verir. Sabit listede "İstanbul 2594" yazıp 12 ilan
+   göstermek, bu kod tabanının reddettiği tutulmayan vaat olurdu. */
+function cityOptions(){
+  const f=S.feed; if(!f) return [];
+  const sayac=new Map();
+  let belirsiz=0;
+  const bak=j=>{
+    /* Şehir filtresinin KENDİSİ hariç tutulur: aksi halde bir şehir seçilince
+       listede yalnızca o şehir kalır ve kullanıcı başka şehre geçemez. */
+    if(S.region && !(j.regions||[]).includes(S.region)) return;
+    if(!axisOk(j.experience_level,S.f.level)) return;
+    if(!axisOk(j.work_arrangement,S.f.arr)) return;
+    if(!axisOk(j.employment_type,S.f.emp)) return;
+    if(S.f.longOpen && !j.long_open) return;
+    const c=j.city_group||"";
+    if(!c){ belirsiz++; return; }
+    sayac.set(c,(sayac.get(c)||0)+1);
+  };
+  (f.evaluated||[]).forEach(bak); (f.unevaluated||[]).forEach(bak);
+  const q=S.citySearch.trim().toLocaleLowerCase("tr");
+  const hepsi=[...sayac.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"tr"));
+  const list=q?hepsi.filter(([c])=>c.toLocaleLowerCase("tr").includes(q)):hepsi;
+  /* `toplam` FİLTRELENMEMİŞ sayıdır. Arama kutusunu görünen listeye göre
+     gösterirsek, kullanıcı yazdıkça liste kısalır ve kutu kaybolur — yazdığını
+     silemez, kilitlenir. */
+  return {list, belirsiz, toplam:hepsi.length};
+}
 
 /* Filtre seçenekleri **korpustan** sayılır. Sıfır ilanlı seçenek hiç
    gösterilmez: tıklayınca boş liste veren bir filtre, tutulmayan bir vaattir. */
@@ -742,6 +789,23 @@ function viewFilters(){
     ["çalışma biçimi", fopts(ARRS,fc.arrangements,S.f.arr,"arr")],
     ["istihdam türü",  fopts(EMPS,fc.employment_types,S.f.emp,"emp")],
   ].filter(([,html])=>html);
+
+  const ct=cityOptions();
+  const GOSTER=60;   // uzun listede ilk 60; gerisi arama kutusuyla bulunur
+  const kesildi=Math.max(0,ct.list.length-GOSTER);
+  const cityRow=`<div class="frow"><span class="tag-l">şehir
+      ${S.region?`— ${esc(S.region.toUpperCase())}`:''}</span>
+    ${ct.toplam>12?`<input class="fsearch" id="citySearch"
+      placeholder="şehir ara…" value="${esc(S.citySearch)}">`:''}
+    <div class="fopts ${ct.list.length>18?'scroll':''}">
+      ${ct.list.slice(0,GOSTER).map(([c,n])=>`<button class="fo ${S.f.city===c?'on':''}"
+        data-city="${esc(c)}">${esc(c)}<b>${n}</b></button>`).join('')}
+    </div>
+    ${!ct.list.length?`<div class="fnote">"${esc(S.citySearch)}" ile eşleşen şehir yok.</div>`:''}
+    ${kesildi?`<div class="fnote">+${kesildi} şehir daha — aramayla bul</div>`:''}
+    ${ct.belirsiz?`<div class="fnote">${ct.belirsiz} ilan şehir belirtmemiş
+      (bölge biliniyor, şehir yok) — uydurmuyoruz.</div>`:''}
+  </div>`;
   return `
     <div class="fbar">
       <button class="ftoggle ${S.fopen?'open':''}" id="fToggle">
@@ -751,6 +815,7 @@ function viewFilters(){
       ${n?`<button class="fclear" id="fClear">filtreleri temizle ×</button>`:''}
     </div>
     <div class="fpanel ${S.fopen?'open':''}">
+      ${ct.toplam?cityRow:''}
       ${rows.map(([t,html])=>`<div class="frow"><span class="tag-l">${t}</span>
         <div class="fopts">${html}</div></div>`).join('')}
       ${fc.long_open_count?`<div class="frow"><span class="tag-l">ilan yaşı</span>
@@ -816,6 +881,12 @@ function card(j){
   const met=new Set(j.matched_requirements||[]);
   const tags=(j.top_requirements||[]).slice(0,4).map(r=>`<span class="rq ${met.has(r)?'on':''}">${esc(r)}</span>`).join('');
   const pills=[];
+  /* Kıdem rozeti kartta gösterilir: filtre vardı ama ilanın hangi seviyede
+     olduğu görünmüyordu, kullanıcı her ilanı açmak zorunda kalıyordu.
+     Etiketsiz ilanda rozet YOK — "belirtilmemiş"i "mid" gibi göstermek
+     uydurma olurdu (D-011). */
+  if(j.experience_level&&LVL_LABEL[j.experience_level])
+    pills.push(`<span class="pill lvl">${LVL_LABEL[j.experience_level]}</span>`);
   if(j.salary_status==='found'&&j.salary_text) pills.push(`<span class="pill pay">${esc(j.salary_text)}</span>`);
   if(j.long_open) pills.push(`<span class="pill age">${j.age_days}G AÇIK</span>`);
   if((j.fairness_flags||[]).some(f=>f.severity==='hard')) pills.push(`<span class="pill fair">⚠ AYRIMCI İFADE</span>`);
@@ -860,18 +931,26 @@ function wireFeed(){
   const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; S.shownEv=PAGE_EV(); const c=q.selectionStart;
     repaint(); const n=$("#q"); if(n){n.focus(); n.setSelectionRange(c,c);}};
   document.querySelectorAll("[data-region]").forEach(el=>el.onclick=()=>{
-    S.region=el.dataset.region; S.shownEv=PAGE_EV(); repaint();});
+    /* Bölge değişince şehir seçimi düşer: "Türkiye + Berlin" boş liste verirdi
+       ve kullanıcı sebebini göremezdi. */
+    S.region=el.dataset.region; S.f.city=""; S.citySearch="";
+    S.shownEv=PAGE_EV(); repaint();});
   $("[data-more]")&&($("[data-more]").onclick=()=>{S.shownEv+=40; repaint();});
   document.querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openDetail(el.dataset.job));
 
   /* --- filtreler --- */
   $("#fToggle")&&($("#fToggle").onclick=()=>{S.fopen=!S.fopen; repaint();});
   $("#fClear")&&($("#fClear").onclick=()=>{
-    S.f={level:"",arr:"",emp:"",longOpen:false}; S.shownEv=PAGE_EV(); repaint();});
+    S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
+    S.shownEv=PAGE_EV(); repaint();});
+  const cs=$("#citySearch");
+  if(cs) cs.oninput=()=>{S.citySearch=cs.value; const p=cs.selectionStart;
+    repaint(); const n=$("#citySearch"); if(n){n.focus(); n.setSelectionRange(p,p);}};
   /* Aynı seçeneğe tekrar tıklamak filtreyi kaldırır — kullanıcı "geri al"
      için temizle düğmesini aramak zorunda kalmasın. */
   const pick=(attr,key)=>document.querySelectorAll(`[data-${attr}]`).forEach(el=>el.onclick=()=>{
     const v=el.dataset[attr]; S.f[key]=(S.f[key]===v?"":v); S.shownEv=PAGE_EV(); repaint();});
+  pick("city","city");
   pick("lvl","level"); pick("arr","arr"); pick("emp","emp");
   $("[data-lo]")&&($("[data-lo]").onclick=()=>{
     S.f.longOpen=!S.f.longOpen; S.shownEv=PAGE_EV(); repaint();});

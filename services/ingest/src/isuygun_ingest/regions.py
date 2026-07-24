@@ -159,6 +159,88 @@ def _tokens(folded: str) -> list[str]:
     return re.findall(r"[a-z]+", folded)
 
 
+# ---------------------------------------------------------------------------
+# Şehir grubu (D-056)
+# ---------------------------------------------------------------------------
+
+#: Büyükşehir yaka/bölge ekleri. Kaynaklar İstanbul'u üçe bölüyor
+#: ("İstanbul", "İstanbul Avrupa", "İstanbul Anadolu") ve bunlar **aynı ildir**.
+_SIDE_WORDS = frozenset({"avrupa", "anadolu", "asya", "yakasi", "avrupasi"})
+
+#: Şehir yerine geçen ama şehir OLMAYAN değerler. "Türkiye" yazan 137 ilan
+#: şehir söylemiyor; onları "İstanbul"la aynı listeye koymak yanlış olurdu.
+_NOT_A_CITY = frozenset(
+    set(_TR_COUNTRY) | set(_EU_COUNTRY) | set(_US_COUNTRY)
+    | {"remote", "uzaktan", "anywhere", "hybrid", "onsite", "global",
+       "worldwide", "emea", "europe", "avrupa"}
+)
+
+
+#: Ülke adlarının tek tek kelimeleri ("united kingdom" → united, kingdom).
+#: Şehir adının sonuna yapışan ülke ekini atmak için.
+_COUNTRY_TOKENS = frozenset(
+    w
+    for name in (*_TR_COUNTRY, *_EU_COUNTRY, *_US_COUNTRY)
+    for w in name.split()
+) - {"york", "jersey"}   # "New York" / "New Jersey" şehirdir, ülke eki değil
+
+
+def city_of(location: str) -> tuple[str, str]:
+    """Konumdan **il/şehir** çıkarır: ``(gruplama anahtarı, gösterim adı)``.
+
+    Ham konum dizesiyle filtre yapılamaz: aynı il beş ayrı yazımla geliyor ve
+    her biri ayrı bir seçenek gibi görünüyor. Ölçüm (canlı korpus, 4284 TR
+    ilanı, 166 farklı dize): İstanbul ``İstanbul`` 938 + ``İstanbul Avrupa``
+    538 + ``İstanbul Anadolu`` 403 + ``İstanbul, Kadıköy``… şeklinde
+    parçalanmıştı. "İstanbul (938)" yazan bir filtre, ilin gerçek 2000+
+    ilanının çoğunu gizlerdi — rozetteki sayının tutmaması bu kod tabanının
+    zaten reddettiği şey (bkz. facet sayımı).
+
+    Kural: ilk segment (virgül/eğik çizgi/parantez öncesi) + yaka eki atılır.
+    Ülke/uzaktan gibi şehir olmayan değerler ``("", "")`` döner — bunlar
+    "belirtilmemiş"tir ve uydurulmaz (D-011).
+    """
+    raw = (location or "").strip()
+    if not raw:
+        return "", ""
+    # Ayırıcılar: virgül/eğik çizgi/parantez + uzun tire ve **boşluklu** kısa
+    # tire. Boşluk şart: "Baden-Württemberg" ve "Saint-Denis" gerçek şehir
+    # adlarıdır, bölünmemeli. Uzun tire ayrımı olmadan "Remote — United States"
+    # bir şehir grubu gibi listeleniyordu (ölçümde 98 ilan).
+    seg = re.split(r"[,/|()–—]|\s-\s", raw)[0].strip()
+    if not seg:
+        return "", ""
+
+    words = seg.split()
+    folded = _classify_fold(seg).split()
+    # İlk kelime "remote/uzaktan" ise bu bir şehir değil, çalışma biçimidir.
+    # ("Remote US", "Uzaktan Türkiye" → şehir belirtilmemiş.)
+    if folded and folded[0] in _NOT_A_CITY:
+        return "", ""
+    # Sondaki yaka ve ülke eklerini at:
+    #   "İstanbul Avrupa"            → "İstanbul"
+    #   "München Bayern Deutschland" → "München Bayern"
+    # İkincisi Alman iş ajansından geliyor ve **ayırıcı içermiyor**; ülke ekini
+    # atmazsak "München" ile ayrı iki şehir grubu olarak listeleniyor.
+    while len(folded) > 1 and (folded[-1] in _SIDE_WORDS
+                               or folded[-1] in _COUNTRY_TOKENS):
+        folded.pop()
+        words = words[:len(folded)]
+
+    key = " ".join(folded)
+    # Geriye yalnızca ülke kelimeleri kaldıysa bu bir şehir değildir:
+    # "United States" → sondaki "states" atılınca "united" kalıyordu ve
+    # ekranda "United" diye bir şehir görünüyordu.
+    if (not key or key in _NOT_A_CITY
+            or all(t in _COUNTRY_TOKENS for t in folded)):
+        return "", ""
+    return key, " ".join(words[:len(folded)])
+
+
+def _classify_fold(s: str) -> str:
+    return fold(s)
+
+
 def primary(location: str) -> str:
     """Tek bir bölge etiketi gerektiğinde kullanılır (gruplama için).
 
