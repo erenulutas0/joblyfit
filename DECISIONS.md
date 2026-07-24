@@ -1234,3 +1234,54 @@ olası `##` / `*` / `-` / `•` imlerinden sonra.
 - **Açık kalan:** Kalan 487 şartsız ilanın çoğu iş geliştirme / satış / tasarım /
   ortaklık rolleri; sözlük teknoloji ve mavi yaka odaklı, bu meslek alanları
   henüz yok (OPEN-23).
+
+---
+
+## D-046 (revize) — v2 arayüz "komuta konsolu" kimliğine kavuştu
+
+- **Date:** 2026-07-24
+- **Status:** Accepted
+- **Bağlam:** İlk v2 denemesi (koyu panel + mavi aksan) kullanıcı tarafından
+  "AI slop" olarak reddedildi — haklıydı, jenerik şablondu.
+- **Decision:** Tasarım **üründen türetildi**: bu bir tarama/kanıt makinesi.
+  Radar/komuta konsolu dili — fosfor yeşili tek aksan, mono veri etiketleri,
+  grid zemin, `>_` konsol araması, canlı "tarama aktif" göstergesi, ve bandı
+  **4 segmentli gösterge** olarak çizen görsel (bant sıralıdır, yüzde değildir —
+  D-005'i görselleştirir). Display için Unbounded, veri için JetBrains Mono.
+- **Neden farklı:** Jenerik AI-dark (purple gradient hero / Inter / rounded-lg /
+  mavi aksan) dünyasından bilinçli uzaklaşma. Tek tema (koyu) bilinçli bir
+  tercih, eksiklik değil.
+
+---
+
+## D-047 — Açılış artık siteyi kapatmıyor: eski cache'ten anında servis + arka plan yenileme
+
+- **Date:** 2026-07-24
+- **Status:** Accepted
+- **Sorun:** Cache 6 saatlik TTL'i aşınca `STORE.load()` senkron re-fetch
+  yapıyordu (~250 sn) ve `lifespan` startup'ı blokladığı için **site o süre
+  boyunca hiç yanıt vermiyordu**. Kullanıcı bunu iki kez yaşadı ("frontend hala
+  açılmadı").
+- **Decision:** `run_live_ingest(stale_ok=True)` yaş kontrolünü atlar ve ne varsa
+  (eski cache) onu yükler — ağa çıkmadan. `lifespan` önce bununla siteyi anında
+  ayağa kaldırır (0-1 sn), sonra `asyncio.to_thread(STORE.refresh)` ile gerçek
+  çekimi **arka planda** yapar ve sonucu yerine koyar. Yenileme başarısızsa eski
+  korpus yerinde kalır — site asla veriyi kaybetmez.
+- **Ölçüm:** Açılış ~7 dk (site kapalı) → **~0-1 sn** (site açık, eski cache'le).
+
+---
+
+## D-048 — Postgres bağlantısı hızlı başarısız olmalı; yoksa düşme zinciri bozuluyor
+
+- **Date:** 2026-07-24
+- **Status:** Accepted
+- **Sorun:** `launch.json` `ISUYGUN_DSN`'i Postgres'e (docker :5435) ayarlıyor.
+  Docker kapalıyken `psycopg.connect` "connection refused" yerine **asılı
+  kalıyordu** (localhost IPv6+IPv4). `STORE = Store()` import'ta donuyor, sunucu
+  hiç açılmıyordu. D-027'nin düşme zinciri (Postgres → SQLite → bellek) ancak
+  connect **hızlı** başarısız olursa çalışır.
+- **Decision:** `psycopg.connect(..., connect_timeout=3)`. Postgres yoksa 3 sn
+  (localhost çift deneme ile ~6 sn) içinde SQLite'a düşülür. Ölçüldü: import
+  6.7 sn, depo `sqlite`, site açık.
+- **Ders:** Bir düşme zinciri, ancak başarısızlık **hızlı ve gözlemlenebilir**
+  olduğunda güvenlik ağıdır. Sessiz hang, zincirin tamamını etkisizleştirir.

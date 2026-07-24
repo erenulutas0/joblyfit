@@ -161,17 +161,23 @@ class Store:
 
     # -- ilanlar -----------------------------------------------------------
 
-    def load(self, *, live: bool = True, include_fixtures: bool = True) -> None:
+    def load(self, *, live: bool = True, include_fixtures: bool = True,
+             stale_ok: bool = False) -> None:
         """İlanları ingest edip belleğe alır.
 
         ``live=True`` iken Registry'de izinli ATS panolarından **gerçek** ilanlar
         çekilir (D-020). Ağ hatası ingest'i düşürmez; ``errors`` alanına yazılır
         ve arayüzde görünür — sessizce boş liste göstermek, kaynağın kapandığını
         gizlerdi.
+
+        ``stale_ok=True`` **ağa çıkmaz**: ne varsa (eski cache) onu yükler. Açılışta
+        siteyi anında ayağa kaldırmak için kullanılır; tazeleme :meth:`refresh` ile
+        arka planda yapılır (D-047).
         """
         if live:
             try:
-                result = run_live_ingest(include_fixtures=include_fixtures)
+                result = run_live_ingest(include_fixtures=include_fixtures,
+                                         stale_ok=stale_ok)
             except Exception as e:  # ağ tamamen kapalıysa fixture'a düş
                 result = run_fixture_ingest()
                 result = {**result, "errors": [{"board": "canlı ingest", "error": str(e)}],
@@ -202,6 +208,15 @@ class Store:
             "boards": result.get("boards", []),
             "errors": result.get("errors", []),
         }
+
+    def refresh(self) -> None:
+        """Korpusu **ağa çıkarak** tazeler (arka planda çağrılır, D-047).
+
+        Açılışta `load(stale_ok=True)` siteyi eski cache'le anında ayağa kaldırır;
+        bu metod sonra gerçek çekimi yapar ve sonucu yerine koyar. Hata olursa
+        eski korpus yerinde kalır — site asla veriyi kaybetmez.
+        """
+        self.load(live=True, stale_ok=False)
 
     def job(self, job_id: str) -> NormalizedPosting | None:
         return self.postings.get(job_id)

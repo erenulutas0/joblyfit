@@ -62,9 +62,24 @@ def _load_local_env() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    import asyncio
+
     _load_local_env()
-    STORE.load()
+    # Açılış siteyi ASLA dakikalarca kapalı tutmamalı (D-047). Önce eski cache'le
+    # anında ayağa kalk; ağ çekimini (gerekirse) arka planda yap ve sonucu yerine
+    # koy. Cache 6 saatten eskiyse eskiden `STORE.load()` senkron re-fetch yapıyor
+    # ve site ~7 dk boyunca hiç yanıt vermiyordu.
+    STORE.load(stale_ok=True)
+
+    async def _bg_refresh():
+        try:
+            await asyncio.to_thread(STORE.refresh)
+        except Exception:
+            pass   # tazeleme başarısızsa eski korpus yerinde kalır
+
+    task = asyncio.create_task(_bg_refresh())
     yield
+    task.cancel()
 
 
 app = FastAPI(

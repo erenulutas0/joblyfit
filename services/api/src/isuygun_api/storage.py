@@ -273,7 +273,12 @@ class PostgresProfileStore:
     def __post_init__(self) -> None:
         import psycopg
 
-        self._db = psycopg.connect(self.dsn, autocommit=True)
+        # `connect_timeout` ZORUNLU: Postgres kapalıyken (docker up değil)
+        # bağlantı "refused" yerine asılı kalabiliyordu (localhost IPv6 gecikmesi)
+        # ve `STORE = Store()` import'ta donuyor, sunucu hiç açılmıyordu. Düşme
+        # zinciri (Postgres → SQLite → bellek, D-027) ancak connect HIZLI
+        # başarısız olursa çalışır (D-048).
+        self._db = psycopg.connect(self.dsn, autocommit=True, connect_timeout=3)
 
     def load(self, profile_id: str) -> CareerProfile:
         with self._db.cursor() as cur:

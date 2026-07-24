@@ -677,6 +677,7 @@ def run_live_ingest(
     include_fixtures: bool = False,
     cache_hours: float = 6.0,
     force_refresh: bool = False,
+    stale_ok: bool = False,
     max_age_days: int = MAX_AGE_DAYS,
 ) -> dict:
     """Registry'de izinli ATS panolarından **gerçek** ilanları çeker.
@@ -692,18 +693,28 @@ def run_live_ingest(
     from . import cache as _cache
 
     path = _cache_path()
-    cached = None if force_refresh else _cache.read(path, cache_hours)
+    # ``stale_ok``: yaş kontrolünü atla ve **ne varsa** onu kullan — ağ beklemeden.
+    # Amaç, açılışta siteyi anında ayağa kaldırmak: eski cache hemen servis
+    # edilir, tazeleme arka planda yapılır (D-047). Yaşı geçmiş cache "yok"
+    # sayılıp yeniden çekilirse site dakikalarca kapalı kalıyordu.
+    effective_hours = 1e12 if stale_ok else cache_hours
+    cached = None if force_refresh else _cache.read(path, effective_hours)
     from_cache = cached is not None
     # Çıkarım mantığı değişmişse işlenmiş kayıtlar geçersizdir; ham kayıtlar
     # yine de kullanılır — yeniden **çekim** gerekmez, yalnızca yeniden çıkarım.
     reused_extraction = bool(cached and cached["postings"])
 
     if cached is None:
-        raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
-        api_raws, api_meta, api_errors = _fetch_api_sources()
-        raws.extend(api_raws)
-        fetched_boards.extend(api_meta)
-        errors.extend(api_errors)
+        if stale_ok:
+            # Hızlı mod + cache yok: ağa çıkmayız. Site (varsa fixture'la) açılır,
+            # gerçek veri arka plan yenilemesinde gelir.
+            raws, fetched_boards, errors = [], [], []
+        else:
+            raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
+            api_raws, api_meta, api_errors = _fetch_api_sources()
+            raws.extend(api_raws)
+            fetched_boards.extend(api_meta)
+            errors.extend(api_errors)
     else:
         raws = cached["raws"]
         fetched_boards = cached["meta"].get("boards", [])

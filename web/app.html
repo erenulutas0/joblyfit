@@ -4,266 +4,342 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>İşe Uygun</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-/* ---------------------------------------------------------------------------
-   Tasarım sistemi (D-046) — koyu, sade, tek aksan. Bilinçli tek tema.
-   --------------------------------------------------------------------------- */
+/* ==========================================================================
+   D-046v2 — "Komuta konsolu" tasarım sistemi.
+   Ürünün kimliğinden türetildi: bu bir tarama/kanıt makinesi. Radar konsolu
+   dili — fosfor yeşili, mono veri etiketleri, köşe nişangahları, segmentli
+   bant göstergesi. Bilinçli tek tema (koyu); jenerik dark-panel + mavi aksan
+   şablonundan kaçınmak tasarımın kendisi.
+   ========================================================================== */
 :root{
-  --bg:#0a0d13; --bg-2:#0f131c; --panel:#141a26; --panel-2:#1a2130;
-  --line:#232c3d; --line-2:#2f3a4f;
-  --ink:#e8ecf4; --ink-2:#aeb8cc; --ink-3:#7a869e; --ink-4:#525d72;
-  --accent:#5b9dff; --accent-2:#3b7ae0; --accent-soft:rgba(91,157,255,.14);
-  --good:#48d597; --good-soft:rgba(72,213,151,.13);
-  --warn:#f0b849; --warn-soft:rgba(240,184,73,.13);
-  --bad:#f2716b; --bad-soft:rgba(242,113,107,.12);
-  --r:14px; --r-sm:9px; --shadow:0 8px 30px rgba(0,0,0,.35);
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  /* zemin — saf siyah değil; yeşile kayan grafitler */
+  --bg:#050806;      --bg-2:#070b09;    --panel:#0a0f0c;   --panel-2:#0e1511;
+  --line:#16211b;    --line-2:#203027;
+  /* mürekkep */
+  --ink:#dbe7df;     --ink-2:#9fb3a8;   --ink-3:#647a6e;   --ink-4:#405349;
+  /* fosfor — tek gerçek aksan */
+  --ph:#46f2a4;      --ph-dim:#2bbf7e;  --ph-soft:rgba(70,242,164,.09);
+  --ph-line:rgba(70,242,164,.28);
+  /* durum renkleri (bant) */
+  --good:#46f2a4;    --good-soft:rgba(70,242,164,.10);
+  --mid:#59c8ff;     --mid-soft:rgba(89,200,255,.10);
+  --warn:#ffc153;    --warn-soft:rgba(255,193,83,.10);
+  --bad:#ff6f61;     --bad-soft:rgba(255,111,97,.10);
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --disp:"Unbounded",system-ui,sans-serif;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
 }
 *{box-sizing:border-box; margin:0; padding:0}
-html,body{height:100%}
+html{scrollbar-color:var(--line-2) var(--bg)}
 body{
-  font-family:var(--sans); background:var(--bg); color:var(--ink);
-  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  font-family:var(--sans); color:var(--ink); font-size:15px; line-height:1.6;
+  background:
+    radial-gradient(1100px 500px at 70% -10%, rgba(70,242,164,.05), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(70,242,164,.022) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(70,242,164,.022) 39px 40px),
+    var(--bg);
+  min-height:100vh; overflow-x:hidden; -webkit-font-smoothing:antialiased;
 }
 button{font:inherit; cursor:pointer; border:0; background:none; color:inherit}
-input,select{font:inherit; color:inherit}
-a{color:var(--accent); text-decoration:none}
-::selection{background:var(--accent-soft)}
-.mut{color:var(--ink-3)}
-.wrap{max-width:1080px; margin:0 auto; padding:0 22px}
+input{font:inherit; color:inherit}
+a{color:var(--ph); text-decoration:none}
+::selection{background:rgba(70,242,164,.25)}
+.wrap{max-width:1060px; margin:0 auto; padding:0 24px}
 
-/* ---- üst bar ---- */
-.topbar{
-  position:sticky; top:0; z-index:40; background:rgba(10,13,19,.82);
-  backdrop-filter:blur(12px); border-bottom:1px solid var(--line);
-}
-.topbar .wrap{display:flex; align-items:center; gap:18px; height:62px}
-.brand{font-size:19px; font-weight:700; letter-spacing:-.01em}
-.brand b{color:var(--accent); font-weight:800}
-.brand span{font-size:11px; color:var(--ink-4); font-weight:500; margin-left:8px}
+/* -- mono veri etiketi: sistemin imzası -- */
+.tag-l{font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-3)}
+.tag-l b{color:var(--ph); font-weight:600}
+
+/* ==================== üst bar ==================== */
+.topbar{position:sticky; top:0; z-index:40;
+  background:linear-gradient(rgba(5,8,6,.92),rgba(5,8,6,.85));
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex; align-items:center; gap:20px; height:60px}
+.brand{font-family:var(--disp); font-size:15px; font-weight:800; letter-spacing:.01em}
+.brand em{font-style:normal; color:var(--ph)}
+.sysline{display:flex; align-items:center; gap:8px}
+.sysdot{width:6px; height:6px; border-radius:50%; background:var(--ph);
+  box-shadow:0 0 8px var(--ph); animation:blink 2.4s infinite}
+@keyframes blink{0%,88%{opacity:1}94%{opacity:.25}100%{opacity:1}}
 .grow{flex:1}
 
-/* ---- profil anahtarı ---- */
+/* profil anahtarı */
 .psw{position:relative}
-.psw-btn{
-  display:flex; align-items:center; gap:9px; background:var(--panel);
-  border:1px solid var(--line); border-radius:999px; padding:6px 8px 6px 14px;
-  font-weight:600; font-size:13.5px; transition:border-color .15s;
-}
-.psw-btn:hover{border-color:var(--accent)}
-.psw-dot{width:8px; height:8px; border-radius:50%; background:var(--accent)}
-.psw-dot.blue{background:var(--warn)}
-.psw-chev{color:var(--ink-3); font-size:11px}
-.psw-menu{
-  position:absolute; right:0; top:calc(100% + 8px); width:280px;
-  background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
-  box-shadow:var(--shadow); padding:7px; display:none;
-}
-.psw-menu.open{display:block; animation:pop .13s ease}
-@keyframes pop{from{opacity:0; transform:translateY(-6px)}to{opacity:1; transform:none}}
-.psw-item{
-  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
-  padding:9px 10px; border-radius:var(--r-sm); font-size:13.5px;
-}
+.psw-btn{display:flex; align-items:center; gap:10px; padding:7px 12px;
+  border:1px solid var(--line-2); background:var(--panel);
+  font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.06em;
+  transition:border-color .15s}
+.psw-btn:hover{border-color:var(--ph-line)}
+.psw-btn .cv{color:var(--ink-4); font-size:9px}
+.collar-dot{width:7px; height:7px; background:var(--ph)}
+.collar-dot.blue{background:var(--warn)}
+.psw-menu{position:absolute; right:0; top:calc(100% + 10px); width:300px;
+  background:var(--panel); border:1px solid var(--line-2); padding:6px; display:none;
+  box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.psw-menu.open{display:block; animation:drop .14s ease}
+@keyframes drop{from{opacity:0; transform:translateY(-5px)}to{opacity:1}}
+.psw-item{display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:10px 11px; font-size:13.5px; border:1px solid transparent}
 .psw-item:hover{background:var(--panel-2)}
-.psw-item.active{background:var(--accent-soft)}
+.psw-item.active{border-color:var(--ph-line); background:var(--ph-soft)}
 .psw-item .nm{flex:1; font-weight:600}
-.psw-item .meta{font-size:11.5px; color:var(--ink-4)}
-.psw-x{color:var(--ink-4); font-size:15px; padding:2px 6px; border-radius:6px}
-.psw-x:hover{color:var(--bad); background:var(--bad-soft)}
-.psw-new{
-  display:flex; align-items:center; gap:8px; width:100%; padding:10px;
-  margin-top:5px; border-top:1px solid var(--line); color:var(--accent);
-  font-weight:600; font-size:13.5px;
-}
-.psw-new:hover{background:var(--accent-soft); border-radius:var(--r-sm)}
+.psw-item .meta{font-family:var(--mono); font-size:10px; color:var(--ink-4)}
+.psw-x{color:var(--ink-4); padding:2px 7px}
+.psw-x:hover{color:var(--bad)}
+.psw-new{display:block; width:100%; padding:11px; margin-top:5px; text-align:center;
+  border-top:1px solid var(--line); color:var(--ph); font-family:var(--mono);
+  font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase}
+.psw-new:hover{background:var(--ph-soft)}
 
-/* ---- butonlar ---- */
-.btn{
-  display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  background:var(--accent); color:#06101f; font-weight:700; font-size:14px;
-  padding:11px 20px; border-radius:var(--r-sm); transition:transform .08s, background .15s;
-}
-.btn:hover{background:#6ea8ff}
+/* ==================== butonlar ==================== */
+.btn{display:inline-flex; align-items:center; gap:9px; padding:13px 24px;
+  background:var(--ph); color:#03130b; font-family:var(--mono); font-size:12.5px;
+  font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  clip-path:polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  transition:filter .12s, transform .08s}
+.btn:hover{filter:brightness(1.12)}
 .btn:active{transform:translateY(1px)}
-.btn:disabled{opacity:.4; cursor:default}
-.btn-2{background:var(--panel-2); color:var(--ink); border:1px solid var(--line); font-weight:600}
-.btn-2:hover{border-color:var(--accent); background:var(--panel)}
-.btn-ghost{color:var(--ink-2); font-weight:600; padding:11px 14px}
+.btn:disabled{opacity:.35; cursor:default}
+.btn-2{display:inline-flex; align-items:center; gap:8px; padding:12px 20px;
+  border:1px solid var(--line-2); color:var(--ink-2); background:var(--panel);
+  font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.07em;
+  text-transform:uppercase; transition:border-color .15s, color .15s}
+.btn-2:hover{border-color:var(--ph-line); color:var(--ink)}
+.btn-ghost{padding:12px 14px; color:var(--ink-3); font-family:var(--mono);
+  font-size:12px; letter-spacing:.07em; text-transform:uppercase}
 .btn-ghost:hover{color:var(--ink)}
 
-/* ---- onboarding ---- */
-.ob{min-height:calc(100vh - 62px); display:flex; align-items:center; justify-content:center; padding:40px 22px}
-.ob-card{width:100%; max-width:620px}
-.ob-prog{display:flex; gap:6px; margin-bottom:34px}
-.ob-prog i{flex:1; height:4px; border-radius:2px; background:var(--line); transition:background .35s}
-.ob-prog i.on{background:var(--accent)}
-.ob-step{animation:slide .4s cubic-bezier(.2,.7,.2,1)}
-@keyframes slide{from{opacity:0; transform:translateX(24px)}to{opacity:1; transform:none}}
-.ob-eyebrow{font-size:12.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); margin-bottom:14px}
-.ob h1{font-size:30px; font-weight:800; letter-spacing:-.02em; line-height:1.15; margin-bottom:12px; text-wrap:balance}
-.ob p.sub{color:var(--ink-2); font-size:16px; margin-bottom:30px; max-width:80%}
-.ob-actions{display:flex; align-items:center; gap:14px; margin-top:34px}
+/* ==================== nişangah köşeleri ==================== */
+.reticle{position:relative}
+.reticle::before,.reticle::after{content:""; position:absolute; width:14px; height:14px;
+  border:1.5px solid var(--ph); opacity:0; transition:opacity .15s}
+.reticle::before{top:-1px; left:-1px; border-right:0; border-bottom:0}
+.reticle::after{bottom:-1px; right:-1px; border-left:0; border-top:0}
+.reticle:hover::before,.reticle:hover::after,
+.reticle.sel::before,.reticle.sel::after{opacity:1}
 
-/* seçim kartları */
+/* ==================== onboarding ==================== */
+.ob{min-height:calc(100vh - 60px); display:flex; align-items:center;
+  justify-content:center; padding:48px 24px}
+.ob-card{width:100%; max-width:640px}
+.ob-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:38px}
+.ob-idx{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:.12em}
+.ob-idx b{color:var(--ph); font-size:20px; font-weight:700}
+.ob-prog{display:flex; gap:5px}
+.ob-prog i{width:34px; height:3px; background:var(--line-2); transition:background .3s}
+.ob-prog i.on{background:var(--ph); box-shadow:0 0 8px rgba(70,242,164,.5)}
+.ob-step{animation:stepin .38s cubic-bezier(.2,.75,.25,1)}
+@keyframes stepin{from{opacity:0; transform:translateX(26px)}to{opacity:1; transform:none}}
+.ob h1{font-family:var(--disp); font-size:27px; font-weight:800; line-height:1.25;
+  letter-spacing:-.005em; margin:14px 0 12px; text-wrap:balance}
+.ob .sub{color:var(--ink-2); font-size:15px; max-width:88%; margin-bottom:30px}
+.ob-actions{display:flex; align-items:center; gap:16px; margin-top:36px}
+
 .pick{display:grid; gap:12px}
 .pick.two{grid-template-columns:1fr 1fr}
 .pick.flow{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
-.pick-card{
-  text-align:left; background:var(--panel); border:1.5px solid var(--line);
-  border-radius:var(--r); padding:20px; transition:border-color .15s, background .15s;
-}
+.pick-card{text-align:left; background:var(--panel); border:1px solid var(--line-2);
+  padding:22px; transition:border-color .15s, background .15s}
 .pick-card:hover{border-color:var(--ink-3)}
-.pick-card.sel{border-color:var(--accent); background:var(--accent-soft)}
-.pick-card .emoji{font-size:26px; display:block; margin-bottom:10px}
-.pick-card .t{font-weight:700; font-size:16px}
-.pick-card .d{font-size:13px; color:var(--ink-3); margin-top:3px}
-.pick-chip{
-  padding:12px 16px; background:var(--panel); border:1.5px solid var(--line);
-  border-radius:var(--r-sm); font-weight:600; font-size:14px; text-align:center;
-}
+.pick-card.sel{border-color:var(--ph-line); background:var(--ph-soft)}
+.pick-card .ic{font-family:var(--mono); font-size:11px; font-weight:700;
+  letter-spacing:.14em; color:var(--ph); display:block; margin-bottom:12px}
+.pick-card .t{font-family:var(--disp); font-weight:600; font-size:15.5px}
+.pick-card .d{font-size:13px; color:var(--ink-3); margin-top:6px; line-height:1.5}
+.pick-chip{padding:13px 14px; background:var(--panel); border:1px solid var(--line-2);
+  font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:.04em;
+  text-align:center; transition:border-color .15s, background .15s}
 .pick-chip:hover{border-color:var(--ink-3)}
-.pick-chip.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--ink)}
+.pick-chip.sel{border-color:var(--ph-line); background:var(--ph-soft); color:var(--ph)}
 
-/* anahtar kelime seçimi */
-.kw-group{margin-bottom:20px}
-.kw-group h4{font-size:12.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); margin-bottom:10px}
+.kw-group{margin-bottom:22px}
 .kw-flow{display:flex; flex-wrap:wrap; gap:8px}
-.kw{
-  padding:8px 14px; background:var(--panel); border:1.5px solid var(--line);
-  border-radius:999px; font-size:13.5px; font-weight:500; transition:all .12s;
-}
+.kw{padding:8px 14px; background:var(--panel); border:1px solid var(--line-2);
+  font-size:13px; font-weight:500; transition:all .12s}
 .kw:hover{border-color:var(--ink-3)}
-.kw.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--ink); font-weight:600}
-.kw.sel::before{content:"✓ "; color:var(--accent)}
-.kw-add{display:flex; gap:9px; margin-top:6px}
-.kw-add input{
-  flex:1; background:var(--panel); border:1.5px solid var(--line);
-  border-radius:var(--r-sm); padding:11px 14px; font-size:14px;
-}
-.kw-add input:focus{outline:none; border-color:var(--accent)}
-.tag{display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--accent-soft);
-  border-radius:999px; font-size:13px; font-weight:600; color:var(--ink)}
-.tag b{cursor:pointer; color:var(--ink-3)} .tag b:hover{color:var(--bad)}
-.name-in{
-  width:100%; background:var(--panel); border:1.5px solid var(--line);
-  border-radius:var(--r); padding:16px 18px; font-size:18px; font-weight:600;
-}
-.name-in:focus{outline:none; border-color:var(--accent)}
+.kw.sel{border-color:var(--ph-line); background:var(--ph-soft); color:var(--ph); font-weight:600}
+.kw-add{display:flex; gap:9px; margin-top:8px}
+.kw-add input{flex:1; background:var(--panel); border:1px solid var(--line-2);
+  padding:12px 14px; font-size:14px}
+.kw-add input:focus{outline:none; border-color:var(--ph-line)}
+.tagx{display:inline-flex; align-items:center; gap:7px; padding:7px 13px;
+  background:var(--ph-soft); border:1px solid var(--ph-line);
+  font-family:var(--mono); font-size:12px; color:var(--ph)}
+.tagx b{cursor:pointer; color:var(--ink-3)} .tagx b:hover{color:var(--bad)}
+.name-in{width:100%; background:var(--panel); border:1px solid var(--line-2);
+  padding:17px 18px; font-family:var(--disp); font-size:17px; font-weight:600}
+.name-in:focus{outline:none; border-color:var(--ph-line)}
 
-/* ---- feed ---- */
-.feed{padding:26px 0 80px}
-.hero{margin:6px 0 22px}
-.hero h2{font-size:23px; font-weight:800; letter-spacing:-.01em}
-.hero .mut{font-size:14px; margin-top:3px}
-.searchbar{display:flex; gap:10px; margin:18px 0}
-.searchbar .si{
-  flex:1; display:flex; align-items:center; gap:10px; background:var(--panel);
-  border:1.5px solid var(--line); border-radius:var(--r-sm); padding:0 16px;
-}
-.searchbar .si:focus-within{border-color:var(--accent)}
-.searchbar input{flex:1; background:none; border:0; padding:13px 0; font-size:15px}
-.searchbar input:focus{outline:none}
-.searchbar .si svg{color:var(--ink-3); flex-shrink:0}
-.chips{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px}
-.chip{
-  padding:8px 15px; background:var(--panel); border:1px solid var(--line);
-  border-radius:999px; font-size:13px; font-weight:600; color:var(--ink-2); transition:all .12s;
-}
+/* ==================== feed ==================== */
+.feed{padding:30px 0 90px}
+
+/* konsol başlığı */
+.console{border:1px solid var(--line-2); background:var(--panel); padding:20px 22px 18px;
+  position:relative; overflow:hidden; margin-bottom:22px}
+.console::after{content:""; position:absolute; left:0; right:0; top:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--ph), transparent);
+  animation:sweep 5s linear infinite; opacity:.7}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.console-row{display:flex; flex-wrap:wrap; gap:28px; align-items:flex-end}
+.stat .n{font-family:var(--disp); font-size:30px; font-weight:800; line-height:1;
+  color:var(--ink)}
+.stat .n.ph{color:var(--ph); text-shadow:0 0 18px rgba(70,242,164,.35)}
+.stat .l{margin-top:7px}
+.console-hi{margin-left:auto; text-align:right; max-width:300px}
+.console-hi .who{font-family:var(--disp); font-size:15px; font-weight:600}
+.console-hi .sub{font-size:12px; color:var(--ink-3); margin-top:3px}
+
+/* arama */
+.searchbar{display:flex; gap:10px; margin:0 0 14px}
+.si{flex:1; display:flex; align-items:center; gap:12px; background:var(--panel);
+  border:1px solid var(--line-2); padding:0 16px; transition:border-color .15s}
+.si:focus-within{border-color:var(--ph-line); box-shadow:0 0 0 1px var(--ph-line)}
+.si .pfx{font-family:var(--mono); color:var(--ph); font-weight:700; font-size:13px}
+.si input{flex:1; background:none; border:0; padding:14px 0; font-size:15px}
+.si input:focus{outline:none}
+.si input::placeholder{color:var(--ink-4)}
+
+/* bölge chip'leri */
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px}
+.chip{display:inline-flex; align-items:center; gap:8px; padding:8px 14px;
+  background:var(--panel); border:1px solid var(--line-2); font-family:var(--mono);
+  font-size:11.5px; font-weight:600; letter-spacing:.05em; color:var(--ink-2);
+  transition:all .13s}
 .chip:hover{border-color:var(--ink-3); color:var(--ink)}
-.chip.on{background:var(--accent-soft); border-color:var(--accent); color:var(--ink)}
-.chip b{opacity:.65; margin-left:4px; font-weight:600}
+.chip.on{border-color:var(--ph-line); background:var(--ph-soft); color:var(--ph)}
+.chip .cc{color:var(--ph); font-weight:700}
+.chip.on .cc{color:inherit}
+.chip b{opacity:.55; font-weight:600}
 
-.sec-h{display:flex; align-items:baseline; gap:12px; margin:26px 0 14px}
-.sec-h h3{font-size:16px; font-weight:700}
-.sec-h .n{font-size:13px; color:var(--ink-4); font-weight:600}
-.sec-h .ln{flex:1; height:1px; background:var(--line)}
+/* bölüm başlığı */
+.sec-h{display:flex; align-items:center; gap:14px; margin:30px 0 14px}
+.sec-h .t{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-2)}
+.sec-h .t b{color:var(--ph)}
+.sec-h .ln{flex:1; height:1px; background:linear-gradient(90deg, var(--line-2), transparent)}
 
-.card{
-  background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
-  padding:18px 20px; margin-bottom:12px; cursor:pointer; transition:border-color .15s, transform .08s;
-  position:relative; overflow:hidden;
-}
-.card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--line-2)}
-.card.b-strong::before{background:var(--good)} .card.b-good::before{background:var(--accent)}
-.card.b-cond::before{background:var(--warn)} .card.b-weak::before{background:var(--bad)}
-.card:hover{border-color:var(--ink-3); transform:translateY(-1px)}
-.card-top{display:flex; align-items:flex-start; gap:14px}
-.card-logo{
-  width:42px; height:42px; border-radius:10px; background:var(--panel-2); flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; color:var(--ink-2);
-}
+/* ilan kartı */
+.card{position:relative; background:var(--panel); border:1px solid var(--line);
+  border-left:2px solid var(--line-2); padding:17px 20px 15px; margin-bottom:10px;
+  cursor:pointer; transition:border-color .15s, background .15s}
+.card:hover{border-color:var(--ph-line); background:var(--panel-2)}
+.card.b-strong{border-left-color:var(--good)}
+.card.b-good{border-left-color:var(--mid)}
+.card.b-cond{border-left-color:var(--warn)}
+.card.b-weak{border-left-color:var(--bad)}
+.card-top{display:flex; align-items:flex-start; gap:15px}
+.card-logo{width:40px; height:40px; flex-shrink:0; display:flex; align-items:center;
+  justify-content:center; background:var(--panel-2); border:1px solid var(--line-2);
+  font-family:var(--mono); font-weight:700; font-size:13px; color:var(--ink-3)}
 .card-main{flex:1; min-width:0}
-.card h4{font-size:16px; font-weight:700; line-height:1.3}
-.card-meta{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:5px; font-size:12.5px; color:var(--ink-3)}
+.card h4{font-size:15.5px; font-weight:700; line-height:1.35}
+.card-meta{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:4px;
+  font-size:12.5px; color:var(--ink-3)}
 .card-meta b{color:var(--ink-2); font-weight:600}
-.dot{opacity:.4}
-.band{
-  flex-shrink:0; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px;
-  background:var(--panel-2); color:var(--ink-2); white-space:nowrap;
-}
-.band.b-strong{background:var(--good-soft); color:var(--good)}
-.band.b-good{background:var(--accent-soft); color:var(--accent)}
-.band.b-cond{background:var(--warn-soft); color:var(--warn)}
-.band.b-weak{background:var(--bad-soft); color:var(--bad)}
-.card-tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
-.rq{font-size:12px; padding:4px 10px; border-radius:6px; background:var(--panel-2); color:var(--ink-3); font-weight:500}
-.rq.on{background:var(--good-soft); color:var(--good)}
+.card-meta .cc{font-family:var(--mono); font-size:10px; font-weight:700;
+  letter-spacing:.08em; color:var(--ink-4)}
+.dot{opacity:.35}
+.card-tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:11px}
+.rq{font-size:12px; padding:4px 10px; background:var(--panel-2);
+  border:1px solid var(--line); color:var(--ink-3)}
+.rq.on{border-color:rgba(70,242,164,.25); background:var(--good-soft); color:var(--good)}
 .rq.on::before{content:"✓ "}
-.pill{font-size:11px; font-weight:700; padding:3px 9px; border-radius:5px}
+.pill{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.04em;
+  padding:4px 9px}
 .pill.pay{background:var(--good-soft); color:var(--good)}
 .pill.age{background:var(--warn-soft); color:var(--warn)}
 .pill.fair{background:var(--bad-soft); color:var(--bad)}
 
-.empty{text-align:center; padding:70px 20px; color:var(--ink-3)}
-.empty h3{color:var(--ink-2); font-weight:700; font-size:18px; margin-bottom:6px}
-.more{display:block; margin:16px auto 0; padding:11px 22px}
+/* bant göstergesi — 4 ayrık hücre; bant SIRALIDIR, yüzde değildir (D-005) */
+.bandbox{flex-shrink:0; text-align:right}
+.gauge{display:inline-flex; gap:3px; margin-bottom:6px}
+.gauge i{width:14px; height:5px; background:var(--line-2)}
+.b-strong .gauge i.on{background:var(--good); box-shadow:0 0 6px rgba(70,242,164,.5)}
+.b-good .gauge i.on{background:var(--mid); box-shadow:0 0 6px rgba(89,200,255,.45)}
+.b-cond .gauge i.on{background:var(--warn); box-shadow:0 0 6px rgba(255,193,83,.45)}
+.b-weak .gauge i.on{background:var(--bad); box-shadow:0 0 6px rgba(255,111,97,.45)}
+.bandbox .bl{display:block; font-family:var(--mono); font-size:10px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+.b-strong .bl{color:var(--good)} .b-good .bl{color:var(--mid)}
+.b-cond .bl{color:var(--warn)} .b-weak .bl{color:var(--bad)}
 
-/* ---- detay paneli (slide-in) ---- */
-.scrim{position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:60; opacity:0; pointer-events:none; transition:opacity .2s}
+.empty{text-align:center; padding:80px 20px; border:1px dashed var(--line-2); margin-top:8px}
+.empty h3{font-family:var(--disp); font-size:16px; font-weight:600; color:var(--ink-2)}
+.empty p{color:var(--ink-3); font-size:13.5px; margin-top:6px}
+.more{display:flex; margin:18px auto 0}
+
+.notice{background:var(--panel); border:1px solid var(--line-2); border-left:2px solid var(--warn);
+  padding:13px 16px; font-size:13.5px; color:var(--ink-2); margin-bottom:12px}
+.notice.err{border-left-color:var(--bad)}
+
+/* ==================== detay paneli ==================== */
+.scrim{position:fixed; inset:0; background:rgba(3,5,4,.6); z-index:60; opacity:0;
+  pointer-events:none; transition:opacity .2s; backdrop-filter:blur(2px)}
 .scrim.on{opacity:1; pointer-events:auto}
-.detail{
-  position:fixed; top:0; right:0; bottom:0; width:min(560px,94vw); z-index:70;
-  background:var(--bg-2); border-left:1px solid var(--line); box-shadow:var(--shadow);
-  transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
-  overflow-y:auto; padding:26px 28px 60px;
-}
+.detail{position:fixed; top:0; right:0; bottom:0; width:min(580px,95vw); z-index:70;
+  background:var(--bg-2); border-left:1px solid var(--line-2);
+  transform:translateX(102%); transition:transform .3s cubic-bezier(.2,.8,.25,1);
+  overflow-y:auto; padding:28px 30px 70px}
 .detail.on{transform:none}
-.detail-close{position:absolute; top:20px; right:22px; width:34px; height:34px; border-radius:8px;
-  background:var(--panel); border:1px solid var(--line); font-size:16px; color:var(--ink-2)}
-.detail-close:hover{border-color:var(--accent); color:var(--ink)}
-.detail h2{font-size:22px; font-weight:800; line-height:1.2; margin:8px 40px 6px 0}
-.detail .emp{color:var(--ink-2); font-weight:600}
-.ledger{display:flex; flex-direction:column; gap:7px; margin:6px 0 4px}
-.lrow{display:flex; gap:10px; padding:11px 13px; background:var(--panel); border-radius:var(--r-sm); font-size:13.5px}
-.lrow .ic{flex-shrink:0; font-weight:800}
-.lrow.met .ic{color:var(--good)} .lrow.unmet .ic{color:var(--bad)} .lrow.unk .ic{color:var(--warn)}
-.lrow .ev{color:var(--ink-3); font-size:12.5px; margin-top:2px}
-.dhead{font-size:12.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); margin:22px 0 10px}
-.notice{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm); padding:13px 15px; font-size:13.5px; color:var(--ink-2); margin-bottom:10px}
-.notice.warn{border-color:rgba(242,113,107,.4); background:var(--bad-soft)}
-.desc{font-size:13.5px; color:var(--ink-2); line-height:1.7; white-space:pre-wrap; max-height:280px; overflow:hidden; position:relative}
+.detail-close{position:absolute; top:22px; right:24px; width:36px; height:36px;
+  border:1px solid var(--line-2); background:var(--panel); color:var(--ink-2);
+  font-size:15px}
+.detail-close:hover{border-color:var(--ph-line); color:var(--ph)}
+.detail .dband{display:inline-flex; align-items:center; gap:10px; margin-bottom:14px}
+.detail h2{font-family:var(--disp); font-size:20px; font-weight:800; line-height:1.3;
+  margin:0 44px 8px 0}
+.detail .emp{color:var(--ink-2); font-size:14px}
+.dhead{display:flex; align-items:center; gap:12px; margin:26px 0 10px}
+.dhead .t{font-family:var(--mono); font-size:10.5px; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3)}
+.dhead .ln{flex:1; height:1px; background:var(--line)}
+.ledger{display:flex; flex-direction:column; gap:6px}
+.lrow{display:flex; gap:11px; padding:11px 13px; background:var(--panel);
+  border:1px solid var(--line); font-size:13.5px}
+.lrow .ic{font-family:var(--mono); font-weight:700; flex-shrink:0}
+.lrow.met{border-left:2px solid var(--good)} .lrow.met .ic{color:var(--good)}
+.lrow.unmet{border-left:2px solid var(--bad)} .lrow.unmet .ic{color:var(--bad)}
+.lrow.unk{border-left:2px solid var(--warn)} .lrow.unk .ic{color:var(--warn)}
+.lrow .ev{color:var(--ink-3); font-size:12.5px; margin-top:3px}
+.desc{font-size:13.5px; color:var(--ink-2); line-height:1.75; white-space:pre-wrap;
+  max-height:300px; overflow:hidden}
 .desc.open{max-height:none}
-.desc h5{color:var(--ink); font-weight:700; margin:12px 0 4px; font-size:13.5px}
-.apply{display:flex; gap:10px; margin:22px 0 8px}
-.apply .btn{flex:1}
+.desc h5{color:var(--ink); font-family:var(--mono); font-size:12px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; margin:14px 0 5px}
+.apply{display:flex; gap:10px; margin:24px 0 8px}
+.apply .btn{flex:1; justify-content:center}
+.mut{color:var(--ink-3)}
 
 /* yükleniyor */
-.load{display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:70vh; gap:16px; color:var(--ink-3)}
-.spin{width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
+.load{display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:70vh; gap:18px}
+.radar{width:46px; height:46px; border:1px solid var(--ph-line); border-radius:50%;
+  position:relative; overflow:hidden}
+.radar::before{content:""; position:absolute; inset:0;
+  background:conic-gradient(from 0deg, rgba(70,242,164,.5), transparent 70deg);
+  animation:spin 1.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load span{font-family:var(--mono); font-size:11px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ink-3)}
 
-@media(max-width:640px){
-  .ob h1{font-size:25px} .ob p.sub{max-width:100%}
+@media(max-width:680px){
+  .ob h1{font-size:22px} .ob .sub{max-width:100%}
   .pick.two{grid-template-columns:1fr}
-  .hero h2{font-size:20px}
+  .console-row{gap:18px} .stat .n{font-size:24px}
+  .console-hi{margin-left:0; text-align:left}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important; transition:none !important}
 }
 </style>
 </head>
 <body>
-<div id="root"><div class="load"><div class="spin"></div><span>Yükleniyor…</span></div></div>
+<div id="root"><div class="load"><div class="radar"></div><span>sistem açılıyor</span></div></div>
 
 <script>
 const API="/api";
@@ -278,38 +354,34 @@ async function api(path,opts){
 }
 const jpost=(p,body)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
 
-// --------------------------------------------------------------------------
-// Durum
-// --------------------------------------------------------------------------
-const S={profiles:[], catalog:[], feed:null, view:"load", detailJob:null,
-  q:"", region:"", shownEv:PAGE_EV(), ob:null};
+/* ---------------- durum ---------------- */
 function PAGE_EV(){return 40;}
+const S={profiles:[], catalog:[], feed:null, view:"load",
+  q:"", region:"", shownEv:PAGE_EV(), ob:null};
 
 const CLUSTERS_BLUE=["Lojistik ve taşımacılık","Üretim ve teknik","Perakende ve hizmet",
   "Yiyecek ve turizm","Sağlık","İnşaat"];
-const REGION_LABELS={"Türkiye":"🇹🇷 Türkiye","Avrupa":"🇪🇺 Avrupa","ABD":"🇺🇸 ABD",
-  "Uzaktan":"🌐 Uzaktan","Diğer":"🌍 Diğer","Asya":"🌏 Asya"};
+/* Bölge kodları bilinçli olarak mono metin — bayrak emojisi Windows'ta harf
+   olarak düşüyor; kod zaten konsol diline daha uygun. */
+const RCODE={"Türkiye":"TR","Avrupa":"EU","ABD":"US","Uzaktan":"RMT","Diğer":"INT","Asya":"AS"};
+const GAUGE={strong:4, good:3, cond:2, weak:1};
 
-// --------------------------------------------------------------------------
-// Açılış
-// --------------------------------------------------------------------------
+/* ---------------- açılış ---------------- */
 async function boot(){
   try{
     const [profiles,catalog]=await Promise.all([api("/profiles"),api("/catalog")]);
     S.profiles=profiles; S.catalog=catalog;
     if(!profiles.length){ startOnboarding(); }
-    else{ await loadFeed(); render(); }
+    else{ await loadFeed(); S.view="feed"; render(); }
   }catch(e){
-    $("#root").innerHTML=`<div class="load"><span>Bağlantı hatası: ${esc(e.message)}</span>
-      <button class="btn" onclick="boot()">Tekrar dene</button></div>`;
+    $("#root").innerHTML=`<div class="load"><span>bağlantı hatası — ${esc(e.message)}</span>
+      <button class="btn" onclick="boot()">tekrar dene</button></div>`;
   }
 }
 async function loadFeed(){ S.feed=await api("/feed"); }
 const activeProfile=()=>S.profiles.find(p=>p.is_active)||null;
 
-// --------------------------------------------------------------------------
-// Render — üst düzey
-// --------------------------------------------------------------------------
+/* ---------------- render ---------------- */
 function render(){
   const root=$("#root");
   if(S.view==="onboarding"){ root.innerHTML=viewOnboarding(); wireOnboarding(); return; }
@@ -320,29 +392,29 @@ function render(){
 function topbar(){
   const p=activeProfile();
   return `<header class="topbar"><div class="wrap">
-    <div class="brand">İşe<b>Uygun</b><span>dürüst iş eşleştirme</span></div>
+    <div class="brand">İŞE<em>UYGUN</em></div>
+    <div class="sysline"><span class="sysdot"></span>
+      <span class="tag-l">tarama <b>aktif</b></span></div>
     <div class="grow"></div>
     ${p?`<div class="psw" id="psw">
       <button class="psw-btn" id="pswBtn">
-        <span class="psw-dot ${p.collar==='blue'?'blue':''}"></span>
-        ${esc(p.name)} <span class="psw-chev">▼</span>
+        <span class="collar-dot ${p.collar==='blue'?'blue':''}"></span>
+        ${esc(p.name)} <span class="cv">▼</span>
       </button>
       <div class="psw-menu" id="pswMenu">
         ${S.profiles.map(m=>`<div class="psw-item ${m.is_active?'active':''}" data-act="${m.id}">
-          <span class="psw-dot ${m.collar==='blue'?'blue':''}"></span>
+          <span class="collar-dot ${m.collar==='blue'?'blue':''}"></span>
           <span class="nm">${esc(m.name)}</span>
-          <span class="meta">${m.fact_count} alan</span>
+          <span class="meta">${m.fact_count} ALAN</span>
           ${S.profiles.length>1?`<span class="psw-x" data-del="${m.id}" title="Sil">×</span>`:''}
         </div>`).join('')}
-        <button class="psw-new" data-new="1">＋ Yeni profil oluştur</button>
+        <button class="psw-new" data-new="1">+ yeni profil</button>
       </div>
     </div>`:''}
   </div></header>`;
 }
 
-// --------------------------------------------------------------------------
-// Onboarding sihirbazı
-// --------------------------------------------------------------------------
+/* ---------------- onboarding ---------------- */
 function startOnboarding(){
   S.ob={step:0, collar:null, region:"", city:"", keys:new Set(), custom:[], name:""};
   S.view="onboarding"; render();
@@ -350,11 +422,14 @@ function startOnboarding(){
 const OB_STEPS=["intro","collar","region","keywords","name"];
 
 function viewOnboarding(){
-  const o=S.ob, i=o.step;
-  const prog=OB_STEPS.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('');
-  return `<header class="topbar"><div class="wrap"><div class="brand">İşe<b>Uygun</b></div></div></header>
+  const o=S.ob, i=o.step, n=OB_STEPS.length;
+  return `<header class="topbar"><div class="wrap">
+    <div class="brand">İŞE<em>UYGUN</em></div></div></header>
   <div class="ob"><div class="ob-card">
-    <div class="ob-prog">${prog}</div>
+    <div class="ob-top">
+      <span class="ob-idx"><b>${String(i).padStart(2,'0')}</b> / ${String(n-1).padStart(2,'0')}</span>
+      <div class="ob-prog">${OB_STEPS.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('')}</div>
+    </div>
     <div class="ob-step" id="obStep">${obStep(OB_STEPS[i])}</div>
   </div></div>`;
 }
@@ -362,51 +437,54 @@ function viewOnboarding(){
 function obStep(step){
   const o=S.ob;
   if(step==="intro") return `
-    <div class="ob-eyebrow">Hoş geldin</div>
-    <h1>Sana gerçekten uyan işleri bulalım.</h1>
-    <p class="sub">Birkaç kısa soruyla profilini kuracağız. Söz vermiyoruz —
-      sadece hangi işin sana ne kadar uyduğunu dürüstçe gösteriyoruz.</p>
-    <div class="ob-actions"><button class="btn" data-next="1">Başlayalım →</button></div>`;
+    <span class="tag-l">// başlatma sekansı</span>
+    <h1>Sana gerçekten uyan işleri tarayalım.</h1>
+    <p class="sub">Birkaç soruyla profilini kuracağız. Söz vermiyoruz — hangi işin
+      sana ne kadar uyduğunu <b>kanıtıyla</b> gösteriyoruz.</p>
+    <div class="ob-actions"><button class="btn" data-next="1">başla →</button></div>`;
 
   if(step==="collar") return `
-    <div class="ob-eyebrow">1 / 4 · İş türü</div>
+    <span class="tag-l">// iş türü</span>
     <h1>Ne tür bir iş arıyorsun?</h1>
-    <p class="sub">Bu, sana göstereceğimiz ilanları ve becerileri şekillendirir.</p>
+    <p class="sub">Bu seçim, beceri listeni ve tarama alanını şekillendirir.</p>
     <div class="pick two">
-      <button class="pick-card ${o.collar==='white'?'sel':''}" data-collar="white">
-        <span class="emoji">💼</span><span class="t">Beyaz yaka</span>
-        <span class="d">Ofis, yazılım, tasarım, satış, yönetim…</span></button>
-      <button class="pick-card ${o.collar==='blue'?'sel':''}" data-collar="blue">
-        <span class="emoji">🔧</span><span class="t">Mavi yaka</span>
-        <span class="d">Üretim, lojistik, sağlık, hizmet, teknik…</span></button>
+      <button class="pick-card reticle ${o.collar==='white'?'sel':''}" data-collar="white">
+        <span class="ic">[BEYAZ-YAKA]</span>
+        <span class="t">Ofis & uzmanlık</span>
+        <span class="d">Yazılım, tasarım, satış, finans, yönetim, pazarlama…</span></button>
+      <button class="pick-card reticle ${o.collar==='blue'?'sel':''}" data-collar="blue">
+        <span class="ic">[MAVİ-YAKA]</span>
+        <span class="t">Saha & üretim</span>
+        <span class="d">Lojistik, üretim, sağlık, hizmet, teknik, sürüş…</span></button>
     </div>
     <div class="ob-actions">
-      <button class="btn-ghost" data-back="1">← Geri</button>
-      <button class="btn" data-next="1" ${o.collar?'':'disabled'}>Devam →</button>
+      <button class="btn-ghost" data-back="1">← geri</button>
+      <button class="btn" data-next="1" ${o.collar?'':'disabled'}>devam →</button>
     </div>`;
 
   if(step==="region"){
-    const regions=(S.feed?.facets?.regions||[]).map(r=>r.name)
-      .filter(n=>REGION_LABELS[n]);
+    const regions=(S.feed?.facets?.regions||[]).map(r=>r.name).filter(n=>RCODE[n]);
     const base=regions.length?regions:["Türkiye","Avrupa","ABD","Uzaktan"];
-    const cities=(S.feed?.facets?.cities||[]).filter(c=>/İstanbul|Ankara|İzmir|Bursa|Kocaeli|Antalya|Gebze/i.test(c)).slice(0,8);
+    const cities=(S.feed?.facets?.cities||[])
+      .filter(c=>/İstanbul|Istanbul|Ankara|İzmir|Bursa|Kocaeli|Antalya|Gebze/i.test(c)).slice(0,8);
     return `
-    <div class="ob-eyebrow">2 / 4 · Konum</div>
+    <span class="tag-l">// konum</span>
     <h1>Nerede iş arıyorsun?</h1>
-    <p class="sub">Önce bölge; Türkiye dersen şehir de seçebilirsin.</p>
+    <p class="sub">Önce bölge. Türkiye'yi seçersen şehre kadar inebilirsin.</p>
     <div class="pick flow">
-      <button class="pick-chip ${o.region===''?'sel':''}" data-region="">🌍 Fark etmez</button>
-      ${base.map(n=>`<button class="pick-chip ${o.region===n?'sel':''}" data-region="${esc(n)}">${REGION_LABELS[n]||esc(n)}</button>`).join('')}
+      <button class="pick-chip ${o.region===''?'sel':''}" data-region="">FARK ETMEZ</button>
+      ${base.map(n=>`<button class="pick-chip ${o.region===n?'sel':''}" data-region="${esc(n)}">[${RCODE[n]||'?'}] ${esc(n.toUpperCase())}</button>`).join('')}
     </div>
     ${o.region==="Türkiye"&&cities.length?`
-      <div style="margin-top:18px"><h4 class="mut" style="font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Şehir (isteğe bağlı)</h4>
-      <div class="pick flow">
-        <button class="pick-chip ${o.city===''?'sel':''}" data-city="">Tümü</button>
-        ${cities.map(c=>`<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}">${esc(c.split(',')[0].split('/')[0].trim())}</button>`).join('')}
+      <div style="margin-top:20px"><span class="tag-l">şehir — isteğe bağlı</span>
+      <div class="pick flow" style="margin-top:10px">
+        <button class="pick-chip ${o.city===''?'sel':''}" data-city="">TÜMÜ</button>
+        ${cities.map(c=>{const nm=c.split(',')[0].split('/')[0].trim();
+          return `<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}">${esc(nm.toUpperCase())}</button>`}).join('')}
       </div></div>`:''}
     <div class="ob-actions">
-      <button class="btn-ghost" data-back="1">← Geri</button>
-      <button class="btn" data-next="1">Devam →</button>
+      <button class="btn-ghost" data-back="1">← geri</button>
+      <button class="btn" data-next="1">devam →</button>
     </div>`;
   }
 
@@ -415,52 +493,53 @@ function obStep(step){
     const groups={};
     items.forEach(it=>{ (groups[it.occupation_label||it.occupation_id]??=[]).push(it); });
     return `
-    <div class="ob-eyebrow">3 / 4 · Beceriler</div>
-    <h1>Hangileri sana uyuyor?</h1>
-    <p class="sub">Seçtiklerin sana ilan önerirken kullanılır. Bulamadığını
-      alta kendin yazabilirsin. CV yükleyerek de doldurabilirsin — sonra.</p>
+    <span class="tag-l">// beceri matrisi</span>
+    <h1>Hangileri sende var?</h1>
+    <p class="sub">Seçtiklerin eşleştirmede <b>kanıt</b> olarak kullanılır. Listede
+      olmayanı kendin ekleyebilirsin; CV'ni sonra da yükleyebilirsin.</p>
     ${Object.entries(groups).map(([g,list])=>`
-      <div class="kw-group"><h4>${esc(g)}</h4><div class="kw-flow">
+      <div class="kw-group"><span class="tag-l">${esc(g)}</span>
+      <div class="kw-flow" style="margin-top:9px">
         ${list.map(it=>`<button class="kw ${o.keys.has(it.key)?'sel':''}" data-key="${esc(it.key)}">${esc(it.label)}</button>`).join('')}
       </div></div>`).join('')}
-    <div class="kw-group"><h4>Kendi anahtar kelimelerin</h4>
-      <div class="kw-flow" id="customTags">${o.custom.map((c,i)=>`<span class="tag">${esc(c)} <b data-rmc="${i}">×</b></span>`).join('')}</div>
+    <div class="kw-group"><span class="tag-l">kendi anahtar kelimelerin</span>
+      <div class="kw-flow" style="margin-top:9px" id="customTags">
+        ${o.custom.map((c,i)=>`<span class="tagx">${esc(c)} <b data-rmc="${i}">×</b></span>`).join('')}
+      </div>
       <div class="kw-add">
         <input id="customIn" placeholder="ör. React, SAP, forklift…" maxlength="40">
-        <button class="btn-2" data-addc="1">Ekle</button>
+        <button class="btn-2" data-addc="1">ekle</button>
       </div>
     </div>
     <div class="ob-actions">
-      <button class="btn-ghost" data-back="1">← Geri</button>
-      <button class="btn" data-next="1">Devam →</button>
+      <button class="btn-ghost" data-back="1">← geri</button>
+      <button class="btn" data-next="1">devam →</button>
     </div>`;
   }
 
   if(step==="name"){
-    const suggested=obSuggestName();
     return `
-    <div class="ob-eyebrow">4 / 4 · Profil adı</div>
+    <span class="tag-l">// profil kimliği</span>
     <h1>Bu profile bir ad ver.</h1>
-    <p class="sub">Birden çok profil tutabilirsin — biri "Eren-Yazılımcı",
-      diğeri "Eren-Mavi yaka" gibi. İstediğin an aralarında geçersin.</p>
-    <input class="name-in" id="nameIn" value="${esc(o.name||suggested)}" maxlength="80" placeholder="Profil adı">
+    <p class="sub">Birden çok profil tutabilirsin — "Eren-Yazılım" ve "Eren-Mavi yaka"
+      gibi. Üst bardan tek tıkla geçersin.</p>
+    <input class="name-in" id="nameIn" value="${esc(S.ob.name||obSuggestName())}" maxlength="80" placeholder="Profil adı">
     <div class="ob-actions">
-      <button class="btn-ghost" data-back="1">← Geri</button>
-      <button class="btn" data-finish="1">Profili oluştur ✓</button>
+      <button class="btn-ghost" data-back="1">← geri</button>
+      <button class="btn" data-finish="1">profili oluştur ✓</button>
     </div>`;
   }
   return "";
 }
 
 function selectableCatalog(collar){
-  let items=S.catalog.filter(i=>!i.needs_verification || true);
+  let items=S.catalog;
   if(collar==="blue") items=items.filter(i=>CLUSTERS_BLUE.includes(i.occupation_id));
   else if(collar==="white") items=items.filter(i=>!CLUSTERS_BLUE.includes(i.occupation_id));
   return items;
 }
 function obSuggestName(){
-  const o=S.ob;
-  const parts=[];
+  const o=S.ob, parts=[];
   const first=[...o.keys].map(k=>S.catalog.find(c=>c.key===k)?.label).filter(Boolean)[0];
   if(first) parts.push(first); else if(o.collar) parts.push(o.collar==='blue'?'Mavi yaka':'Beyaz yaka');
   if(o.city) parts.push(o.city.split(',')[0].split('/')[0].trim());
@@ -470,17 +549,17 @@ function obSuggestName(){
 
 function wireOnboarding(){
   const o=S.ob, step=$("#obStep");
-  const go=(d)=>{ o.step=Math.max(0,Math.min(OB_STEPS.length-1,o.step+d)); render(); };
+  const go=d=>{o.step=Math.max(0,Math.min(OB_STEPS.length-1,o.step+d)); render();};
   step.querySelectorAll("[data-next]").forEach(b=>b.onclick=()=>go(1));
   step.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>go(-1));
   step.querySelectorAll("[data-collar]").forEach(b=>b.onclick=()=>{o.collar=b.dataset.collar; o.keys.clear(); render();});
   step.querySelectorAll("[data-region]").forEach(b=>b.onclick=()=>{o.region=b.dataset.region; o.city=""; render();});
   step.querySelectorAll("[data-city]").forEach(b=>b.onclick=()=>{o.city=b.dataset.city; render();});
   step.querySelectorAll("[data-key]").forEach(b=>b.onclick=()=>{
-    const k=b.dataset.key; o.keys.has(k)?o.keys.delete(k):o.keys.add(k); b.classList.toggle("sel");
-  });
+    const k=b.dataset.key; o.keys.has(k)?o.keys.delete(k):o.keys.add(k); b.classList.toggle("sel");});
   const addC=()=>{const inp=$("#customIn"); const v=(inp.value||"").trim();
-    if(v && !o.custom.includes(v)){o.custom.push(v);} render(); setTimeout(()=>$("#customIn")?.focus(),0);};
+    if(v && !o.custom.includes(v)) o.custom.push(v);
+    render(); setTimeout(()=>$("#customIn")?.focus(),0);};
   step.querySelector("[data-addc]")?.addEventListener("click",addC);
   $("#customIn")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault(); addC();}});
   step.querySelectorAll("[data-rmc]").forEach(b=>b.onclick=()=>{o.custom.splice(+b.dataset.rmc,1); render();});
@@ -490,22 +569,19 @@ function wireOnboarding(){
 
 async function finishOnboarding(){
   const o=S.ob;
-  const name=(o.name|| $("#nameIn")?.value ||obSuggestName()).trim()||"Profilim";
+  const name=(o.name||$("#nameIn")?.value||obSuggestName()).trim()||"Profilim";
   const attrs={region:o.region, city:o.city, keywords:o.custom};
-  $("#root").innerHTML=`<div class="load"><div class="spin"></div><span>Profilin hazırlanıyor…</span></div>`;
+  $("#root").innerHTML=`<div class="load"><div class="radar"></div><span>profil derleniyor</span></div>`;
   try{
     S.profiles=await jpost("/profiles",{name, collar:o.collar, attrs, fact_keys:[...o.keys]});
-    // Bölge tercihi varsayılan filtre olur; arama BOŞ başlar. Özel kelimeleri
-    // aramaya zorlamak feed'i tek sonuca düşürüp kafa karıştırıyordu — onlar
-    // profilde saklanır, kullanıcı isterse arama kutusunda kullanır.
+    /* Bölge tercihi filtre olur; arama BOŞ başlar. Özel kelimeyi aramaya
+       zorlamak feed'i tek sonuca düşürüyordu — profilde saklanır. */
     S.region=o.region||""; S.q=""; S.shownEv=PAGE_EV();
     await loadFeed(); S.view="feed"; S.ob=null; render();
   }catch(e){ alert("Hata: "+e.message); boot(); }
 }
 
-// --------------------------------------------------------------------------
-// Feed
-// --------------------------------------------------------------------------
+/* ---------------- feed ---------------- */
 function matches(j){
   if(S.region && !(j.regions||[]).includes(S.region)) return false;
   if(S.q){
@@ -520,31 +596,42 @@ function viewFeed(){
   const p=activeProfile();
   const ev=(f.evaluated||[]).filter(matches);
   const un=(f.unevaluated||[]).filter(matches);
+  const total=(f.evaluated||[]).length+(f.unevaluated||[]).length;
   const regions=(f.facets?.regions||[]);
 
   return `
-    <div class="hero">
-      <h2>Merhaba${p?', '+esc(p.name.split('-')[0].split('·')[0].trim()):''} 👋</h2>
-      <div class="mut">${ev.length} ilan sana göre değerlendirildi · ${un.length} ilan için profilinde bilgi eksik</div>
-    </div>
-    <div class="searchbar">
-      <div class="si">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="q" placeholder="Pozisyon, şirket, beceri ara…" value="${esc(S.q)}">
+    <div class="console">
+      <div class="console-row">
+        <div class="stat"><div class="n">${total}</div><div class="l tag-l">taranan ilan</div></div>
+        <div class="stat"><div class="n ph">${ev.length}</div><div class="l tag-l">değerlendirilen</div></div>
+        <div class="stat"><div class="n" style="color:var(--warn)">${un.length}</div><div class="l tag-l">veri eksik</div></div>
+        <div class="console-hi">
+          <div class="who">${esc(p?p.name:'—')}</div>
+          <div class="sub">profil etkin · ${p?p.fact_count:0} beceri kayıtlı</div>
+        </div>
       </div>
     </div>
+
+    <div class="searchbar"><div class="si"><span class="pfx">&gt;_</span>
+      <input id="q" placeholder="pozisyon, şirket, beceri ara…" value="${esc(S.q)}"></div></div>
+
     <div class="chips">
-      <button class="chip ${S.region===''?'on':''}" data-region="">Tüm bölgeler</button>
-      ${regions.map(r=>`<button class="chip ${S.region===r.name?'on':''}" data-region="${esc(r.name)}">${REGION_LABELS[r.name]||esc(r.name)}<b>${r.count}</b></button>`).join('')}
+      <button class="chip ${S.region===''?'on':''}" data-region=""><span class="cc">ALL</span> TÜM BÖLGELER</button>
+      ${regions.map(r=>`<button class="chip ${S.region===r.name?'on':''}" data-region="${esc(r.name)}">
+        <span class="cc">${RCODE[r.name]||'?'}</span> ${esc(r.name.toUpperCase())} <b>${r.count}</b></button>`).join('')}
     </div>
 
-    ${ev.length?`<div class="sec-h"><h3>Sana göre</h3><span class="n">${ev.length}</span><span class="ln"></span></div>
+    ${ev.length?`
+      <div class="sec-h"><span class="t">// sana göre <b>[${ev.length}]</b></span><span class="ln"></span></div>
       ${ev.slice(0,S.shownEv).map(card).join('')}
-      ${ev.length>S.shownEv?`<button class="btn-2 more" data-more="1">${Math.min(40,ev.length-S.shownEv)} ilan daha</button>`:''}`
-    : `<div class="empty"><h3>Bu filtrelerle sana uygun ilan yok</h3><p>Filtreleri gevşet ya da profiline beceri ekle.</p></div>`}
+      ${ev.length>S.shownEv?`<button class="btn-2 more" data-more="1">+ ${Math.min(40,ev.length-S.shownEv)} ilan daha</button>`:''}`
+    :`<div class="empty"><h3>Bu filtrelerle eşleşme yok</h3>
+       <p>Filtreyi gevşet ya da profiline beceri ekle — tarama alanı genişler.</p></div>`}
 
-    ${un.length?`<div class="sec-h"><h3>Değerlendirilemeyenler</h3><span class="n">${un.length}</span><span class="ln"></span></div>
-      <div class="notice" style="margin-bottom:14px">Bu ilanları <b>okuyamadık</b> ya da profilinde karşılaştıracak bilgi yok — <b>sana uymuyor demek değil</b>. Profiline beceri ekledikçe buradan yukarı taşınırlar.</div>
+    ${un.length?`
+      <div class="sec-h"><span class="t">// değerlendirilemeyenler <b>[${un.length}]</b></span><span class="ln"></span></div>
+      <div class="notice">Bu ilanları <b>okuyamadık</b> ya da profilinde karşılaştıracak veri yok —
+        sana uymadıkları anlamına <b>gelmez</b>. Beceri ekledikçe yukarı taşınırlar.</div>
       ${un.slice(0,12).map(card).join('')}`:''}
   `;
 }
@@ -552,12 +639,14 @@ function viewFeed(){
 function card(j){
   const bc=j.band?('b-'+j.band):'b-none';
   const bandTxt=j.band_label||(j.listing_only?'Kamu ilanı':'Değerlendirilemedi');
+  const lit=GAUGE[j.band]||0;
   const met=new Set(j.matched_requirements||[]);
   const tags=(j.top_requirements||[]).slice(0,4).map(r=>`<span class="rq ${met.has(r)?'on':''}">${esc(r)}</span>`).join('');
   const pills=[];
   if(j.salary_status==='found'&&j.salary_text) pills.push(`<span class="pill pay">${esc(j.salary_text)}</span>`);
-  if(j.long_open) pills.push(`<span class="pill age">${j.age_days} gündür açık</span>`);
-  if((j.fairness_flags||[]).some(f=>f.severity==='hard')) pills.push(`<span class="pill fair">⚠ ayrımcı ifade</span>`);
+  if(j.long_open) pills.push(`<span class="pill age">${j.age_days}G AÇIK</span>`);
+  if((j.fairness_flags||[]).some(f=>f.severity==='hard')) pills.push(`<span class="pill fair">⚠ AYRIMCI İFADE</span>`);
+  const rc=(j.regions||[]).filter(r=>r!=='Diğer').slice(0,1).map(r=>RCODE[r]).filter(Boolean);
   return `<article class="card ${bc}" data-job="${esc(j.job_id)}">
     <div class="card-top">
       <div class="card-logo">${esc(mono(j.employer))}</div>
@@ -565,25 +654,26 @@ function card(j){
         <h4>${esc(j.title)}</h4>
         <div class="card-meta"><b>${esc(j.employer)}</b>
           ${j.city?`<span class="dot">·</span>${esc(j.city)}`:''}
-          ${j.age_days!=null&&!j.long_open?`<span class="dot">·</span>${j.age_days} gün önce`:''}
-          ${(j.regions||[]).filter(r=>r!=='Diğer').slice(0,1).map(r=>`<span class="dot">·</span>${REGION_LABELS[r]||esc(r)}`).join('')}
+          ${j.age_days!=null&&!j.long_open?`<span class="dot">·</span>${j.age_days}g önce`:''}
+          ${rc.length?`<span class="dot">·</span><span class="cc">[${rc[0]}]</span>`:''}
         </div>
         ${pills.length?`<div class="card-tags">${pills.join('')}</div>`:''}
         ${tags?`<div class="card-tags">${tags}</div>`:''}
       </div>
-      <span class="band ${bc}">${esc(bandTxt)}</span>
+      <div class="bandbox">
+        ${j.band?`<span class="gauge">${[1,2,3,4].map(i=>`<i class="${i<=lit?'on':''}"></i>`).join('')}</span>`:''}
+        <span class="bl">${esc(bandTxt)}</span>
+      </div>
     </div>
   </article>`;
 }
 
 function wireFeed(){
-  // profil anahtarı
   const pb=$("#pswBtn"); if(pb) pb.onclick=e=>{e.stopPropagation(); $("#pswMenu").classList.toggle("open");};
   document.addEventListener("click",()=>$("#pswMenu")?.classList.remove("open"),{once:true});
   document.querySelectorAll("[data-act]").forEach(el=>el.onclick=async()=>{
     S.profiles=await jpost(`/profiles/${el.dataset.act}/activate`); const a=activeProfile();
-    // Profil değişince arama ve sayfalama sıfırlanır; bölge profilin tercihine
-    // döner. Aksi halde önceki profilin araması yeni profilde de süzüyordu.
+    /* Profil değişince arama/sayfalama sıfırlanır; bölge profilin tercihine döner. */
     S.region=a?.attrs?.region||""; S.q=""; S.shownEv=PAGE_EV();
     await loadFeed(); render();
   });
@@ -594,60 +684,63 @@ function wireFeed(){
     catch(err){ alert(err.message); }
   });
   $("[data-new]")&&($("[data-new]").onclick=startOnboarding);
-  // arama + filtre
-  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; S.shownEv=PAGE_EV(); const c=q.selectionStart; repaint(); const n=$("#q"); if(n){n.focus(); n.setSelectionRange(c,c);}};
-  document.querySelectorAll("[data-region]").forEach(el=>el.onclick=()=>{S.region=el.dataset.region; S.shownEv=PAGE_EV(); repaint();});
+  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; S.shownEv=PAGE_EV(); const c=q.selectionStart;
+    repaint(); const n=$("#q"); if(n){n.focus(); n.setSelectionRange(c,c);}};
+  document.querySelectorAll("[data-region]").forEach(el=>el.onclick=()=>{
+    S.region=el.dataset.region; S.shownEv=PAGE_EV(); repaint();});
   $("[data-more]")&&($("[data-more]").onclick=()=>{S.shownEv+=40; repaint();});
   document.querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openDetail(el.dataset.job));
 }
 function repaint(){ $(".feed").innerHTML=viewFeed(); wireFeed(); }
 
-// --------------------------------------------------------------------------
-// Detay
-// --------------------------------------------------------------------------
+/* ---------------- detay ---------------- */
 function detailMarkup(){ return `<div class="scrim" id="scrim"></div><aside class="detail" id="detail"></aside>`; }
 async function openDetail(id){
   const sc=$("#scrim"), d=$("#detail");
-  d.innerHTML=`<div class="load" style="min-height:auto;padding:60px 0"><div class="spin"></div></div>`;
-  sc.classList.add("on"); d.classList.add("on");
-  sc.onclick=closeDetail;
+  d.innerHTML=`<div class="load" style="min-height:auto;padding:70px 0"><div class="radar"></div></div>`;
+  sc.classList.add("on"); d.classList.add("on"); sc.onclick=closeDetail;
   try{ const j=await api("/jobs/"+encodeURIComponent(id)); d.innerHTML=detailBody(j); wireDetail(j); }
-  catch(e){ d.innerHTML=`<button class="detail-close" onclick="closeDetail()">×</button><p style="margin-top:40px">${esc(e.message)}</p>`; }
+  catch(e){ d.innerHTML=`<button class="detail-close" onclick="closeDetail()">×</button>
+    <p style="margin-top:50px">${esc(e.message)}</p>`; }
 }
 function closeDetail(){ $("#scrim").classList.remove("on"); $("#detail").classList.remove("on"); }
 
 function detailBody(j){
   const bc=j.band?('b-'+j.band):'';
-  const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span><div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}</div></div>`;
+  const lit=GAUGE[j.band]||0;
+  const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span>
+    <div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}</div></div>`;
   const fair=(j.fairness_flags||[]);
+  const dh=t=>`<div class="dhead"><span class="t">// ${t}</span><span class="ln"></span></div>`;
   return `<button class="detail-close" onclick="closeDetail()">×</button>
-    ${j.band?`<span class="band ${bc}">${esc(j.band_label)}${j.confidence_label?' · Güven: '+esc(j.confidence_label):''}</span>`:`<span class="band">Değerlendirilemedi</span>`}
-    <h2>${esc(j.title)}</h2>
-    <div class="emp">${esc(j.employer)}${j.city?' · '+esc(j.city):''}${j.salary_text?' · '+esc(j.salary_text):''}</div>
-    ${j.worth_applying?`<div class="notice" style="margin-top:16px">${esc(j.worth_applying)}</div>`:''}
-    ${j.met?.length?`<div class="dhead">Karşıladıkların (${j.met.length})</div><div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
-    ${j.unmet?.length?`<div class="dhead">Karşılamadıkların (${j.unmet.length})</div><div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}
-    ${j.unknown?.length?`<div class="dhead">Bilinmeyenler (${j.unknown.length})</div><div class="ledger">${j.unknown.map(x=>line(x,'unk','?')).join('')}</div>`:''}
-    ${fair.length?`<div class="dhead">Adalet uyarısı</div>
-      <div class="notice ${fair.some(f=>f.severity==='hard')?'warn':''}">Bu bir hukuki görüş <b>değildir</b>; bazı şartlar yasal olabilir.<ul style="margin:8px 0 0 18px">${fair.map(f=>`<li>${esc(f.note)} <span class="mut">“${esc(f.evidence)}”</span></li>`).join('')}</ul>
-      ${fair.some(f=>f.severity==='hard')?`<div style="margin-top:8px"><a href="https://www.tihek.gov.tr" target="_blank" rel="noopener">TİHEK'e başvurabilirsin ↗</a></div>`:''}</div>`:''}
-    ${j.description?`<div class="dhead">İlan metni</div><div class="desc" id="desc">${descHTML(j.description)}</div>
-      <button class="btn-ghost" id="descToggle" style="padding:8px 0">Tamamını göster</button>`:''}
-    <div class="apply">
-      <a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">İlana git ↗</a>
+    <div class="dband ${bc}">
+      ${j.band?`<span class="gauge">${[1,2,3,4].map(i=>`<i class="${i<=lit?'on':''}"></i>`).join('')}</span>`:''}
+      <span class="bl">${esc(j.band_label||'Değerlendirilemedi')}${j.confidence_label?' · GÜVEN: '+esc(j.confidence_label.toUpperCase()):''}</span>
     </div>
-    <p class="mut" style="font-size:12px; margin-top:6px">Başvuru ilanın kendi sayfasından yapılır. Biz aracı değiliz, başvurunu görmüyoruz.</p>
+    <h2>${esc(j.title)}</h2>
+    <div class="emp"><b>${esc(j.employer)}</b>${j.city?' · '+esc(j.city):''}${j.salary_text?' · '+esc(j.salary_text):''}</div>
+    ${j.worth_applying?`<div class="notice" style="margin-top:16px; border-left-color:var(--ph)">${esc(j.worth_applying)}</div>`:''}
+    ${j.met?.length?dh(`karşıladıkların [${j.met.length}]`)+`<div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
+    ${j.unmet?.length?dh(`karşılamadıkların [${j.unmet.length}]`)+`<div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}
+    ${j.unknown?.length?dh(`bilinmeyenler [${j.unknown.length}]`)+`<div class="ledger">${j.unknown.map(x=>line(x,'unk','?')).join('')}</div>`:''}
+    ${fair.length?dh('adalet uyarısı')+`
+      <div class="notice ${fair.some(f=>f.severity==='hard')?'err':''}">Bu bir hukuki görüş <b>değildir</b>; bazı şartlar yasal olabilir.
+      <ul style="margin:8px 0 0 18px">${fair.map(f=>`<li>${esc(f.note)} <span class="mut">"${esc(f.evidence)}"</span></li>`).join('')}</ul>
+      ${fair.some(f=>f.severity==='hard')?`<div style="margin-top:8px"><a href="https://www.tihek.gov.tr" target="_blank" rel="noopener">TİHEK'e başvurabilirsin ↗</a></div>`:''}</div>`:''}
+    ${j.description?dh('ilan metni')+`<div class="desc" id="desc">${descHTML(j.description)}</div>
+      <button class="btn-ghost" id="descToggle" style="padding:10px 0">tamamını göster ▾</button>`:''}
+    <div class="apply"><a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">ilana git ↗</a></div>
+    <p class="mut" style="font-size:12px">Başvuru ilanın kendi sayfasında yapılır. Biz aracı değiliz; başvurunu görmüyoruz.</p>
     ${j.disclaimer?`<p class="mut" style="font-size:11.5px; margin-top:14px">${esc(j.disclaimer)}</p>`:''}`;
 }
 function descHTML(t){
-  return String(t||"").split("\n").map(l=>{
-    l=l.trim(); if(!l) return "";
+  return String(t||"").split("\n").map(l=>{l=l.trim(); if(!l) return "";
     if(l.startsWith("## ")) return `<h5>${esc(l.slice(3))}</h5>`;
-    return `<div>${esc(l)}</div>`;
-  }).join("");
+    return `<div>${esc(l)}</div>`;}).join("");
 }
-function wireDetail(j){
-  const t=$("#descToggle"); if(t) t.onclick=()=>{const d=$("#desc"); d.classList.toggle("open"); t.textContent=d.classList.contains("open")?"Daha az göster":"Tamamını göster";};
+function wireDetail(){
+  const t=$("#descToggle"); if(t) t.onclick=()=>{const d=$("#desc"); d.classList.toggle("open");
+    t.textContent=d.classList.contains("open")?"daha az göster ▴":"tamamını göster ▾";};
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape") closeDetail();});
 
