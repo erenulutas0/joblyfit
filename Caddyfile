@@ -1,0 +1,8 @@
+# Caddy — reverse proxy + otomatik HTTPS (D-049).
+# {$DOMAIN} docker-compose'daki .env.prod'dan gelir (ör. app.joblyfit.com).
+# Caddy, Let's Encrypt sertifikasını kendi alır ve yeniler — elle iş yok.
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8137
+}

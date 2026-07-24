@@ -72,10 +72,16 @@ async def lifespan(_: FastAPI):
     STORE.load(stale_ok=True)
 
     async def _bg_refresh():
-        try:
-            await asyncio.to_thread(STORE.refresh)
-        except Exception:
-            pass   # tazeleme başarısızsa eski korpus yerinde kalır
+        # Açılışta bir kez tazele, sonra periyodik (D-049). Canlı sunucu uzun
+        # süre ayakta kaldığından, tazelemeyi yalnızca açılışa bağlamak korpusu
+        # günlerce bayat bırakırdı. Aralık cache TTL'iyle (6 saat) uyumlu.
+        hours = float(os.environ.get("ISUYGUN_REFRESH_HOURS", "6") or 6)
+        while True:
+            try:
+                await asyncio.to_thread(STORE.refresh)
+            except Exception:
+                pass   # tazeleme başarısızsa eski korpus yerinde kalır
+            await asyncio.sleep(max(0.5, hours) * 3600)
 
     task = asyncio.create_task(_bg_refresh())
     yield

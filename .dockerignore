@@ -1,0 +1,10 @@
+# Yerel durum imaja girmez — kalıcı volume'dan gelir.
+.cache/
+.data/
+.env.local
+.git/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+docs/
+*.md

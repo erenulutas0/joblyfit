@@ -1,0 +1,46 @@
+# İşe Uygun — üretim (D-049). VPS'te: `docker compose -f docker-compose.prod.yml up -d`
+#
+# İki servis:
+#   * app   — FastAPI/uvicorn (bizim imaj). Kalıcı volume'lar korpusu ve profili
+#             yeniden başlatmalar arası korur; yoksa her açılış yeniden çeker.
+#   * caddy — reverse proxy + **otomatik HTTPS** (Let's Encrypt). Sırf bunun için
+#             elle sertifika/nginx uğraşı gerekmesin.
+#
+# Sırlar `.env.prod` dosyasından gelir (git-ignore'lu). En azından şunu içermeli:
+#   DOMAIN=app.joblyfit.com
+#   ISUYGUN_JOOBLE_KEY=...   (tr.jooble.org anahtarı geldiğinde)
+#   ISUYGUN_JOOBLE_HOST=tr.jooble.org
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: [.env.prod]
+    environment:
+      # Prod'da SQLite (kalıcı volume) yeterli; Postgres istenirse ISUYGUN_DSN ver.
+      PORT: "8137"
+    volumes:
+      - corpus:/app/.cache      # ilan korpusu (~76 MB) — yeniden çekimi önler
+      - profiles:/app/.data     # SQLite profil verisi
+    expose:
+      - "8137"                  # yalnızca iç ağ; dışa Caddy açar
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # sertifikalar — silinirse LE limitine takılırsın
+      - caddy_config:/config
+
+volumes:
+  corpus:
+  profiles:
+  caddy_data:
+  caddy_config:
