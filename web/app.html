@@ -475,12 +475,17 @@ const jpost=(p,body)=>api(p,{method:"POST",headers:{"Content-Type":"application/
 
 /* ---------------- durum ---------------- */
 function PAGE_EV(){return 40;}
+/* Filtre/arama değişince İKİ listenin sayfalaması da başa döner. Tek tek
+   yazılırken shownUn unutuluyordu — kullanıcı filtre değiştirip eski derinlikte
+   kalıyordu. */
+function resetPaging(){ S.shownEv=PAGE_EV(); S.shownUn=PAGE_EV(); }
 const S={profiles:[], catalog:[], feed:null, view:"load",
-  q:"", region:"", shownEv:PAGE_EV(), ob:null,
+  q:"", region:"", shownEv:PAGE_EV(), shownUn:PAGE_EV(), ob:null,
   /* filtreler. Hepsi "" = kısıt yok. `fopen` panelin açık/kapalı hâli. */
   f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
-  /* profil paneli: null | "profile". `cv` son yükleme raporu. */
-  panel:null, profile:null, cv:null};
+  /* profil paneli: null | "profile". `cv` son yükleme raporu; `unlock`
+     "şunu eklersen ≈N ilan" önerileri (null = hesaplanıyor). */
+  panel:null, profile:null, cv:null, unlock:null};
 
 /* Kıdem merdiveni — sıra bilgi taşır (giriş → tepe), alfabetik değil.
    Etiketler kullanıcı dilinde; anahtarlar API'nin ürettiği değerler. */
@@ -714,7 +719,9 @@ async function finishOnboarding(){
     S.profiles=await jpost("/profiles",{name, collar:o.collar, attrs, fact_keys:[...o.keys]});
     /* Bölge tercihi filtre olur; arama BOŞ başlar. Özel kelimeyi aramaya
        zorlamak feed'i tek sonuca düşürüyordu — profilde saklanır. */
-    S.region=o.region||""; S.q=""; S.shownEv=PAGE_EV();
+    S.region=o.region||""; S.q="";
+    S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
+    resetPaging();
     await loadFeed(); S.view="feed"; S.ob=null; render();
   }catch(e){ alert("Hata: "+e.message); boot(); }
 }
@@ -734,63 +741,78 @@ function matches(j){
   if(!axisOk(j.work_arrangement,S.f.arr)) return false;
   if(!axisOk(j.employment_type,S.f.emp)) return false;
   if(S.f.longOpen && !j.long_open) return false;
-  if(S.q){
-    const hay=(j.title+" "+j.employer+" "+j.city+" "+(j.top_requirements||[]).join(" ")).toLowerCase();
-    if(!S.q.toLowerCase().split(/\s+/).every(w=>hay.includes(w))) return false;
-  }
-  return true;
+  return textMatch(j);
+}
+function textMatch(j){
+  if(!S.q) return true;
+  const hay=(j.title+" "+j.employer+" "+j.city+" "+(j.top_requirements||[]).join(" ")).toLowerCase();
+  return S.q.toLowerCase().split(/\s+/).every(w=>hay.includes(w));
 }
 const activeFilterCount=()=>
   (S.f.level?1:0)+(S.f.arr?1:0)+(S.f.emp?1:0)+(S.f.city?1:0)+(S.f.longOpen?1:0);
 
-/* Şehir seçenekleri **o an görünen** ilanlardan sayılır — sabit bir listeden
-   değil. Böylece "TÜRKİYE + SENIOR" seçiliyken çıkan şehir sayıları tıklayınca
-   gerçekten o kadar ilan verir. Sabit listede "İstanbul 2594" yazıp 12 ilan
-   göstermek, bu kod tabanının reddettiği tutulmayan vaat olurdu. */
-function cityOptions(){
-  const f=S.feed; if(!f) return [];
-  const sayac=new Map();
-  let belirsiz=0;
+/* Facet sayaçları — klasik faceted-search kuralı: HER eksenin sayıları,
+   "o eksen HARİÇ diğer bütün filtreler uygulanmış" listeden sayılır.
+
+   Önceki hâli kıdem/biçim/tür rozetlerini korpus GENELİNDEN okuyordu (yalnızca
+   şehir görece sayılıyordu). Sonuç, kullanıcının bildirdiği hata: İstanbul
+   seçiliyken kıdem satırı "STAJYER 85" diyor, tıklayınca 14 geliyor —
+   "filtreler bozuk" hissinin kaynağı buydu. Rozetin verdiği sayı, tıklanınca
+   gelen sayı OLMAK ZORUNDA; bu kod tabanının facet'lerdeki temel sözü.
+
+   Kendi ekseni hariç tutulur ki bir seçenek seçilince kardeşleri kaybolmasın
+   (İstanbul'u seçince Ankara'ya geçebilmelisin). */
+function facetCounts(){
+  const f=S.feed; if(!f) return null;
+  const inc=(m,k)=>m.set(k,(m.get(k)||0)+1);
+  const out={level:new Map(), arr:new Map(), emp:new Map(), city:new Map(),
+             longOpen:0, cityUnspec:0};
   const bak=j=>{
-    /* Şehir filtresinin KENDİSİ hariç tutulur: aksi halde bir şehir seçilince
-       listede yalnızca o şehir kalır ve kullanıcı başka şehre geçemez. */
     if(S.region && !(j.regions||[]).includes(S.region)) return;
-    if(!axisOk(j.experience_level,S.f.level)) return;
-    if(!axisOk(j.work_arrangement,S.f.arr)) return;
-    if(!axisOk(j.employment_type,S.f.emp)) return;
-    if(S.f.longOpen && !j.long_open) return;
-    const c=j.city_group||"";
-    if(!c){ belirsiz++; return; }
-    sayac.set(c,(sayac.get(c)||0)+1);
+    if(!textMatch(j)) return;
+    const okL=axisOk(j.experience_level,S.f.level);
+    const okA=axisOk(j.work_arrangement,S.f.arr);
+    const okE=axisOk(j.employment_type,S.f.emp);
+    const okC=!S.f.city || (j.city_group||"")===S.f.city;
+    const okO=!S.f.longOpen || j.long_open;
+    if(okA&&okE&&okC&&okO) inc(out.level, j.experience_level||"unspecified");
+    if(okL&&okE&&okC&&okO) inc(out.arr,   j.work_arrangement||"unspecified");
+    if(okL&&okA&&okC&&okO) inc(out.emp,   j.employment_type||"unspecified");
+    if(okL&&okA&&okE&&okO){
+      const c=j.city_group||"";
+      if(c) inc(out.city,c); else out.cityUnspec++;
+    }
+    if(okL&&okA&&okE&&okC&&j.long_open) out.longOpen++;
   };
   (f.evaluated||[]).forEach(bak); (f.unevaluated||[]).forEach(bak);
-  const q=S.citySearch.trim().toLocaleLowerCase("tr");
-  const hepsi=[...sayac.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"tr"));
-  const list=q?hepsi.filter(([c])=>c.toLocaleLowerCase("tr").includes(q)):hepsi;
-  /* `toplam` FİLTRELENMEMİŞ sayıdır. Arama kutusunu görünen listeye göre
-     gösterirsek, kullanıcı yazdıkça liste kısalır ve kutu kaybolur — yazdığını
-     silemez, kilitlenir. */
-  return {list, belirsiz, toplam:hepsi.length};
+  return out;
 }
 
-/* Filtre seçenekleri **korpustan** sayılır. Sıfır ilanlı seçenek hiç
-   gösterilmez: tıklayınca boş liste veren bir filtre, tutulmayan bir vaattir. */
+/* Sıfır ilanlı seçenek gösterilmez (tıklayınca boş liste veren filtre,
+   tutulmayan bir vaattir) — TEK istisna SEÇİLİ seçenek: diğer filtreler onu
+   sıfıra düşürse bile ekranda kalmalı, yoksa kullanıcı seçimi geri alamaz. */
 function fopts(list,counts,sel,attr){
-  return list.filter(([k])=>(counts||{})[k])
+  return list.filter(([k])=>(counts||{})[k]||sel===k)
     .map(([k,label])=>`<button class="fo ${sel===k?'on':''}" data-${attr}="${k}">
-      ${label}<b>${counts[k]}</b></button>`).join('');
+      ${label}<b>${(counts||{})[k]||0}</b></button>`).join('');
 }
 
 function viewFilters(){
-  const fc=S.feed?.facets||{};
+  const fx=facetCounts(); if(!fx) return "";
   const n=activeFilterCount();
   const rows=[
-    ["kıdem seviyesi", fopts(LEVELS,fc.experience_levels,S.f.level,"lvl")],
-    ["çalışma biçimi", fopts(ARRS,fc.arrangements,S.f.arr,"arr")],
-    ["istihdam türü",  fopts(EMPS,fc.employment_types,S.f.emp,"emp")],
+    ["kıdem seviyesi", fopts(LEVELS,Object.fromEntries(fx.level),S.f.level,"lvl")],
+    ["çalışma biçimi", fopts(ARRS,Object.fromEntries(fx.arr),S.f.arr,"arr")],
+    ["istihdam türü",  fopts(EMPS,Object.fromEntries(fx.emp),S.f.emp,"emp")],
   ].filter(([,html])=>html);
 
-  const ct=cityOptions();
+  const q=S.citySearch.trim().toLocaleLowerCase("tr");
+  const hepsi=[...fx.city.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"tr"));
+  /* Seçili şehir diğer filtrelerle sıfıra düşse bile listede kalır —
+     kaybolursa seçim geri alınamaz. */
+  if(S.f.city && !hepsi.some(([c])=>c===S.f.city)) hepsi.unshift([S.f.city,0]);
+  const list=q?hepsi.filter(([c])=>c.toLocaleLowerCase("tr").includes(q)):hepsi;
+  const ct={list, toplam:hepsi.length, belirsiz:fx.cityUnspec};
   const GOSTER=60;   // uzun listede ilk 60; gerisi arama kutusuyla bulunur
   const kesildi=Math.max(0,ct.list.length-GOSTER);
   const cityRow=`<div class="frow"><span class="tag-l">şehir
@@ -818,9 +840,9 @@ function viewFilters(){
       ${ct.toplam?cityRow:''}
       ${rows.map(([t,html])=>`<div class="frow"><span class="tag-l">${t}</span>
         <div class="fopts">${html}</div></div>`).join('')}
-      ${fc.long_open_count?`<div class="frow"><span class="tag-l">ilan yaşı</span>
+      ${(fx.longOpen||S.f.longOpen)?`<div class="frow"><span class="tag-l">ilan yaşı</span>
         <div class="fopts"><button class="fo ${S.f.longOpen?'on':''}" data-lo="1">
-          UZUN SÜREDİR AÇIK<b>${fc.long_open_count}</b></button></div>
+          UZUN SÜREDİR AÇIK<b>${fx.longOpen}</b></button></div>
         <div class="tag-l" style="margin-top:8px; color:var(--ink-4)">
           Uzun süredir açık ilan hayalet ilan olabilir — ya da işveren sürekli alım yapıyordur.
         </div></div>`:''}
@@ -840,7 +862,7 @@ function viewFeed(){
       <div class="console-row">
         <div class="stat"><div class="n">${total}</div><div class="l tag-l">taranan ilan</div></div>
         <div class="stat"><div class="n ph">${ev.length}</div><div class="l tag-l">değerlendirilen</div></div>
-        <div class="stat"><div class="n" style="color:var(--warn)">${un.length}</div><div class="l tag-l">veri eksik</div></div>
+        <div class="stat"><div class="n" style="color:var(--warn)">${un.length}</div><div class="l tag-l">değerlendirilemedi</div></div>
         <div class="console-hi">
           <div class="who">${esc(p?p.name:'—')}</div>
           <div class="sub">profil etkin · ${p?p.fact_count:0} beceri kayıtlı</div>
@@ -863,15 +885,41 @@ function viewFeed(){
       <div class="sec-h"><span class="t">// sana göre <b>[${ev.length}]</b></span><span class="ln"></span></div>
       ${ev.slice(0,S.shownEv).map(card).join('')}
       ${ev.length>S.shownEv?`<button class="btn-2 more" data-more="1">+ ${Math.min(40,ev.length-S.shownEv)} ilan daha</button>`:''}`
+    :un.length?`
+      <div class="notice">Bu filtrelerle <b>${un.length} ilan var</b> — hepsi hemen aşağıda.
+        Hiçbirine bant veremedik (bkz. bölüm notu), o yüzden "sana göre" listesi boş;
+        bu, ilanların sana <b>uymadığı</b> anlamına gelmez.</div>`
     :`<div class="empty"><h3>Bu filtrelerle eşleşme yok</h3>
        <p>Filtreyi gevşet ya da profiline beceri ekle — tarama alanı genişler.</p></div>`}
 
     ${un.length?`
       <div class="sec-h"><span class="t">// değerlendirilemeyenler <b>[${un.length}]</b></span><span class="ln"></span></div>
-      <div class="notice">Bu ilanları <b>okuyamadık</b> ya da profilinde karşılaştıracak veri yok —
-        sana uymadıkları anlamına <b>gelmez</b>. Beceri ekledikçe yukarı taşınırlar.</div>
-      ${un.slice(0,12).map(card).join('')}`:''}
+      <div class="notice">${unBreakdown(un)} — sana uymadıkları anlamına <b>gelmez</b>.
+        Beceri ekledikçe değerlendirilebilir olanlar yukarı taşınır.
+        <button class="btn-2" id="addSkillCta"
+          style="margin-left:8px; padding:5px 11px; font-size:10.5px">+ beceri ekle</button></div>
+      ${un.slice(0,S.shownUn).map(card).join('')}
+      ${un.length>S.shownUn?`<button class="btn-2 more" data-more-un="1">+ ${Math.min(40,un.length-S.shownUn)} ilan daha</button>`:''}`:''}
   `;
+}
+
+/* "Veri eksik"in NEDENİ tek değil; kullanıcıya toplu sayı yerine dökümü
+   söylenir. İki ana sınıf: (1) ilan metninden şart çıkarılamadı — profilden
+   bağımsız, kimse için değerlendirilemez (Jooble kısa özet gönderiyor);
+   (2) şartlar okundu ama profilde karşılaştırılacak veri yok — beceri
+   ekleyince düzelir. Kamu ilanları ise politika gereği yalnızca listelenir. */
+function unBreakdown(un){
+  let okunamaz=0, veri=0, kamu=0;
+  un.forEach(j=>{
+    if(j.listing_only) kamu++;
+    else if(!(j.top_requirements||[]).length) okunamaz++;
+    else veri++;
+  });
+  const p=[];
+  if(okunamaz) p.push(`<b>${okunamaz}</b> ilanın metninden şart okunamadı`);
+  if(veri) p.push(`<b>${veri}</b> ilan için profilinde karşılaştıracak veri yok`);
+  if(kamu) p.push(`<b>${kamu}</b> kamu ilanı yalnızca listelenir`);
+  return p.join(" · ");
 }
 
 function card(j){
@@ -917,8 +965,12 @@ function wireFeed(){
   document.addEventListener("click",()=>$("#pswMenu")?.classList.remove("open"),{once:true});
   document.querySelectorAll("[data-act]").forEach(el=>el.onclick=async()=>{
     S.profiles=await jpost(`/profiles/${el.dataset.act}/activate`); const a=activeProfile();
-    /* Profil değişince arama/sayfalama sıfırlanır; bölge profilin tercihine döner. */
-    S.region=a?.attrs?.region||""; S.q=""; S.shownEv=PAGE_EV();
+    /* Profil değişince arama/filtre/sayfalama sıfırlanır; bölge profilin
+       tercihine döner. Filtreler sıfırlanmazsa önceki profilin şehri yeni
+       profilin bölgesiyle çakışıp sessizce boş liste verebiliyordu. */
+    S.region=a?.attrs?.region||""; S.q="";
+    S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
+    resetPaging();
     await loadFeed(); render();
   });
   document.querySelectorAll("[data-del]").forEach(el=>el.onclick=async(e)=>{
@@ -928,32 +980,37 @@ function wireFeed(){
     catch(err){ alert(err.message); }
   });
   $("[data-new]")&&($("[data-new]").onclick=startOnboarding);
-  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; S.shownEv=PAGE_EV(); const c=q.selectionStart;
+  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; resetPaging(); const c=q.selectionStart;
     repaint(); const n=$("#q"); if(n){n.focus(); n.setSelectionRange(c,c);}};
   document.querySelectorAll("[data-region]").forEach(el=>el.onclick=()=>{
     /* Bölge değişince şehir seçimi düşer: "Türkiye + Berlin" boş liste verirdi
        ve kullanıcı sebebini göremezdi. */
     S.region=el.dataset.region; S.f.city=""; S.citySearch="";
-    S.shownEv=PAGE_EV(); repaint();});
+    resetPaging(); repaint();});
   $("[data-more]")&&($("[data-more]").onclick=()=>{S.shownEv+=40; repaint();});
+  /* Değerlendirilemeyenler ARTIK sayfalı. Eskiden 12 ilanda sessizce
+     kesiliyordu — 8000+ ilanın 12'si görülebiliyordu ve "daha fazla" yoktu;
+     kullanıcı "bütün ilanları görmek istiyorum" diye bildirdi. */
+  $("[data-more-un]")&&($("[data-more-un]").onclick=()=>{S.shownUn+=40; repaint();});
+  $("#addSkillCta")&&($("#addSkillCta").onclick=openProfilePanel);
   document.querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openDetail(el.dataset.job));
 
   /* --- filtreler --- */
   $("#fToggle")&&($("#fToggle").onclick=()=>{S.fopen=!S.fopen; repaint();});
   $("#fClear")&&($("#fClear").onclick=()=>{
     S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
-    S.shownEv=PAGE_EV(); repaint();});
+    resetPaging(); repaint();});
   const cs=$("#citySearch");
   if(cs) cs.oninput=()=>{S.citySearch=cs.value; const p=cs.selectionStart;
     repaint(); const n=$("#citySearch"); if(n){n.focus(); n.setSelectionRange(p,p);}};
   /* Aynı seçeneğe tekrar tıklamak filtreyi kaldırır — kullanıcı "geri al"
      için temizle düğmesini aramak zorunda kalmasın. */
   const pick=(attr,key)=>document.querySelectorAll(`[data-${attr}]`).forEach(el=>el.onclick=()=>{
-    const v=el.dataset[attr]; S.f[key]=(S.f[key]===v?"":v); S.shownEv=PAGE_EV(); repaint();});
+    const v=el.dataset[attr]; S.f[key]=(S.f[key]===v?"":v); resetPaging(); repaint();});
   pick("city","city");
   pick("lvl","level"); pick("arr","arr"); pick("emp","emp");
   $("[data-lo]")&&($("[data-lo]").onclick=()=>{
-    S.f.longOpen=!S.f.longOpen; S.shownEv=PAGE_EV(); repaint();});
+    S.f.longOpen=!S.f.longOpen; resetPaging(); repaint();});
 
   /* --- profil / CV paneli --- */
   $("#cvBtn")&&($("#cvBtn").onclick=openProfilePanel);
@@ -969,9 +1026,17 @@ async function openProfilePanel(){
   const sc=$("#scrim"), p=$("#pnl");
   sc.classList.add("on"); p.classList.add("on"); sc.onclick=closePanel;
   p.innerHTML=`<div class="load" style="min-height:auto;padding:70px 0"><div class="radar"></div></div>`;
-  try{ S.profile=await api("/profile"); paintPanel(); }
+  try{ S.profile=await api("/profile"); S.unlock=null; paintPanel(); loadUnlock(); }
   catch(e){ p.innerHTML=`<button class="pnl-close" onclick="closePanel()">×</button>
     <p style="margin-top:50px">${esc(e.message)}</p>`; }
+}
+/* "Şunu eklersen ≈N ilan değerlendirilir" önerileri. Sunucu bunun için tüm
+   korpusu değerlendirdiğinden (~1 sn) panel açılışını BEKLETMEZ — arka planda
+   gelir, panel hâlâ açıksa yerine oturur. */
+async function loadUnlock(){
+  try{ S.unlock=await api("/profile/unlock-suggestions?limit=10"); }
+  catch(e){ S.unlock=[]; }
+  if($("#pnl")?.classList.contains("on")) paintPanel();
 }
 function closePanel(){
   $("#scrim").classList.remove("on"); $("#pnl").classList.remove("on");
@@ -1026,6 +1091,18 @@ function panelBody(){
         <span class="x" data-rm="${esc(f.key)}">×</span></span>`).join('')}</div>`
       :`<p style="color:var(--ink-3); font-size:13px">Henüz beceri yok. CV yükle
          ya da <b>yeni profil</b> akışındaki beceri matrisinden seç.</p>`}
+
+    ${dh(`tarama alanını genişlet`)}
+    <p style="color:var(--ink-2); font-size:12.5px; line-height:1.6; margin-bottom:11px">
+      "Değerlendirilemedi" yığınının bir kısmı, profilinde karşılaştıracak veri
+      olmadığı için orada. Aşağıdakilerden sende olanı ekle — sayılar <b>≈</b>
+      işaretli çünkü ölçüm yaklaşıktır, söz değildir.</p>
+    ${S.unlock===null?`<div class="fnote">taranıyor — korpus profil adaylarına karşı ölçülüyor…</div>`
+     :(S.unlock||[]).length?(S.unlock||[]).map(u=>`<div class="sug">
+        <div class="nm">${esc(u.label)}<i>bunu eklersen ≈${u.unlocks} ilan daha değerlendirilir</i></div>
+        <button class="ok" data-unlock="${esc(u.key)}">SENDE VARSA EKLE</button>
+      </div>`).join('')
+     :`<p class="fnote" style="color:var(--ink-3)">Şu an önerecek alan yok.</p>`}
   `;
 }
 
@@ -1066,6 +1143,15 @@ function wirePanel(){
       S.profile=await api(`/profile/facts/${encodeURIComponent(b.dataset.rm)}`,{method:"DELETE"});
       await refreshAfterProfileChange();
     }catch(e){ alert(e.message); }
+  });
+  document.querySelectorAll("[data-unlock]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true; b.textContent="…";
+    try{
+      S.profile=await jpost("/profile/facts",{key:b.dataset.unlock});
+      S.unlock=(S.unlock||[]).filter(u=>u.key!==b.dataset.unlock);
+      await refreshAfterProfileChange();
+      loadUnlock();   // kalan sayılar bayatladı — yeniden ölç
+    }catch(e){ alert("Eklenemedi: "+e.message); paintPanel(); }
   });
 }
 
