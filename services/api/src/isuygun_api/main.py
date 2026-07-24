@@ -95,7 +95,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="İşe Uygun API",
+    title="JoblyFit API",
     version="0.1.0",
     description=(
         "Fixture veriyle çalışan MVP çekirdeği. Gerçek ilan kaynağına bağlı "

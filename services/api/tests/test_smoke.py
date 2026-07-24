@@ -44,7 +44,7 @@ def test_endpoint_responds(client, path):
 def test_index_page_is_served(client):
     """Arayüz statik dosyası servis ediliyor olmalı."""
     body = client.get("/").text
-    assert "<title>İşe Uygun</title>" in body
+    assert "<title>JoblyFit" in body
     assert "<script>" in body
 
 
