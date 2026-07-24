@@ -887,3 +887,9 @@ if _WEB.is_dir():
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(str(_WEB / "index.html"))
+
+    @app.get("/app")
+    def app_v2() -> FileResponse:
+        # Yeni tasarım (D-046). Eski arayüz `/`de dokunulmadan çalışmaya devam
+        # eder; hazır olunca kök buraya taşınır.
+        return FileResponse(str(_WEB / "app.html"))
