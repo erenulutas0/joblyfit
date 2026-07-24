@@ -15,6 +15,7 @@
       "env": {
         "PYTHONPATH": "services/api/src;services/core/src;services/ingest/src",
         "PYTHONIOENCODING": "utf-8",
+        "ISUYGUN_CLASSIC": "1",
         "ISUYGUN_DSN": "postgresql://isuygun:isuygun_local@localhost:5435/isuygun"
       }
     }

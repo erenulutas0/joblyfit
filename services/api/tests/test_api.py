@@ -724,3 +724,132 @@ def test_absorbed_row_keeps_its_city(client):
     kalan = _absorb_into([duşen], [kazanan])
     assert kalan == [], "rol zaten kazanan listede, satır düşmeli"
     assert "İzmir" in kazanan.other_locations, "şehir kaybolmamalı"
+
+
+# ---------------------------------------------------------------------------
+# D-059 — durumsuz uçlar: ziyaretçi izolasyonu
+# ---------------------------------------------------------------------------
+
+
+def test_stateless_feed_isolates_visitors(client):
+    """İki ziyaretçi farklı profil gönderir; ikisi de KENDİ sonucunu alır ve
+    sunucudaki global profil değişmez.
+
+    Canlıda doğrulanan gizlilik açığının regresyon testi: eskiden feed global
+    STORE.profile ile hesaplanıyordu ve B ziyaretçisi A'nın becerileriyle
+    hesaplanmış eşleşmeler görüyordu.
+    """
+    a = client.post("/api/feed", json={
+        "facts": [{"key": "heavy_driving", "years": 6},
+                  {"key": "src", "verified": True},
+                  {"key": "psiko", "verified": True},
+                  {"key": "license_ce", "verified": True}]}).json()
+    b = client.post("/api/feed", json={"facts": []}).json()
+
+    assert a["profile_is_empty"] is False
+    assert any("Şoför" in j["title"] for j in a["evaluated"]), \
+        "şoför profili şoför ilanını bantlamalı"
+    assert b["profile_is_empty"] is True
+    assert b["evaluated"] == [], "boş profilli ziyaretçi A'nın bantlarını GÖRMEMELİ"
+    # sunucu tarafında hiçbir şey birikmedi
+    assert STORE.profile.facts == (), "geçici profil global profile sızmamalı"
+
+    # A tekrar gelir (önbellekten): kendi sonucu değişmemiş olmalı
+    a2 = client.post("/api/feed", json={
+        "facts": [{"key": "heavy_driving", "years": 6},
+                  {"key": "src", "verified": True},
+                  {"key": "psiko", "verified": True},
+                  {"key": "license_ce", "verified": True}]}).json()
+    assert len(a2["evaluated"]) == len(a["evaluated"])
+
+
+def test_stateless_feed_drops_legal_keys(client):
+    """HTTP sınırından gelen ``legal_*`` alanları profile giremez (D-013)."""
+    r = client.post("/api/feed", json={
+        "facts": [{"key": "legal_military"}]}).json()
+    assert r["profile_is_empty"] is True, \
+        "yasal uygunluk alanı geçici profilde bile fact sayılmamalı"
+
+
+def test_stateless_detail_ledger_follows_payload(client):
+    """POST detay defteri, gönderilen profile göre hesaplanmalı."""
+    feed = client.post("/api/feed", json={
+        "facts": [{"key": "heavy_driving", "years": 6}]}).json()
+    job = next(j for j in feed["evaluated"] if "Şoför" in j["title"])
+
+    with_profile = client.post(f"/api/jobs/{job['job_id']}", json={
+        "facts": [{"key": "heavy_driving", "years": 6}]}).json()
+    assert with_profile["met"], "sürüş deneyimi met satırı üretmeli"
+
+    empty = client.post(f"/api/jobs/{job['job_id']}", json={"facts": []}).json()
+    assert empty["met"] == [], "boş profilde met satırı olmamalı"
+
+
+def test_cv_suggest_is_stateless(client, monkeypatch):
+    """/api/cv/suggest öneri döner ama sunucuda İZ BIRAKMAZ.
+
+    Eski uç ortak profile yazıyordu: A'nın CV önerileri classic'e bakan
+    herkese görünüyordu.
+    """
+    monkeypatch.setattr("isuygun_api.cv.extract_text", lambda d: (_CV, 1))
+    before = list(STORE.pending_cv_suggestions)
+    body = client.post("/api/cv/suggest",
+                       files={"file": ("cv.pdf", io.BytesIO(b"%PDF-1.4"),
+                                       "application/pdf")}).json()
+    assert body["suggestions"], "öneri üretmeli"
+    assert body["written_to_profile"] is False
+    assert STORE.pending_cv_suggestions == before, \
+        "durumsuz uç sunucudaki bekleyen önerilere dokunmamalı"
+
+
+def test_stateless_unlock_excludes_submitted_facts(client):
+    """POST unlock, gövdede zaten olan alanı önermemeli."""
+    base = client.post("/api/unlock-suggestions", json={"facts": []}).json()
+    assert base, "boş profile en az bir öneri çıkmalı"
+    top = base[0]["key"]
+    with_top = client.post("/api/unlock-suggestions",
+                           json={"facts": [{"key": top}]}).json()
+    assert all(s["key"] != top for s in with_top), \
+        "profilde olan alan yeniden önerilmemeli"
+
+
+def test_signal_endpoints_record_anonymously(client):
+    """Geri bildirim + başvuru olayı 204 döner ve sayaç artar."""
+    from isuygun_api import signals
+
+    before = signals.counts()
+    feed = client.post("/api/feed", json={"facts": []}).json()
+    job = feed["unevaluated"][0]
+
+    r1 = client.post("/api/feedback", json={
+        "job_id": job["job_id"], "verdict": "down", "band": "strong",
+        "reason": "meslek uymuyor"})
+    assert r1.status_code == 204
+    r2 = client.post("/api/apply-events", json={
+        "job_id": job["job_id"], "event": "applied"})
+    assert r2.status_code == 204
+    r3 = client.post("/api/apply-events", json={
+        "job_id": job["job_id"], "event": "hacked"})
+    assert r3.status_code == 400, "bilinmeyen olay reddedilmeli"
+
+    after = signals.counts()
+    assert after["match_feedback"] == before["match_feedback"] + 1
+    assert after["apply_events"] == before["apply_events"] + 1
+
+
+def test_legacy_surface_gated_when_classic_off(client, monkeypatch):
+    """ISUYGUN_CLASSIC kapalıyken eski profil uçları 404; durumsuzlar açık."""
+    monkeypatch.delenv("ISUYGUN_CLASSIC", raising=False)
+    try:
+        assert client.get("/api/profile").status_code == 404
+        assert client.get("/api/profiles").status_code == 404
+        assert client.get("/api/feed").status_code == 404
+        assert client.get("/classic").status_code == 404
+        assert client.post("/api/jobs/evaluate",
+                           json={"text": "x" * 50}).status_code == 404
+        # durumsuz yüzey çalışmaya devam eder
+        assert client.post("/api/feed", json={"facts": []}).status_code == 200
+        assert client.get("/api/health").status_code == 200
+        assert client.get("/").status_code == 200
+    finally:
+        monkeypatch.setenv("ISUYGUN_CLASSIC", "1")

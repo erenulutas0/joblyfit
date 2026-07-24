@@ -320,6 +320,29 @@ a{color:var(--ph); text-decoration:none}
   border:1px solid var(--warn); color:var(--warn)}
 .fact .vf:hover{background:var(--warn-soft)}
 
+/* ==================== başvuru takibi + geri bildirim ==================== */
+.pill.applied{background:var(--ph-soft); color:var(--ph); border:1px solid var(--ph-line)}
+.dact{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px}
+.fbx{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:12px;
+  padding:10px 13px; border:1px dashed var(--line-2)}
+.aprow{background:var(--panel); border:1px solid var(--line);
+  border-left:2px solid var(--line-2); padding:16px 18px; margin-bottom:10px}
+.aprow.st-offer{border-left-color:var(--good)}
+.aprow.st-interview,.aprow.st-answered{border-left-color:var(--mid)}
+.aprow.st-rejected{border-left-color:var(--bad)}
+.aprow.st-no_answer{border-left-color:var(--warn)}
+.aprow h4{font-size:15px; font-weight:700}
+.aprow .meta{display:flex; flex-wrap:wrap; gap:7px; align-items:center;
+  font-size:12.5px; color:var(--ink-3); margin-top:3px}
+.aprow .sts{display:flex; flex-wrap:wrap; gap:6px; margin-top:11px}
+.apnote{width:100%; margin-top:10px; background:var(--panel-2);
+  border:1px solid var(--line); padding:9px 11px; font-family:var(--sans);
+  font-size:13px; color:var(--ink); min-height:38px; resize:vertical}
+.apnote:focus{outline:none; border-color:var(--ph-line)}
+.apx{color:var(--ink-4); font-family:var(--mono); font-size:10.5px;
+  letter-spacing:.08em; text-transform:uppercase; padding:5px 0}
+.apx:hover{color:var(--bad)}
+
 /* bölüm başlığı */
 .sec-h{display:flex; align-items:center; gap:14px; margin:30px 0 14px}
 .sec-h .t{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.16em;
@@ -514,24 +537,111 @@ const RCODE={"Türkiye":"TR","Avrupa":"EU","ABD":"US","Uzaktan":"RMT","Diğer":"
 const GAUGE={strong:4, good:3, cond:2, weak:1};
 
 /* ---------------- açılış ---------------- */
+/* ---------------- yerel profil deposu (D-059) ----------------
+   Profiller SUNUCUDA DEĞİL, bu tarayıcıda yaşar. Sunucu her istekte geçici
+   profili alır, değerlendirir, unutur — iki ziyaretçinin birbirinin verisini
+   görmesi böylece yapısal olarak imkânsızlaşır (canlıda doğrulanmış açık).
+   Bedeli dürüstçe: tarayıcı verisi silinirse profil de gider ve profil başka
+   cihaza kendiliğinden taşınmaz. */
+const LP_KEY="joblyfit.profiles.v1";
+let LP=(()=>{ try{ const d=JSON.parse(localStorage.getItem(LP_KEY)||"null");
+  if(d&&Array.isArray(d.profiles)) return d; }catch(e){}
+  return {profiles:[], active_id:null}; })();
+function lpSave(){ try{ localStorage.setItem(LP_KEY, JSON.stringify(LP)); }catch(e){} }
+const lpActive=()=>LP.profiles.find(p=>p.id===LP.active_id)||null;
+const uid=()=>crypto.randomUUID ? crypto.randomUUID()
+  : "p-"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+/* Sunucuya giden geçici profil gövdesi. */
+function profilePayload(){
+  const p=lpActive();
+  if(!p) return {facts:[], occupation_ids:[]};
+  return {facts:p.facts.map(f=>({key:f.key, years:f.years??null,
+    verified:f.verification==="verified"})), occupation_ids:[]};
+}
+/* Üst bar / anahtar menüsünün beklediği meta görünümü. */
+function syncProfiles(){
+  S.profiles=LP.profiles.map(p=>({id:p.id, name:p.name, collar:p.collar,
+    attrs:p.attrs||{}, is_active:p.id===LP.active_id, fact_count:p.facts.length}));
+}
+/* Panelin beklediği FactOut benzeri görünüm — etiket ve doğrulama kuralı
+   katalogdan türetilir (needs_verification: D-012). */
+function profileVM(){
+  const p=lpActive();
+  if(!p) return {facts:[], pending_cv_suggestions:[]};
+  const cat=Object.fromEntries(S.catalog.map(c=>[c.key,c]));
+  return {
+    facts:p.facts.map(f=>{const c=cat[f.key]||{};
+      return {key:f.key, label:c.label||f.key, category:c.category||"",
+        verification:f.verification, years:f.years??null,
+        counts_as_present:!c.needs_verification||f.verification==="verified"};}),
+    pending_cv_suggestions:p.pending||[],
+  };
+}
+
+/* ---------------- başvuru takibi (D-059) ----------------
+   Kayıt, ilanın ANLIK KOPYASIDIR: ilanlar 45 günde korpustan düşer (D-024);
+   yalnızca job_id saklansaydı kullanıcının başvuru geçmişi ilanla birlikte
+   buharlaşırdı. Notlar yalnızca bu tarayıcıda durur; sunucuya sadece anonim
+   OLAY gider (başvurdu/yanıt aldı…) — ileride işveren yanıt oranı olur. */
+const AP_KEY="joblyfit.apps.v1";
+let APPS=(()=>{ try{ const d=JSON.parse(localStorage.getItem(AP_KEY)||"null");
+  if(Array.isArray(d)) return d; }catch(e){} return []; })();
+function apSave(){ try{ localStorage.setItem(AP_KEY, JSON.stringify(APPS)); }catch(e){} }
+const apFind=jobId=>APPS.find(a=>a.job_id===jobId);
+const AP_STATUS=[["applied","BAŞVURDUM"],["answered","YANIT GELDİ"],
+  ["interview","GÖRÜŞME"],["offer","TEKLİF"],["rejected","RED"],
+  ["no_answer","YANIT YOK"]];
+const AP_LABEL=Object.fromEntries(AP_STATUS);
+function apDays(a){ return Math.max(0, Math.round((Date.now()-new Date(a.applied_at))/86400000)); }
+function apEvent(a,event){
+  fetch(API+"/apply-events",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({job_id:a.job_id, event, days_since_apply:apDays(a),
+      title:a.snap.title, employer:a.snap.employer})}).catch(()=>{});
+}
+function apAdd(j){
+  if(apFind(j.job_id)) return;
+  APPS.unshift({id:uid(), job_id:j.job_id,
+    snap:{title:j.title, employer:j.employer, city:j.city, url:j.url,
+      salary_text:j.salary_text||null, band:j.band||null},
+    applied_at:new Date().toISOString(), status:"applied", note:""});
+  apSave(); apEvent(APPS[0],"applied");
+}
+
+/* Eşleşme geri bildirimi — oylanan ilanlar (tekrar sorulmasın). */
+const FB_KEY="joblyfit.fb.v1";
+let FB=new Set((()=>{ try{ return JSON.parse(localStorage.getItem(FB_KEY)||"[]"); }catch(e){ return []; } })());
+function fbSave(){ try{ localStorage.setItem(FB_KEY, JSON.stringify([...FB])); }catch(e){} }
+function fbSend(j,verdict,reason){
+  FB.add(j.job_id); fbSave();
+  fetch(API+"/feedback",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({job_id:j.job_id, verdict, reason:reason||null,
+      band:j.band||null, title:j.title, employer:j.employer})}).catch(()=>{});
+}
+
 async function boot(){
   try{
-    const [profiles,catalog]=await Promise.all([api("/profiles"),api("/catalog")]);
-    S.profiles=profiles; S.catalog=catalog;
-    if(!profiles.length){ startOnboarding(); }
+    S.catalog=await api("/catalog");
+    syncProfiles();
+    if(!LP.profiles.length){ startOnboarding(); }
     else{ await loadFeed(); S.view="feed"; render(); }
   }catch(e){
     $("#root").innerHTML=`<div class="load"><span>bağlantı hatası — ${esc(e.message)}</span>
       <button class="btn" onclick="boot()">tekrar dene</button></div>`;
   }
 }
-async function loadFeed(){ S.feed=await api("/feed"); }
+async function loadFeed(){ S.feed=await jpost("/feed", profilePayload()); }
 const activeProfile=()=>S.profiles.find(p=>p.is_active)||null;
 
 /* ---------------- render ---------------- */
 function render(){
   const root=$("#root");
   if(S.view==="onboarding"){ root.innerHTML=viewOnboarding(); wireOnboarding(); return; }
+  if(S.view==="apps"){
+    root.innerHTML=topbar()+`<main class="wrap feed">${viewApps()}</main>`+detailMarkup();
+    wireApps(); wireTopbar(); return;
+  }
   root.innerHTML=topbar()+`<main class="wrap feed">${viewFeed()}</main>`+detailMarkup();
   wireFeed();
 }
@@ -543,6 +653,10 @@ function topbar(){
     <div class="sysline"><span class="sysdot"></span>
       <span class="tag-l">tarama <b>aktif</b></span></div>
     <div class="grow"></div>
+    ${p?`<button class="btn-2 ${S.view==='apps'?'on':''}" id="appsBtn"
+      style="padding:8px 14px; font-size:11px${S.view==='apps'?'; border-color:var(--ph-line); color:var(--ph)':''}">
+      BAŞVURULARIM${APPS.length?` <b style="opacity:.6">${APPS.length}</b>`:''}
+    </button>`:''}
     ${p?`<button class="btn-2" id="cvBtn" style="padding:8px 14px; font-size:11px">
       CV & BECERİ${p.fact_count?` <b style="opacity:.6">${p.fact_count}</b>`:''}
     </button>`:''}
@@ -729,7 +843,14 @@ async function finishOnboarding(){
   const attrs={region:o.region, city:o.city, keywords:o.custom};
   $("#root").innerHTML=`<div class="load"><div class="radar"></div><span>profil derleniyor</span></div>`;
   try{
-    S.profiles=await jpost("/profiles",{name, collar:o.collar, attrs, fact_keys:[...o.keys]});
+    /* Profil YERELE yazılır (D-059) — sunucuya hiçbir şey kaydedilmez.
+       Yasal uygunluk alanları katalogda zaten yok; seçilen her anahtar beyan
+       (user_asserted) olarak girer, belge alanları panelden doğrulanır. */
+    const pid=uid();
+    LP.profiles.push({id:pid, name, collar:o.collar, attrs,
+      facts:[...o.keys].map(k=>({key:k, verification:"user_asserted", years:null})),
+      pending:[], created_at:new Date().toISOString()});
+    LP.active_id=pid; lpSave(); syncProfiles();
     /* Bölge tercihi filtre olur; arama BOŞ başlar. Özel kelimeyi aramaya
        zorlamak feed'i tek sonuca düşürüyordu — profilde saklanır. */
     S.region=o.region||""; S.q="";
@@ -976,6 +1097,8 @@ function card(j){
      olduğu görünmüyordu, kullanıcı her ilanı açmak zorunda kalıyordu.
      Etiketsiz ilanda rozet YOK — "belirtilmemiş"i "mid" gibi göstermek
      uydurma olurdu (D-011). */
+  if(apFind(j.job_id))
+    pills.push(`<span class="pill applied">✓ BAŞVURULDU</span>`);
   if(j.experience_level&&LVL_LABEL[j.experience_level])
     pills.push(`<span class="pill lvl">${LVL_LABEL[j.experience_level]}</span>`);
   if(j.salary_status==='found'&&j.salary_text) pills.push(`<span class="pill pay">${esc(j.salary_text)}</span>`);
@@ -1003,26 +1126,38 @@ function card(j){
   </article>`;
 }
 
-function wireFeed(){
+/* Üst bar kablolaması — feed ve başvurular görünümlerinde ortak. */
+function wireTopbar(){
   const pb=$("#pswBtn"); if(pb) pb.onclick=e=>{e.stopPropagation(); $("#pswMenu").classList.toggle("open");};
   document.addEventListener("click",()=>$("#pswMenu")?.classList.remove("open"),{once:true});
   document.querySelectorAll("[data-act]").forEach(el=>el.onclick=async()=>{
-    S.profiles=await jpost(`/profiles/${el.dataset.act}/activate`); const a=activeProfile();
+    LP.active_id=el.dataset.act; lpSave(); syncProfiles();
+    const a=activeProfile();
     /* Profil değişince arama/filtre/sayfalama sıfırlanır; bölge profilin
        tercihine döner. Filtreler sıfırlanmazsa önceki profilin şehri yeni
        profilin bölgesiyle çakışıp sessizce boş liste verebiliyordu. */
     S.region=a?.attrs?.region||""; S.q="";
     S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
-    resetPaging();
+    resetPaging(); S.view="feed";
     await loadFeed(); render();
   });
   document.querySelectorAll("[data-del]").forEach(el=>el.onclick=async(e)=>{
     e.stopPropagation();
-    if(!confirm("Bu profil silinsin mi?")) return;
-    try{ S.profiles=await api(`/profiles/${el.dataset.del}`,{method:"DELETE"}); await loadFeed(); render(); }
-    catch(err){ alert(err.message); }
+    if(LP.profiles.length<=1){ alert("Son profil silinemez."); return; }
+    if(!confirm("Bu profil silinsin mi? (Yalnızca bu tarayıcıdan silinir)")) return;
+    LP.profiles=LP.profiles.filter(p=>p.id!==el.dataset.del);
+    if(LP.active_id===el.dataset.del) LP.active_id=LP.profiles[0].id;
+    lpSave(); syncProfiles();
+    await loadFeed(); render();
   });
   $("[data-new]")&&($("[data-new]").onclick=startOnboarding);
+  $("#cvBtn")&&($("#cvBtn").onclick=openProfilePanel);
+  $("#appsBtn")&&($("#appsBtn").onclick=()=>{
+    S.view=(S.view==="apps")?"feed":"apps"; render();});
+}
+
+function wireFeed(){
+  wireTopbar();
   const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; resetPaging();
     S.searchIds=null;    // eski sorgunun sonucu yeni harfe uygulanmasın
     scheduleSearch(); const c=q.selectionStart;
@@ -1057,8 +1192,7 @@ function wireFeed(){
   $("[data-lo]")&&($("[data-lo]").onclick=()=>{
     S.f.longOpen=!S.f.longOpen; resetPaging(); repaint();});
 
-  /* --- profil / CV paneli --- */
-  $("#cvBtn")&&($("#cvBtn").onclick=openProfilePanel);
+  /* profil / CV paneli düğmesi wireTopbar'da bağlanır */
 }
 function repaint(){ $(".feed").innerHTML=viewFeed(); wireFeed(); }
 
@@ -1070,16 +1204,14 @@ function repaint(){ $(".feed").innerHTML=viewFeed(); wireFeed(); }
 async function openProfilePanel(){
   const sc=$("#scrim"), p=$("#pnl");
   sc.classList.add("on"); p.classList.add("on"); sc.onclick=closePanel;
-  p.innerHTML=`<div class="load" style="min-height:auto;padding:70px 0"><div class="radar"></div></div>`;
-  try{ S.profile=await api("/profile"); S.unlock=null; paintPanel(); loadUnlock(); }
-  catch(e){ p.innerHTML=`<button class="pnl-close" onclick="closePanel()">×</button>
-    <p style="margin-top:50px">${esc(e.message)}</p>`; }
+  /* Profil YEREL (D-059): ağ beklemeden anında çizilir. */
+  S.profile=profileVM(); S.unlock=null; paintPanel(); loadUnlock();
 }
 /* "Şunu eklersen ≈N ilan değerlendirilir" önerileri. Sunucu bunun için tüm
    korpusu değerlendirdiğinden (~1 sn) panel açılışını BEKLETMEZ — arka planda
    gelir, panel hâlâ açıksa yerine oturur. */
 async function loadUnlock(){
-  try{ S.unlock=await api("/profile/unlock-suggestions?limit=10"); }
+  try{ S.unlock=await jpost("/unlock-suggestions?limit=10", profilePayload()); }
   catch(e){ S.unlock=[]; }
   if($("#pnl")?.classList.contains("on")) paintPanel();
 }
@@ -1174,60 +1306,60 @@ function wirePanel(){
     drop.addEventListener("drop",e=>{
       const f=e.dataTransfer?.files?.[0]; if(f) uploadCV(f);});
   }
+  /* Bütün profil yazımları YEREL (D-059): localStorage'a işlenir, feed yeni
+     profille sunucudan yeniden istenir. Sunucuda hiçbir şey birikmez. */
   document.querySelectorAll("[data-ok]").forEach(b=>b.onclick=async()=>{
-    const key=b.dataset.ok;
+    const key=b.dataset.ok, p=lpActive(); if(!p) return;
     const yin=document.querySelector(`[data-sy="${CSS.escape(key)}"]`);
     const years=yin&&yin.value!==""?parseFloat(yin.value):null;
     b.disabled=true; b.textContent="…";
-    try{
-      S.profile=await jpost("/profile/facts",{key,years});
-      await refreshAfterProfileChange();
-    }catch(e){ alert("Eklenemedi: "+e.message); paintPanel(); }
+    if(!p.facts.some(f=>f.key===key))
+      p.facts.push({key, verification:"user_asserted",
+        years:Number.isFinite(years)?years:null});
+    p.pending=(p.pending||[]).filter(s=>s.key!==key);
+    await refreshAfterProfileChange();
   });
   document.querySelectorAll("[data-no]").forEach(b=>b.onclick=()=>{
-    /* Reddetme yalnızca görünümden düşer — sunucuda "reddedildi" diye bir
-       durum yok, bir sonraki CV yüklemesinde yeniden önerilebilir. */
-    const key=b.dataset.no;
-    S.profile={...S.profile,
-      pending_cv_suggestions:(S.profile.pending_cv_suggestions||[]).filter(s=>s.key!==key)};
-    paintPanel();
+    /* Reddetme yalnızca öneriyi düşürür; bir sonraki CV yüklemesinde yeniden
+       önerilebilir. */
+    const p=lpActive(); if(!p) return;
+    p.pending=(p.pending||[]).filter(s=>s.key!==b.dataset.no);
+    lpSave(); S.profile=profileVM(); paintPanel();
   });
   document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
-    try{
-      S.profile=await api(`/profile/facts/${encodeURIComponent(b.dataset.rm)}`,{method:"DELETE"});
-      await refreshAfterProfileChange();
-    }catch(e){ alert(e.message); }
+    const p=lpActive(); if(!p) return;
+    p.facts=p.facts.filter(f=>f.key!==b.dataset.rm);
+    await refreshAfterProfileChange();
   });
   document.querySelectorAll("[data-verify]").forEach(b=>b.onclick=async()=>{
     b.disabled=true; b.textContent="…";
-    try{
-      S.profile=await jpost(`/profile/facts/${encodeURIComponent(b.dataset.verify)}/verify`);
-      await refreshAfterProfileChange();
-    }catch(e){ alert(e.message); paintPanel(); }
+    const p=lpActive(); if(!p) return;
+    p.facts=p.facts.map(f=>f.key===b.dataset.verify
+      ?{...f, verification:"verified"}:f);
+    await refreshAfterProfileChange();
   });
   document.querySelectorAll("[data-unlock]").forEach(b=>b.onclick=async()=>{
     b.disabled=true; b.textContent="…";
-    try{
-      S.profile=await jpost("/profile/facts",{key:b.dataset.unlock});
-      S.unlock=(S.unlock||[]).filter(u=>u.key!==b.dataset.unlock);
-      await refreshAfterProfileChange();
-      loadUnlock();   // kalan sayılar bayatladı — yeniden ölç
-    }catch(e){ alert("Eklenemedi: "+e.message); paintPanel(); }
+    const p=lpActive(); if(!p) return;
+    if(!p.facts.some(f=>f.key===b.dataset.unlock))
+      p.facts.push({key:b.dataset.unlock, verification:"user_asserted", years:null});
+    S.unlock=(S.unlock||[]).filter(u=>u.key!==b.dataset.unlock);
+    await refreshAfterProfileChange();
+    loadUnlock();   // kalan sayılar bayatladı — yeniden ölç
   });
 }
 
-/* Profil değişti: feed'i ve profil listesini (beceri sayacı) yenile. Paneli
-   AÇIK bırakır — kullanıcı sırayla birkaç öneri onaylıyor olabilir. */
+/* Profil değişti: yerele yaz, görünümü ve feed'i yenile. Paneli AÇIK bırakır —
+   kullanıcı sırayla birkaç öneri onaylıyor olabilir. */
 async function refreshAfterProfileChange(){
-  paintPanel();
+  lpSave(); syncProfiles(); S.profile=profileVM(); paintPanel();
   try{
-    S.profiles=await api("/profiles");
     await loadFeed();
     const open=$("#pnl")?.classList.contains("on");
     render();
     if(open){ $("#scrim").classList.add("on"); $("#pnl").classList.add("on");
       $("#scrim").onclick=closePanel; paintPanel(); }
-  }catch(e){ /* feed yenilenemese de profil değişikliği kaydedildi */ }
+  }catch(e){ /* feed yenilenemese de profil değişikliği yerelde kayıtlı */ }
 }
 
 async function uploadCV(file){
@@ -1237,16 +1369,80 @@ async function uploadCV(file){
     <div class="d">${esc(file.name)}</div>`;
   const fd=new FormData(); fd.append("file",file);
   try{
-    const r=await fetch(API+"/profile/cv",{method:"POST",body:fd});
+    /* Durumsuz uç (D-059): sunucu ayrıştırır, önerir, UNUTUR. Bekleyen
+       öneriler yalnızca bu tarayıcıdaki profile yazılır. */
+    const r=await fetch(API+"/cv/suggest",{method:"POST",body:fd});
     const body=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(body.detail||r.statusText);
     S.cv=body;
-    S.profile=await api("/profile");
+    const p=lpActive();
+    if(p){
+      const have=new Set(p.facts.map(f=>f.key));
+      p.pending=(body.suggestions||[]).filter(s=>!have.has(s.key));
+      lpSave();
+    }
+    S.profile=profileVM();
     paintPanel();
   }catch(e){
     S.cv=null; paintPanel();
     alert("CV okunamadı: "+e.message);
   }
+}
+
+/* ---------------- başvurularım ---------------- */
+function viewApps(){
+  const p=activeProfile();
+  return `
+    <div class="console"><div class="console-row">
+      <div class="stat"><div class="n ph">${APPS.length}</div><div class="l tag-l">takip edilen başvuru</div></div>
+      <div class="stat"><div class="n">${APPS.filter(a=>["answered","interview","offer"].includes(a.status)).length}</div>
+        <div class="l tag-l">yanıt alan</div></div>
+      <div class="console-hi"><div class="who">${esc(p?p.name:'—')}</div>
+        <div class="sub">notlar yalnızca bu tarayıcıda saklanır</div></div>
+    </div></div>
+
+    <div class="sec-h"><span class="t">// başvurularım <b>[${APPS.length}]</b></span><span class="ln"></span></div>
+    ${APPS.length?APPS.map(a=>`
+      <article class="aprow st-${a.status}" data-aprow="${a.id}">
+        <h4>${esc(a.snap.title)}</h4>
+        <div class="meta"><b>${esc(a.snap.employer)}</b>
+          ${a.snap.city?`<span class="dot">·</span>${esc(a.snap.city)}`:''}
+          ${a.snap.salary_text?`<span class="dot">·</span>${esc(a.snap.salary_text)}`:''}
+          <span class="dot">·</span>${apDays(a)} gün önce başvuruldu
+          ${a.snap.url?`<span class="dot">·</span><a href="${esc(a.snap.url)}" target="_blank" rel="noopener">ilana git ↗</a>`:''}
+        </div>
+        <div class="sts">${AP_STATUS.map(([k,l])=>
+          `<button class="fo ${a.status===k?'on':''}" data-apst="${k}" data-apid="${a.id}">${l}</button>`).join('')}
+        </div>
+        <textarea class="apnote" data-apnote="${a.id}"
+          placeholder="not al — 'İK'dan Ayşe aradı', 'maaş 65k dediler'…">${esc(a.note||"")}</textarea>
+        <button class="apx" data-apdel="${a.id}">kaydı sil ×</button>
+      </article>`).join('')
+    :`<div class="empty"><h3>Henüz takip edilen başvuru yok</h3>
+       <p>Bir ilanın detayını aç, <b>✓ BAŞVURDUM</b>'a bas — buradan durumunu ve
+       notlarını takip et. İlan yayından kalksa bile kaydın burada kalır.</p></div>`}
+  `;
+}
+
+function wireApps(){
+  document.querySelectorAll("[data-apst]").forEach(b=>b.onclick=()=>{
+    const a=APPS.find(x=>x.id===b.dataset.apid); if(!a) return;
+    if(a.status===b.dataset.apst) return;
+    a.status=b.dataset.apst; a.updated_at=new Date().toISOString();
+    apSave();
+    /* Anonim olay: ileride işveren yanıt oranının ham verisi. Not İÇERİĞİ
+       asla gönderilmez — yalnızca durum. */
+    if(a.status!=="applied") apEvent(a,a.status);
+    render();
+  });
+  document.querySelectorAll("[data-apnote]").forEach(t=>t.onblur=()=>{
+    const a=APPS.find(x=>x.id===t.dataset.apnote); if(!a) return;
+    a.note=t.value.slice(0,2000); apSave();
+  });
+  document.querySelectorAll("[data-apdel]").forEach(b=>b.onclick=()=>{
+    if(!confirm("Bu başvuru kaydı silinsin mi?")) return;
+    APPS=APPS.filter(x=>x.id!==b.dataset.apdel); apSave(); render();
+  });
 }
 
 /* ---------------- detay ---------------- */
@@ -1258,7 +1454,8 @@ async function openDetail(id){
   const sc=$("#scrim"), d=$("#detail");
   d.innerHTML=`<div class="load" style="min-height:auto;padding:70px 0"><div class="radar"></div></div>`;
   sc.classList.add("on"); d.classList.add("on"); sc.onclick=closeDetail;
-  try{ const j=await api("/jobs/"+encodeURIComponent(id)); d.innerHTML=detailBody(j); wireDetail(j); }
+  try{ const j=await jpost("/jobs/"+encodeURIComponent(id), profilePayload());
+       d.innerHTML=detailBody(j); wireDetail(j); }
   catch(e){ d.innerHTML=`<button class="detail-close" onclick="closeDetail()">×</button>
     <p style="margin-top:50px">${esc(e.message)}</p>`; }
 }
@@ -1280,6 +1477,22 @@ function detailBody(j){
     </div>
     <h2>${esc(j.title)}</h2>
     <div class="emp"><b>${esc(j.employer)}</b>${j.city?' · '+esc(j.city):''}${j.salary_text?' · '+esc(j.salary_text):''}</div>
+    <div class="dact">
+      ${apFind(j.job_id)
+        ?`<span class="pill applied">✓ BAŞVURULDUN · ${esc(AP_LABEL[apFind(j.job_id).status]||'')}</span>
+          <button class="btn-2" data-goapps="1" style="padding:7px 12px; font-size:10.5px">başvurularımda aç</button>`
+        :`<button class="btn" data-applied="1" style="padding:10px 18px; font-size:11.5px">✓ BAŞVURDUM</button>
+          <span class="tag-l">başvurunu takip et — not al, yanıtı işaretle</span>`}
+    </div>
+    ${j.band&&!FB.has(j.job_id)?`
+      <div class="fbx" id="fbx"><span class="tag-l">bu eşleşme isabetli mi?</span>
+        <button class="fo" data-fb="up">👍 evet</button>
+        <button class="fo" data-fb="down">👎 değil</button>
+        <div id="fbWhy" style="display:none; margin-top:8px" class="fopts">
+          ${["mesleğim değil","seviye uymuyor","konum uymuyor","şartlar yanlış okunmuş"]
+            .map(r=>`<button class="fo" data-fbr="${esc(r)}">${esc(r)}</button>`).join('')}
+        </div></div>`
+      :j.band?`<div class="fbx tag-l">eşleşme geri bildirimin alındı ✓</div>`:''}
     ${j.worth_applying?`<div class="notice" style="margin-top:16px; border-left-color:var(--ph)">${esc(j.worth_applying)}</div>`:''}
     ${j.met?.length?dh(`karşıladıkların [${j.met.length}]`)+`<div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
     ${j.unmet?.length?dh(`karşılamadıkların [${j.unmet.length}]`)+`<div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}
@@ -1299,13 +1512,28 @@ function descHTML(t){
     if(l.startsWith("## ")) return `<h5>${esc(l.slice(3))}</h5>`;
     return `<div>${esc(l)}</div>`;}).join("");
 }
-function wireDetail(){
+function wireDetail(j){
   const t=$("#descToggle"); if(t) t.onclick=()=>{const d=$("#desc"); d.classList.toggle("open");
     t.textContent=d.classList.contains("open")?"daha az göster ▴":"tamamını göster ▾";};
   /* "Belgeyi doğrula" eylem etiketi profil paneline götürür — doğrulama orada,
      bağlamıyla (D-012 notu) birlikte yapılır. */
   document.querySelectorAll("#detail [data-openpanel]").forEach(b=>b.onclick=()=>{
     closeDetail(); openProfilePanel();});
+  /* Başvuru takibi: anlık kopya yerel kayda girer, anonim olay sunucuya. */
+  const ap=$("#detail [data-applied]");
+  if(ap) ap.onclick=()=>{ apAdd(j); $("#detail").innerHTML=detailBody(j); wireDetail(j); };
+  const ga=$("#detail [data-goapps]");
+  if(ga) ga.onclick=()=>{ closeDetail(); S.view="apps"; render(); };
+  /* Eşleşme geri bildirimi: 👍 anında gider; 👎 sebep sorar. */
+  document.querySelectorAll("#detail [data-fb]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.fb==="up"){ fbSend(j,"up",null);
+      $("#fbx").outerHTML=`<div class="fbx tag-l">teşekkürler — kalibrasyona girdi ✓</div>`; }
+    else{ $("#fbWhy").style.display="flex"; }
+  });
+  document.querySelectorAll("#detail [data-fbr]").forEach(b=>b.onclick=()=>{
+    fbSend(j,"down",b.dataset.fbr);
+    $("#fbx").outerHTML=`<div class="fbx tag-l">teşekkürler — kalibrasyona girdi ✓</div>`;
+  });
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape") closeDetail();});
 

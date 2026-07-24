@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,14 +28,29 @@ from isuygun_core import build_explanation, match
 from isuygun_core.domain import (
     GATE_RELEVANT_CATEGORIES,
     NON_DISCRIMINATIVE_CATEGORIES,
+    CareerProfile,
     JobPosting,
     MatchBand,
+    ProfileFact,
 )
 from isuygun_ingest import regions, registry, search
 from isuygun_ingest.pipeline import age_in_days
 
+from . import signals
 from .cv import read_cv
 from .store import STORE
+
+
+def _classic_enabled() -> bool:
+    """Eski (sunucu-profilli) yüzey açık mı?
+
+    D-059: profiller istemciye taşındı; sunucudaki tek-global-profil uçları
+    ancak ``ISUYGUN_CLASSIC=1`` ile açılır. Üretimde kapalı kalır — açık olsaydı
+    /classic'e giren herkes aynı profili paylaşmaya devam ederdi (canlıda
+    doğrulanan gizlilik açığı). Geliştirmede launch.json açar; testler
+    conftest'te açar. Her istekte okunur ki testler monkeypatch'leyebilsin.
+    """
+    return os.environ.get("ISUYGUN_CLASSIC", "") == "1"
 
 MAX_CV_BYTES = 10 * 1024 * 1024
 
@@ -120,6 +136,39 @@ app = FastAPI(
         "DEĞİLDİR (D-018)."
     ),
 )
+
+
+#: Sunucu-profilli eski yüzeyin uçları (D-059). Ortak tek profile okuyup
+#: yazarlar; ziyaretçi izolasyonu olmadığı için üretimde kapatılırlar.
+#: (yöntem, yol-öneki) çiftleri; None = her yöntem.
+_LEGACY_RULES: tuple[tuple[str | None, str], ...] = (
+    (None, "/api/profile"),      # /api/profile, /api/profile/*, /api/profiles*
+    ("GET", "/api/feed"),        # global profille feed
+    ("POST", "/api/jobs/evaluate"),
+    (None, "/classic"),
+)
+
+
+@app.middleware("http")
+async def _legacy_gate(request, call_next):
+    """``ISUYGUN_CLASSIC=1`` değilse eski yüzeyi 404'e kapatır.
+
+    Middleware tercih edildi çünkü tek tek route'lara bağımlılık eklemek ~12
+    dokunuş demekti ve birini atlamak sessiz bir gizlilik deliği olurdu; tek
+    liste, tek karar noktası. Testler bayrağı conftest'te açar.
+    """
+    if not _classic_enabled():
+        path = request.url.path
+        for method, prefix in _LEGACY_RULES:
+            if path.startswith(prefix) and (method is None or request.method == method):
+                from fastapi.responses import JSONResponse
+
+                return JSONResponse(
+                    {"detail": "Bu uç emekli (D-059): profiller artık istemcide. "
+                               "Geliştirme için ISUYGUN_CLASSIC=1."},
+                    status_code=404,
+                )
+    return await call_next(request)
 
 
 # --------------------------------------------------------------------------
@@ -317,14 +366,62 @@ _BAND_ORDER = {MatchBand.STRONG: 0, MatchBand.GOOD: 1, MatchBand.CONDITIONAL: 2,
 _CALIBRATED: set[str] = set()
 
 
-def _evaluate(posting):
+def _evaluate(posting, profile: CareerProfile):
+    """Tek ilanı verilen profile karşı değerlendirir.
+
+    Profil artık parametre (D-059): eskiden buradan STORE.profile okunuyordu ve
+    o tek global profil bütün ziyaretçiler arasında paylaşılıyordu — B, A'nın
+    becerileriyle hesaplanmış eşleşmeler görüyordu.
+    """
     job = posting.job
     result = match(
         job,
-        STORE.profile,
+        profile,
         calibrated_occupation=job.occupation_id in _CALIBRATED,
     )
     return result, build_explanation(result)
+
+
+#: İstemcinin gönderdiği geçici profil (D-059). Sunucuda SAKLANMAZ: istek
+#: süresince değerlendirmeye girer, sonra yok olur. Kalıcı kopya kullanıcının
+#: tarayıcısındadır.
+class ProfilePayload(BaseModel):
+    facts: list[FactIn] = []
+    occupation_ids: list[str] = []
+
+
+def _profile_from_payload(body: ProfilePayload | None) -> CareerProfile:
+    """Gövdeden geçici :class:`CareerProfile` kurar.
+
+    Sunucu tarafı kuralları burada da geçerlidir — HTTP sınırından gelen veri
+    onları esnetemez:
+
+    * Yasal uygunluk alanları (D-013) sessizce atlanır: istemci ``legal_*``
+      gönderse bile profile girmez, skora değmez.
+    * Katalogda olmayan anahtar atlanır (eski istemci / bozuk veri).
+    * ``verified`` bayrağı istemci beyanıdır; bugünkü doğrulama da zaten
+      simülasyondur (D-012 notu arayüzde). Yanlış beyan yalnızca beyan edenin
+      kendi sonuçlarını etkiler.
+    """
+    facts: list[ProfileFact] = []
+    if body is not None:
+        for f in body.facts[:200]:
+            item = STORE.catalog_item(f.key)
+            if item is None or item.is_legal_eligibility:
+                continue
+            years = None
+            if f.years is not None:
+                years = max(0.0, min(60.0, float(f.years)))
+            facts.append(ProfileFact(
+                key=f.key, category=item.category,
+                verification="verified" if f.verified else "user_asserted",
+                years=years,
+            ))
+    return CareerProfile(
+        profile_id="istemci",
+        facts=tuple(facts),
+        occupation_ids=tuple((body.occupation_ids if body else [])[:50]),
+    )
 
 
 def _role_key(employer: str, title: str) -> tuple[str, str]:
@@ -708,13 +805,41 @@ def unlock_suggestions(limit: int = 12) -> list[UnlockSuggestionOut]:
     bir yönlendirme paneli için bu bedel orantısız. Arayüz bu yüzden "≈"
     yazar — olmayan bir kesinlik iddia etmez.
     """
+    return _unlock_for(STORE.profile, limit)
+
+
+@app.post("/api/unlock-suggestions", response_model=list[UnlockSuggestionOut])
+def unlock_suggestions_stateless(body: ProfilePayload,
+                                 limit: int = 12) -> list[UnlockSuggestionOut]:
+    """Durumsuz sürüm (D-059): profil gövdede gelir, hiçbir şey saklanmaz.
+
+    Hesap tüm korpusu değerlendirir (~1 sn); aynı profil için tekrar hesaplamak
+    boşa CPU olduğundan sonuç küçük bir LRU'da tutulur. Anahtar korpus sürümünü
+    de içerir — tazeleme sonrası eski sayılar servis edilmez.
+    """
+    key = (STORE.corpus_version, _fingerprint_of(_profile_from_payload(body)), limit)
+    hit = _UNLOCK_CACHE.get(key)
+    if hit is not None:
+        _UNLOCK_CACHE.move_to_end(key)
+        return hit
+    out = _unlock_for(_profile_from_payload(body), limit)
+    _UNLOCK_CACHE[key] = out
+    while len(_UNLOCK_CACHE) > 4:
+        _UNLOCK_CACHE.popitem(last=False)
+    return out
+
+
+_UNLOCK_CACHE: "OrderedDict[tuple, list]" = OrderedDict()
+
+
+def _unlock_for(profile: CareerProfile, limit: int) -> list[UnlockSuggestionOut]:
     # Sayım **satır** birimindedir, ilan değil: liste aynı işverenin aynı
     # rolünü tek satıra indiriyor (`_group_by_role`). İlan sayarsak "+327"
     # deyip 295 açılır — D-030'da düzeltilen hatanın aynısı: kullanıcının
     # gördüğü sayı, tıklayınca aldığı sayı olmalı.
     roles: dict[str, set[tuple[str, str]]] = {}
     for posting in STORE.postings.values():
-        result, _ = _evaluate(posting)
+        result, _ = _evaluate(posting, profile)
         if result.band is not None or result.listing_only:
             continue        # zaten değerlendirilebiliyor
         role = _role_key(posting.job.employer, posting.job.title)
@@ -727,7 +852,7 @@ def unlock_suggestions(limit: int = 12) -> list[UnlockSuggestionOut]:
                     and not req.is_legal_eligibility):
                 roles.setdefault(req.key, set()).add(role)
 
-    have = {f.key for f in STORE.profile.facts}
+    have = {f.key for f in profile.facts}
     out: list[UnlockSuggestionOut] = []
     for key, n in sorted(((k, len(v)) for k, v in roles.items()),
                          key=lambda kv: -kv[1]):
@@ -801,29 +926,115 @@ async def upload_cv(file: UploadFile) -> dict:
     data = await file.read()
     if len(data) > MAX_CV_BYTES:
         raise HTTPException(400, "Dosya 10 MB sınırını aşıyor.")
+    payload = _cv_payload(data)
+    # Classic davranışı: bekleyen öneriler sunucudaki etkin profile yazılır.
+    STORE.pending_cv_suggestions = payload["suggestions"]
+    STORE.store.save_suggestions(STORE.active_id, STORE.pending_cv_suggestions)
+    return payload
+
+
+@app.post("/api/cv/suggest")
+async def cv_suggest(file: UploadFile) -> dict:
+    """CV'den alan önerir — **hiçbir şey saklamadan** (D-059).
+
+    Durumsuz sürüm: dosya ayrıştırılır, öneriler döner, sunucuda ne dosya ne
+    öneri kalır. Kalıcılık istemcinin işi. Eski ``/api/profile/cv`` ucu
+    sunucudaki ORTAK profile yazıyordu — ziyaretçi A'nın CV önerileri classic'e
+    bakan herkese görünüyordu.
+    """
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Yalnızca PDF kabul ediliyor.")
+    data = await file.read()
+    if len(data) > MAX_CV_BYTES:
+        raise HTTPException(400, "Dosya 10 MB sınırını aşıyor.")
+    return _cv_payload(data)
+
+
+def _cv_payload(data: bytes) -> dict:
     try:
         result = read_cv(data, STORE.catalog)
     except Exception as e:  # bozuk/şifreli PDF
         raise HTTPException(400, f"PDF okunamadı: {e}") from e
-
-    STORE.pending_cv_suggestions = [
-        {
-            "key": s.key, "label": s.label, "category": s.category,
-            "needs_verification": s.needs_verification, "asks_years": s.asks_years,
-            "years": s.years, "matched_on": s.matched_on,
-        }
-        for s in result.suggestions
-    ]
-    STORE.store.save_suggestions(STORE.active_id, STORE.pending_cv_suggestions)
     return {
         "page_count": result.page_count,
         "char_count": result.char_count,
         "text_extracted": result.text_extracted,
         "note": result.note,
         "discarded_sensitive": result.discarded_sensitive,
-        "suggestions": STORE.pending_cv_suggestions,
+        "suggestions": [
+            {
+                "key": s.key, "label": s.label, "category": s.category,
+                "needs_verification": s.needs_verification,
+                "asks_years": s.asks_years,
+                "years": s.years, "matched_on": s.matched_on,
+            }
+            for s in result.suggestions
+        ],
         "written_to_profile": False,
     }
+
+
+class FeedbackIn(BaseModel):
+    """Eşleşme geri bildirimi — anonim (D-059).
+
+    Kimlik alınmaz; ``title/employer`` istemciden yalnızca ilan korpustan
+    düşmüşse yedek olarak kullanılır.
+    """
+
+    job_id: str = Field(..., max_length=200)
+    verdict: str = Field(..., pattern="^(up|down)$")
+    band: str | None = Field(None, max_length=20)
+    reason: str | None = Field(None, max_length=120)
+    title: str = Field("", max_length=200)
+    employer: str = Field("", max_length=200)
+
+
+@app.post("/api/feedback", status_code=204)
+def post_feedback(body: FeedbackIn) -> None:
+    """"Bu eşleşme isabetli miydi?" — kalibrasyonun (T-006b) ham verisi.
+
+    Bizim bandımızla kullanıcının yargısının uyuşmadığı kayıtlar, eşleşme
+    motorunun hatasının tam adresidir. Toplanır, hiçbir yerde tek tek
+    gösterilmez; analiz çevrimdışıdır.
+    """
+    posting = STORE.job(body.job_id)
+    signals.record_feedback(
+        job_id=body.job_id, band=body.band, verdict=body.verdict,
+        reason=body.reason,
+        title=posting.job.title if posting else body.title,
+        employer=posting.job.employer if posting else body.employer,
+    )
+
+
+_APPLY_EVENTS = ("applied", "answered", "interview", "offer", "rejected",
+                 "no_answer", "withdrawn")
+
+
+class ApplyEventIn(BaseModel):
+    job_id: str = Field(..., max_length=200)
+    event: str
+    days_since_apply: int | None = Field(None, ge=0, le=365)
+    title: str = Field("", max_length=200)
+    employer: str = Field("", max_length=200)
+
+
+@app.post("/api/apply-events", status_code=204)
+def post_apply_event(body: ApplyEventIn) -> None:
+    """Başvuru yaşam döngüsü olayı — anonim sayaç (D-059).
+
+    İleride işveren yanıt oranına dönüşür ("N kullanıcı başvurdu, M yanıt
+    aldı") ve "uzun süredir açık" tahminini kanıta çevirir. Hacim eşiği
+    dolmadan hiçbir yerde gösterilmez; kayıtlar kullanıcıya bağlanamaz.
+    """
+    if body.event not in _APPLY_EVENTS:
+        raise HTTPException(400, f"Bilinmeyen olay: {body.event!r}")
+    posting = STORE.job(body.job_id)
+    signals.record_apply_event(
+        job_id=body.job_id, event=body.event,
+        days_since_apply=body.days_since_apply,
+        title=posting.job.title if posting else body.title,
+        employer=posting.job.employer if posting else body.employer,
+    )
 
 
 @app.post("/api/jobs/evaluate", response_model=JobDetail)
@@ -887,7 +1098,8 @@ def _first_line(text: str) -> str:
 #: Sonuç ``(korpus sürümü, profil parmak izi)`` çiftinin **saf** fonksiyonudur:
 #: aynı korpus + aynı profil her zaman aynı feed'i verir. Bu yüzden önbellek
 #: bayat veri riski taşımaz; ikisinden biri değişince anahtar da değişir.
-_FEED_CACHE: dict = {}
+_FEED_CACHE: "OrderedDict[tuple, bytes]" = OrderedDict()
+_FEED_CACHE_MAX = 8
 
 
 def _profile_fingerprint() -> tuple:
@@ -904,34 +1116,69 @@ def _profile_fingerprint() -> tuple:
     )
 
 
+def _fingerprint_of(profile: CareerProfile) -> tuple:
+    """Geçici (istemci) profilin önbellek kimliği — kimliksiz, yalnız içerik."""
+    return (
+        tuple(sorted((f.key, f.verification, f.years or -1.0)
+                     for f in profile.facts)),
+        tuple(sorted(profile.occupation_ids)),
+    )
+
+
+def _feed_body(cache_key: tuple, profile: CareerProfile) -> bytes:
+    """Feed'i hazır JSON bayt olarak üretir/önbellekten verir.
+
+    Önbellek artık çok girdili LRU (D-059): ziyaretçiler ayrı profiller
+    gönderdiğinden tek-girdili önbellek her farklı ziyaretçide tam yeniden
+    hesap demekti. Gövde ~10 MB olduğundan sınır küçük tutulur (8 girdi);
+    sayfalama işi gövdeyi küçülttüğünde artırılabilir. ``response_model``
+    doğrulaması bilinçli atlanır — ölçümde isabette bile 173 ms yiyordu.
+    """
+    hit = _FEED_CACHE.get(cache_key)
+    if hit is not None:
+        _FEED_CACHE.move_to_end(cache_key)
+        return hit
+    body = json.dumps(
+        jsonable_encoder(_build_feed(profile)), ensure_ascii=False,
+    ).encode("utf-8")
+    _FEED_CACHE[cache_key] = body
+    while len(_FEED_CACHE) > _FEED_CACHE_MAX:
+        _FEED_CACHE.popitem(last=False)
+    return body
+
+
 @app.get("/api/feed", response_model=FeedOut)
 def feed() -> Response:
-    """Feed. Yanıt **hazır JSON olarak** önbelleklenir.
+    """Eski yüzeyin feed'i — **sunucudaki** global profille (yalnız classic).
 
-    ``response_model`` şema (OpenAPI → TS tipleri, ADR-001) için korunur ama
-    gövde elle serileştirilir: FastAPI'ye ``Response`` döndürmek model
-    doğrulamasını atlar. Ölçümde önbellek isabetinde bile 9266 ilanı her
-    istekte yeniden doğrulamak **173 ms** yiyordu; asıl hesap zaten yapılmışken
-    bu tamamen boşa giden işti.
+    Yeni arayüz :func:`feed_stateless` kullanır; bu uç ``ISUYGUN_CLASSIC``
+    kapalıyken 404'tür (D-059) çünkü global profil ziyaretçiler arasında
+    paylaşılıyordu.
     """
-    key = (STORE.corpus_version, _profile_fingerprint())
-    hit = _FEED_CACHE.get(key)
-    if hit is None:
-        # Tek girdi tutulur: profil başına biriktirmek tek kullanıcılı mimaride
-        # (bkz. OPEN-24) sadece bellek yer.
-        _FEED_CACHE.clear()
-        hit = _FEED_CACHE[key] = json.dumps(
-            jsonable_encoder(_build_feed()), ensure_ascii=False,
-        ).encode("utf-8")
-    return Response(content=hit, media_type="application/json")
+    key = (STORE.corpus_version, "classic", _profile_fingerprint())
+    return Response(content=_feed_body(key, STORE.profile),
+                    media_type="application/json")
 
 
-def _build_feed() -> FeedOut:
+@app.post("/api/feed", response_model=FeedOut)
+def feed_stateless(body: ProfilePayload) -> Response:
+    """Feed, istemcinin gönderdiği geçici profille (D-059).
+
+    Profil sunucuya YAZILMAZ; yalnızca bu isteğin değerlendirmesine girer.
+    Kalıcı kopya tarayıcıdadır — ziyaretçi izolasyonu tam olarak budur.
+    """
+    profile = _profile_from_payload(body)
+    key = (STORE.corpus_version, "v2", _fingerprint_of(profile))
+    return Response(content=_feed_body(key, profile),
+                    media_type="application/json")
+
+
+def _build_feed(profile: CareerProfile) -> FeedOut:
     evaluated: list[tuple[int, JobSummary]] = []
     unevaluated: list[JobSummary] = []
 
     for posting in STORE.postings.values():
-        result, exp = _evaluate(posting)
+        result, exp = _evaluate(posting, profile)
         s = _summary(posting, result, exp)
         if result.band is None:
             # D-019: bant yok. Bunlar "uymuyor" değil, "bilinmiyor" — ayrı
@@ -958,7 +1205,7 @@ def _build_feed() -> FeedOut:
     return FeedOut(
         evaluated=shown_evaluated,
         unevaluated=shown_unevaluated,
-        profile_is_empty=not STORE.profile.facts,
+        profile_is_empty=not profile.facts,
         profile_is_persistent=STORE.is_persistent,
         profile_backend=STORE.backend,
         ingest=STORE.ingest_summary,
@@ -1022,12 +1269,31 @@ def search_jobs(q: str = "") -> SearchOut:
     )
 
 
+@app.post("/api/jobs/{job_id:path}", response_model=JobDetail)
+def job_detail_stateless(job_id: str, body: ProfilePayload) -> JobDetail:
+    """İlan detayı, istemcinin geçici profiliyle (D-059).
+
+    Defter (met/unmet/unknown) profile bağlıdır; GET sürümü sunucudaki global
+    profili kullanıyordu ve durumsuz dünyada başka ziyaretçilerin izini
+    taşıyabilirdi.
+    """
+    return _detail_for(job_id, _profile_from_payload(body))
+
+
 @app.get("/api/jobs/{job_id:path}", response_model=JobDetail)
 def job_detail(job_id: str) -> JobDetail:
+    # Classic açıkken global profil (eski davranış). Kapalıyken BOŞ profil:
+    # eski ortak profilin kalıntısıyla defter üretmek, o profile yazılmış
+    # becerilerin izini herkese göstermek olurdu (D-059).
+    profile = STORE.profile if _classic_enabled() else CareerProfile(profile_id="anon")
+    return _detail_for(job_id, profile)
+
+
+def _detail_for(job_id: str, profile: CareerProfile) -> JobDetail:
     posting = STORE.job(job_id)
     if posting is None:
         raise HTTPException(404, "İlan bulunamadı.")
-    result, exp = _evaluate(posting)
+    result, exp = _evaluate(posting, profile)
     base = _summary(posting, result, exp)
 
     return JobDetail(
