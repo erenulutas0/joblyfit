@@ -16,6 +16,10 @@ out/
 # Ortam
 .env
 .env.local
+.env.prod
+# Deploy arşivi (rsync/scp için üretilir) — repoya girmez.
+*.tgz
+deploy.tgz
 
 # Editör / işletim sistemi
 .DS_Store
