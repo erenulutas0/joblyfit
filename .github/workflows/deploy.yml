@@ -1,0 +1,51 @@
+# CD — VPS'e otomatik dağıtım (D-050).
+#
+# CI (ci.yml) testleri koşar; bu workflow **deploy** eder: kodu VPS'e rsync'ler
+# ve `docker compose ... up -d --build` çalıştırır.
+#
+# ÖNCE 3 secret gerekir (repo → Settings → Secrets and variables → Actions):
+#   VPS_HOST      = 169.58.4.5
+#   VPS_USER      = root
+#   VPS_SSH_KEY   = VPS'e erişen bir SSH **özel anahtarı** (public'i VPS'in
+#                   ~/.ssh/authorized_keys'inde olmalı — parola değil, anahtar)
+#
+# Başta yalnızca **elle tetiklenir** (workflow_dispatch): secret'lar hazır olup
+# manuel bir kez doğrulanana kadar her push'ta kırmızı hata çıkmasın. Hazır
+# olunca alttaki `push:` bloğunun yorumunu aç → her push'ta otomatik deploy.
+
+name: Deploy
+
+on:
+  workflow_dispatch: {}
+  # push:
+  #   branches: [master]
+
+concurrency:               # aynı anda tek deploy; üst üste push'lar sıraya girer
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH anahtarını kur
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Kodu VPS'e gönder (rsync)
+        run: |
+          rsync -az --delete \
+            --exclude '.git' --exclude '.cache' --exclude '.data' \
+            --exclude '.env.prod' --exclude '*.tgz' \
+            -e "ssh -i ~/.ssh/id_deploy" \
+            ./ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/iseuygun/"
+
+      - name: Yeniden dağıt
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'cd /opt/iseuygun && docker compose -f docker-compose.prod.yml up -d --build'
