@@ -670,3 +670,57 @@ def test_feed_response_matches_declared_schema(client):
     r = client.get("/api/feed")
     assert r.headers["content-type"].startswith("application/json")
     FeedOut.model_validate(r.json())   # şemaya uymuyorsa burada patlar
+
+
+# ---------------------------------------------------------------------------
+# D-055 — aynı rol iki bölümde birden görünmemeli
+# ---------------------------------------------------------------------------
+
+
+def test_role_never_appears_in_both_sections(client):
+    """Bir rol hem "değerlendirilen" hem "veri eksik" listesinde olamaz.
+
+    Gruplama iki listeye ayrı uygulanıyordu: aynı rolün bir şehirdeki
+    kopyasından şart okunmuş, diğerinden okunamamışsa satır ikiye bölünüyor ve
+    kullanıcı aynı ilanı iki kez görüyordu (canlı korpusta 8 rol böyleydi).
+    """
+    _add(client, "heavy_driving", years=6)
+    f = client.get("/api/feed").json()
+
+    def rol(j):
+        return (j["employer"].casefold(), j["title"].casefold())
+
+    ev = {rol(j) for j in f["evaluated"]}
+    un = {rol(j) for j in f["unevaluated"]}
+    ortak = ev & un
+    assert not ortak, f"aynı rol iki bölümde birden: {sorted(ortak)[:3]}"
+
+
+def test_no_duplicate_rows_within_a_section(client):
+    """Tek bir bölümde aynı rol iki satır olamaz — gruplama bunun için var."""
+    _add(client, "heavy_driving", years=6)
+    f = client.get("/api/feed").json()
+    for ad in ("evaluated", "unevaluated"):
+        goruldu = set()
+        for j in f[ad]:
+            k = (j["employer"].casefold(), j["title"].casefold())
+            assert k not in goruldu, f"{ad}: '{j['title']}' iki kez listelendi"
+            goruldu.add(k)
+
+
+def test_absorbed_row_keeps_its_city(client):
+    """Düşürülen satırın şehri kaybolmamalı.
+
+    Satırı sessizce atmak, o şehirde ilan yokmuş gibi gösterirdi; şehir
+    kazanan satırın `other_locations`'ına taşınır.
+    """
+    from isuygun_api.main import JobSummary, _absorb_into
+
+    ortak = dict(job_id="x", occupation_id="o", source="s", url="u",
+                 is_public_sector=False)
+    kazanan = JobSummary(employer="ACME", title="Şoför", city="Ankara", **ortak)
+    duşen = JobSummary(employer="acme", title="şoför", city="İzmir", **ortak)
+
+    kalan = _absorb_into([duşen], [kazanan])
+    assert kalan == [], "rol zaten kazanan listede, satır düşmeli"
+    assert "İzmir" in kazanan.other_locations, "şehir kaybolmamalı"

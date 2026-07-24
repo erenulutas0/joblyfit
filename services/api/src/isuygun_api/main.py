@@ -38,6 +38,12 @@ from .store import STORE
 
 MAX_CV_BYTES = 10 * 1024 * 1024
 
+
+def _now_iso() -> str:
+    from datetime import datetime
+
+    return datetime.now().isoformat(timespec="seconds")
+
 def _load_local_env() -> None:
     """`.env.local` varsa ortam değişkenlerine yükler.
 
@@ -84,10 +90,20 @@ async def lifespan(_: FastAPI):
         # günlerce bayat bırakırdı. Aralık cache TTL'iyle (6 saat) uyumlu.
         hours = float(os.environ.get("ISUYGUN_REFRESH_HOURS", "6") or 6)
         while True:
+            # Durum DIŞARIDAN görünür olmalı (D-055). Eskiden hata `pass` ile
+            # yutuluyordu: canlıda korpus 0 ilanda kaldı ve tazelemenin çalışıp
+            # çalışmadığını, çöküp çökmediğini anlamanın hiçbir yolu yoktu —
+            # /api/health "ok" diyor, site boş.
+            STORE.refresh_state = {"status": "running",
+                                   "started_at": _now_iso(), "error": None}
             try:
                 await asyncio.to_thread(STORE.refresh)
-            except Exception:
-                pass   # tazeleme başarısızsa eski korpus yerinde kalır
+                STORE.refresh_state = {"status": "ok", "finished_at": _now_iso(),
+                                       "error": None}
+            except Exception as e:
+                # Eski korpus yerinde kalır ama sebep artık kayıtlı.
+                STORE.refresh_state = {"status": "failed", "finished_at": _now_iso(),
+                                       "error": f"{type(e).__name__}: {e}"[:300]}
             await asyncio.sleep(max(0.5, hours) * 3600)
 
     task = asyncio.create_task(_bg_refresh())
@@ -338,6 +354,25 @@ def _group_by_role(items: list[JobSummary]) -> list[JobSummary]:
     return out
 
 
+def _absorb_into(items: list[JobSummary],
+                 winners: list[JobSummary]) -> list[JobSummary]:
+    """``winners``'ta zaten olan rolleri ``items``'tan düşürür (D-055).
+
+    Düşen satırın konumu kaybolmaz: kazanan satırın ``other_locations``'ına
+    eklenir. Böylece "3 şehirde açık" bilgisi doğru kalır — satırı sessizce
+    atmak, kullanıcıya o şehirde ilan yokmuş gibi gösterirdi.
+    """
+    by_key = {_role_key(w.employer, w.title): w for w in winners}
+    out: list[JobSummary] = []
+    for j in items:
+        w = by_key.get(_role_key(j.employer, j.title))
+        if w is None:
+            out.append(j)
+        elif j.city and j.city != w.city and j.city not in w.other_locations:
+            w.other_locations.append(j.city)
+    return out
+
+
 #: "Uzun süredir açık" eşiği. Tazelik eşiğiyle (D-024) aynı sayı: 45 günü
 #: aşan bir ilan, elenmese bile kullanıcının bilmesi gereken bir yaştadır.
 LONG_OPEN_DAYS = 45
@@ -456,7 +491,20 @@ def _summary(posting, result, exp) -> JobSummary:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "ingest": STORE.ingest_summary}
+    """Sağlık + korpus durumu.
+
+    ``status`` korpusu de yansıtır (D-055): 0 ilanla ayakta duran bir sunucu
+    "ok" değildir — canlıda tam olarak bu oldu, ``/api/health`` "ok" derken
+    site boştu ve dışarıdan sebebi görünmüyordu.
+    """
+    n = len(STORE.postings)
+    return {
+        "status": "ok" if n else "empty_corpus",
+        "corpus_size": n,
+        "corpus_version": STORE.corpus_version,
+        "refresh": STORE.refresh_state,
+        "ingest": STORE.ingest_summary,
+    }
 
 
 @app.get("/api/sources", response_model=list[SourceOut])
@@ -862,7 +910,14 @@ def _build_feed() -> FeedOut:
 
     evaluated.sort(key=lambda t: (t[0], t[1].title))
     shown_evaluated = _group_by_role([s for _, s in evaluated])
-    shown_unevaluated = _group_by_role(unevaluated)
+    # Gruplama iki listeye AYRI uygulanırsa aynı rol ikisinde birden çıkabilir
+    # (D-055): aynı rolün bir şehirdeki kopyasından şart okunmuş, diğerinden
+    # okunamamışsa biri "sana göre"ye biri "veri eksik"e düşer ve kullanıcı
+    # aynı ilanı iki kez görür. Ölçümde 8 rol böyleydi. Değerlendirilen taraf
+    # kazanır — daha fazla bilgi taşıyan satır odur; diğerinin şehri kaybolmaz,
+    # ``other_locations``'a eklenir.
+    shown_unevaluated = _absorb_into(
+        _group_by_role(unevaluated), shown_evaluated)
     # Facet'ler **gösterilen** listeden sayılır. Gruplama öncesinden sayılırsa
     # rozet "1994 ilan" der, kullanıcı tıklar, 1678 ilan görür — sayının
     # kendisi yanlış olmasa da kullanıcıya verilen söz tutulmamış olur.

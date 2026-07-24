@@ -62,6 +62,11 @@ class Store:
     #: planda tazeleme olduğunda önbellek kendiliğinden geçersizleşir, yoksa
     #: kullanıcı saatlerce eski ilan listesini görürdü.
     corpus_version: int = 0
+    #: Arka plan tazelemesinin durumu (D-055): running | ok | failed | idle.
+    #: `/api/health` bunu yayınlar — tazeleme sessizce ölürse korpus boş kalıyor
+    #: ve dışarıdan bakan biri sebebini göremiyordu.
+    refresh_state: dict = field(
+        default_factory=lambda: {"status": "idle", "error": None})
     store: ProfileStore = field(
         default_factory=lambda: open_store(
             _db_path(), os.environ.get("ISUYGUN_DSN") or None
@@ -216,6 +221,7 @@ class Store:
             "max_age_days": result.get("max_age_days", 45),
             "truncated": result.get("truncated", 0),
             "from_cache": result.get("from_cache", False),
+            "stale_logic": result.get("stale_logic", False),
             "boards": result.get("boards", []),
             "errors": result.get("errors", []),
         }

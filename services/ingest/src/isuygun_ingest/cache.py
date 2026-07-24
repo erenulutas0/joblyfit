@@ -148,15 +148,28 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
 # --------------------------------------------------------------------------
 
 
-def read(path: Path, max_age_hours: float) -> dict | None:
+def read(path: Path, max_age_hours: float,
+         *, accept_stale_logic: bool = False) -> dict | None:
     """Önbelleği okur.
 
-    Döner: ``{"raws": [...], "postings": [...] | None, "meta": {...}}`` ya da
-    ``None`` (yok / süresi dolmuş / bozuk).
+    Döner: ``{"raws": [...], "postings": [...] | None, "stale_logic": bool,
+    "meta": {...}}`` ya da ``None`` (yok / süresi dolmuş / bozuk).
 
     ``postings`` yalnızca çıkarım parmak izi tutuyorsa doldurulur. Tutmuyorsa
     ham kayıtlar döner ve çağıran taraf yeniden normalize eder — yeniden
     **çekim** yapmadan.
+
+    ``accept_stale_logic=True`` (yalnızca açılış yolu, D-055): parmak izleri
+    tutmasa bile ne varsa döner ve ``stale_logic=True`` işaretler.
+
+    **Neden gerekti:** parmak izi eşleşmediğinde ``None`` dönmek, açılışta
+    (``stale_ok``) ağa çıkılmadığı için korpusu **sıfır** bırakıyordu. Yani
+    ingest/adapter/registry dosyalarına dokunan ya da Jooble anahtarı ekleyen
+    HER dağıtım, arka plan tazelemesi bitene kadar (~6 dk) siteyi **boş**
+    gösteriyordu — canlıda tam olarak bu yaşandı. Eski mantıkla işlenmiş
+    ilanları birkaç dakika göstermek, hiç ilan göstermemekten iyidir; tazeleme
+    zaten üzerine yazar ve ``stale_logic`` bayrağı durumu ``/api/health``'te
+    görünür kılar (D-036'nın "sessiz bayatlık olmasın" kuralı korunur).
     """
     if not path.is_file():
         return None
@@ -171,20 +184,26 @@ def read(path: Path, max_age_hours: float) -> dict | None:
 
     # Çekim mantığı değiştiyse ham kayıtlar da geçersizdir: adapter artık
     # farklı bir alan okuyor olabilir ve eski kayıtlarda o alan yok.
-    if blob.get("fetch_fingerprint") != fetch_fingerprint():
+    fresh_fetch = blob.get("fetch_fingerprint") == fetch_fingerprint()
+    if not fresh_fetch and not accept_stale_logic:
         return None
 
     fresh_logic = blob.get("extraction_fingerprint") == extraction_fingerprint()
     try:
         raws = [RawPosting(**r) for r in blob["raws"]]
+        # Parmak izi eskiyse işlenmiş kayıtlar yine de kullanılır (yalnızca
+        # açılışta): yeniden çıkarım ~35 sn sürer ve açılışı o kadar geciktirmek
+        # bu yolun varlık sebebine aykırı.
         postings = (
             [_posting_from_dict(p) for p in blob.get("postings", [])]
-            if fresh_logic and blob.get("postings") else None
+            if (fresh_logic or accept_stale_logic) and blob.get("postings") else None
         )
     except Exception:
         return None
 
-    return {"raws": raws, "postings": postings, "meta": blob.get("meta", {})}
+    return {"raws": raws, "postings": postings,
+            "stale_logic": not (fresh_fetch and fresh_logic),
+            "meta": blob.get("meta", {})}
 
 
 def write(path: Path, *, raws: list[RawPosting],

@@ -184,3 +184,82 @@ def test_new_board_invalidates_raw_cache(tmp_path, monkeypatch):
     from isuygun_ingest import cache
 
     assert "registry.py" in cache._FETCH_FILES
+
+
+# ---------------------------------------------------------------------------
+# D-055 — dağıtım korpusu sıfırlamamalı
+# ---------------------------------------------------------------------------
+
+
+def test_stale_logic_cache_is_used_at_startup(tmp_path, monkeypatch):
+    """Parmak izi eşleşmese bile açılış yolu ne varsa kullanmalı.
+
+    Regresyon (canlıda yaşandı): ingest koduna dokunan bir dağıtımdan sonra
+    `fetch_fingerprint` değişiyor, `read()` None dönüyor ve açılışta
+    (`stale_ok`) ağa çıkılmadığı için korpus **0 ilan** kalıyordu. Site
+    "0 taranan ilan" gösterdi. Eski mantıkla işlenmiş ilanları birkaç dakika
+    göstermek, hiç ilan göstermemekten iyidir.
+    """
+    from isuygun_ingest import cache
+    from isuygun_ingest.pipeline import RawPosting
+
+    path = tmp_path / "c.json"
+    raw = RawPosting(source_id="src-fixture-001", source_posting_ref="r",
+                     url="https://e.invalid/x", title="T", employer="E", city="C")
+    cache.write(path, raws=[raw], postings=[], meta={})
+
+    monkeypatch.setattr(cache, "fetch_fingerprint", lambda: "degisti")
+    assert cache.read(path, 24) is None, "normal yolda davranış değişmemeli"
+
+    got = cache.read(path, 24, accept_stale_logic=True)
+    assert got is not None, "açılış yolu boş dönmemeli — korpus sıfırlanır"
+    assert got["raws"], "ham kayıtlar kullanılabilmeli"
+    assert got["stale_logic"] is True, "durum işaretlenmeli, sessiz kalmamalı"
+
+
+def test_fresh_cache_is_not_flagged_stale(tmp_path):
+    """Parmak izleri tutuyorsa `stale_logic` False olmalı — yanlış alarm
+    kullanıcıyı olmayan bir soruna baktırır."""
+    from isuygun_ingest import cache
+    from isuygun_ingest.pipeline import RawPosting
+
+    path = tmp_path / "c.json"
+    raw = RawPosting(source_id="src-fixture-001", source_posting_ref="r",
+                     url="https://e.invalid/x", title="T", employer="E", city="C")
+    cache.write(path, raws=[raw], postings=[], meta={})
+
+    for got in (cache.read(path, 24), cache.read(path, 24, accept_stale_logic=True)):
+        assert got is not None
+        assert got["stale_logic"] is False
+
+
+def test_startup_does_not_empty_corpus_after_logic_change(tmp_path, monkeypatch):
+    """Uçtan uca: mantık değişti + açılış yolu → korpus DOLU kalmalı.
+
+    Ağa çıkılmaz: çekim uçları sahtelenir (gerçek ATS panolarına gitmek hem
+    yavaş hem de testi uzak sunucunun o anki içeriğine bağımlı yapar).
+    """
+    from isuygun_ingest import cache, pipeline
+
+    sahte = [
+        pipeline.RawPosting(
+            source_id="src-fixture-001", source_posting_ref=f"r{i}",
+            url=f"https://e.invalid/is/{i}", title=f"Depo Görevlisi {i}",
+            employer="Test A.Ş.", city="İstanbul",
+            description="Aranan şartlar: forklift ehliyeti, vardiyalı çalışma.")
+        for i in range(3)
+    ]
+    monkeypatch.setattr(pipeline, "_fetch_all_boards", lambda b: (list(sahte), [], []))
+    monkeypatch.setattr(pipeline, "_fetch_api_sources", lambda: ([], [], []))
+    monkeypatch.setattr(pipeline, "_cache_path", lambda: tmp_path / "c.json")
+
+    ilk = pipeline.run_live_ingest(force_refresh=True)
+    assert ilk["canonical"] == 3, "test ön koşulu: ilk çalıştırma ilan üretmeli"
+
+    # Dağıtım taklidi: çekim mantığı değişti → parmak izi tutmaz.
+    monkeypatch.setattr(cache, "fetch_fingerprint", lambda: "yeni-surum")
+    sonra = pipeline.run_live_ingest(stale_ok=True)
+
+    assert sonra["canonical"] == 3, \
+        "dağıtımdan sonra açılışta korpus boşaldı (canlıda yaşanan hata)"
+    assert sonra["stale_logic"] is True, "eski mantık kullanıldığı görünmeli"

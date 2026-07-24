@@ -697,9 +697,15 @@ def run_live_ingest(
     # Amaç, açılışta siteyi anında ayağa kaldırmak: eski cache hemen servis
     # edilir, tazeleme arka planda yapılır (D-047). Yaşı geçmiş cache "yok"
     # sayılıp yeniden çekilirse site dakikalarca kapalı kalıyordu.
+    #
+    # ``accept_stale_logic``: açılışta parmak izi eşleşmese de ne varsa kullan
+    # (D-055). Aksi hâlde ingest koduna dokunan her dağıtım korpusu SIFIRLIYOR;
+    # canlıda bu yaşandı ve site "0 ilan" gösterdi.
     effective_hours = 1e12 if stale_ok else cache_hours
-    cached = None if force_refresh else _cache.read(path, effective_hours)
+    cached = None if force_refresh else _cache.read(
+        path, effective_hours, accept_stale_logic=stale_ok)
     from_cache = cached is not None
+    stale_logic = bool(cached and cached.get("stale_logic"))
     # Çıkarım mantığı değişmişse işlenmiş kayıtlar geçersizdir; ham kayıtlar
     # yine de kullanılır — yeniden **çekim** gerekmez, yalnızca yeniden çıkarım.
     reused_extraction = bool(cached and cached["postings"])
@@ -747,6 +753,10 @@ def run_live_ingest(
         "errors": errors,
         "from_cache": from_cache,
         "reused_extraction": reused_extraction,
+        # Açılışta eski mantıkla işlenmiş önbellek kullanıldı mı (D-055).
+        # Sessiz kalmaz: arayüz/health bunu gösterir, arka plan tazelemesi
+        # bitince kendiliğinden False'a döner.
+        "stale_logic": stale_logic,
         "fetched": fetched_total,
         "stale_dropped": stale_dropped,
         "max_age_days": max_age_days,
