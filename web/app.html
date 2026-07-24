@@ -315,6 +315,10 @@ a{color:var(--ph); text-decoration:none}
   font-size:12.5px; color:var(--ph)}
 .fact .yr{font-family:var(--mono); font-size:10.5px; opacity:.7}
 .fact .x{color:var(--ink-3); cursor:pointer} .fact .x:hover{color:var(--bad)}
+.fact .vf{font-family:var(--mono); font-size:9.5px; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; padding:3px 8px;
+  border:1px solid var(--warn); color:var(--warn)}
+.fact .vf:hover{background:var(--warn-soft)}
 
 /* bölüm başlığı */
 .sec-h{display:flex; align-items:center; gap:14px; margin:30px 0 14px}
@@ -485,7 +489,10 @@ const S={profiles:[], catalog:[], feed:null, view:"load",
   f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
   /* profil paneli: null | "profile". `cv` son yükleme raporu; `unlock`
      "şunu eklersen ≈N ilan" önerileri (null = hesaplanıyor). */
-  panel:null, profile:null, cv:null, unlock:null};
+  panel:null, profile:null, cv:null, unlock:null,
+  /* Sunucu aramasının sonucu (Set<job_id>) — null: arama yok ya da cevap
+     henüz gelmedi. Gelene kadar istemci taraması geçici sonuç gösterir. */
+  searchIds:null};
 
 /* Kıdem merdiveni — sıra bilgi taşır (giriş → tepe), alfabetik değil.
    Etiketler kullanıcı dilinde; anahtarlar API'nin ürettiği değerler. */
@@ -608,8 +615,15 @@ function obStep(step){
   if(step==="region"){
     const regions=(S.feed?.facets?.regions||[]).map(r=>r.name).filter(n=>RCODE[n]);
     const base=regions.length?regions:["Türkiye","Avrupa","ABD","Uzaktan"];
-    const cities=(S.feed?.facets?.cities||[])
-      .filter(c=>/İstanbul|Istanbul|Ankara|İzmir|Bursa|Kocaeli|Antalya|Gebze/i.test(c)).slice(0,8);
+    /* İl grupları ilan sayısına göre (D-056). Ham `facets.cities` listesi
+       burada "Ankara, Akyurt" gibi ilçe dizeleri ve boş değer gösteriyordu —
+       kullanıcı testinde yakalandı. Feed yoksa (ilk kullanıcı) şehir adımı
+       zaten gizli kalır; uydurma sabit liste basmayız. */
+    const _cc=new Map();
+    [...(S.feed?.evaluated||[]),...(S.feed?.unevaluated||[])].forEach(j=>{
+      if((j.regions||[]).includes("Türkiye")&&j.city_group)
+        _cc.set(j.city_group,(_cc.get(j.city_group)||0)+1);});
+    const cities=[..._cc.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([c])=>c);
     return `
     <span class="tag-l">// konum</span>
     <h1>Nerede iş arıyorsun?</h1>
@@ -622,8 +636,7 @@ function obStep(step){
       <div style="margin-top:20px"><span class="tag-l">şehir — isteğe bağlı</span>
       <div class="pick flow" style="margin-top:10px">
         <button class="pick-chip ${o.city===''?'sel':''}" data-city="">TÜMÜ</button>
-        ${cities.map(c=>{const nm=c.split(',')[0].split('/')[0].trim();
-          return `<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}">${esc(nm.toUpperCase())}</button>`}).join('')}
+        ${cities.map(c=>`<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}">${esc(c.toUpperCase())}</button>`).join('')}
       </div></div>`:''}
     <div class="ob-actions">
       <button class="btn-ghost" data-back="1">← geri</button>
@@ -741,12 +754,42 @@ function matches(j){
   if(!axisOk(j.work_arrangement,S.f.arr)) return false;
   if(!axisOk(j.employment_type,S.f.emp)) return false;
   if(S.f.longOpen && !j.long_open) return false;
+  return queryOk(j);
+}
+/* Arama SUNUCUDA yapılır (D-058). İstemci taraması yalnızca başlık+işveren+
+   şehir+ilk 4 şartı görüyordu ve ölçüm acımasızdı: "python" istemcide 9,
+   sunucuda 694; "excel" 20'ye karşı 2173. Üstelik istemci Türkçe katlama
+   yapmıyordu: "sofor" 0 bulurken "şoför" 87 buluyordu — kullanıcıların çoğu
+   aksansız yazar. Sunucu tarafı (/api/search) tam metinde arar ve katlamalıdır:
+   "sofor"="şoför"=143. Cevap gelene kadarki ~200 ms'de istemci taraması geçici
+   sonuç gösterir — boş ekran parlamasın diye. */
+function queryOk(j){
+  if(!S.q.trim()) return true;
+  if(S.searchIds) return S.searchIds.has(j.job_id);
   return textMatch(j);
 }
 function textMatch(j){
   if(!S.q) return true;
   const hay=(j.title+" "+j.employer+" "+j.city+" "+(j.top_requirements||[]).join(" ")).toLowerCase();
   return S.q.toLowerCase().split(/\s+/).every(w=>hay.includes(w));
+}
+let _qTimer=null, _qSeq=0;
+function scheduleSearch(){
+  const term=S.q.trim();
+  clearTimeout(_qTimer);
+  if(!term){ S.searchIds=null; return; }
+  const seq=++_qSeq;
+  _qTimer=setTimeout(async()=>{
+    try{
+      const r=await api("/search?q="+encodeURIComponent(term));
+      if(seq!==_qSeq) return;   // kullanıcı yazmaya devam etti; bayat cevap
+      S.searchIds=new Set(r.job_ids);
+      const el=$("#q"), pos=el?.selectionStart;
+      repaint();
+      const n=$("#q");
+      if(n && document.activeElement!==n){ n.focus(); n.setSelectionRange(pos??n.value.length,pos??n.value.length); }
+    }catch(e){ /* sunucu cevap vermezse istemci taraması devrede kalır */ }
+  },220);
 }
 const activeFilterCount=()=>
   (S.f.level?1:0)+(S.f.arr?1:0)+(S.f.emp?1:0)+(S.f.city?1:0)+(S.f.longOpen?1:0);
@@ -769,7 +812,7 @@ function facetCounts(){
              longOpen:0, cityUnspec:0};
   const bak=j=>{
     if(S.region && !(j.regions||[]).includes(S.region)) return;
-    if(!textMatch(j)) return;
+    if(!queryOk(j)) return;
     const okL=axisOk(j.experience_level,S.f.level);
     const okA=axisOk(j.work_arrangement,S.f.arr);
     const okE=axisOk(j.employment_type,S.f.emp);
@@ -980,7 +1023,9 @@ function wireFeed(){
     catch(err){ alert(err.message); }
   });
   $("[data-new]")&&($("[data-new]").onclick=startOnboarding);
-  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; resetPaging(); const c=q.selectionStart;
+  const q=$("#q"); if(q) q.oninput=()=>{S.q=q.value; resetPaging();
+    S.searchIds=null;    // eski sorgunun sonucu yeni harfe uygulanmasın
+    scheduleSearch(); const c=q.selectionStart;
     repaint(); const n=$("#q"); if(n){n.focus(); n.setSelectionRange(c,c);}};
   document.querySelectorAll("[data-region]").forEach(el=>el.onclick=()=>{
     /* Bölge değişince şehir seçimi düşer: "Türkiye + Berlin" boş liste verirdi
@@ -1086,8 +1131,17 @@ function panelBody(){
       </div>`).join(''):''}
 
     ${dh(`profilindeki beceriler [${facts.length}]`)}
+    ${facts.some(f=>!f.counts_as_present&&f.verification!=="verified")?`
+      <div class="notice" style="margin-bottom:11px">Belge isteyen alanlar (ehliyet,
+        SRC, psikoteknik…) <b>doğrulanmadan</b> eşleşmede "karşılanıyor" sayılmaz —
+        ilan onları <b>bilinmeyen</b> olarak görür. Şimdilik doğrulama bir beyandır
+        (belge yükleme akışı henüz yok, bunu açıkça söylüyoruz); yine de doğrularsan
+        eşleşmeler buna göre hesaplanır.</div>`:''}
     ${facts.length?`<div>${facts.map(f=>`<span class="fact">
         ${esc(f.label)}${f.years!=null?`<span class="yr">${f.years} YIL</span>`:''}
+        ${f.verification==="verified"?`<span class="yr">✓</span>`
+          :(!f.counts_as_present?`<button class="vf" data-verify="${esc(f.key)}"
+             title="Doğrulama şimdilik beyandır — belge yükleme akışı henüz yok">doğrula</button>`:'')}
         <span class="x" data-rm="${esc(f.key)}">×</span></span>`).join('')}</div>`
       :`<p style="color:var(--ink-3); font-size:13px">Henüz beceri yok. CV yükle
          ya da <b>yeni profil</b> akışındaki beceri matrisinden seç.</p>`}
@@ -1143,6 +1197,13 @@ function wirePanel(){
       S.profile=await api(`/profile/facts/${encodeURIComponent(b.dataset.rm)}`,{method:"DELETE"});
       await refreshAfterProfileChange();
     }catch(e){ alert(e.message); }
+  });
+  document.querySelectorAll("[data-verify]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true; b.textContent="…";
+    try{
+      S.profile=await jpost(`/profile/facts/${encodeURIComponent(b.dataset.verify)}/verify`);
+      await refreshAfterProfileChange();
+    }catch(e){ alert(e.message); paintPanel(); }
   });
   document.querySelectorAll("[data-unlock]").forEach(b=>b.onclick=async()=>{
     b.disabled=true; b.textContent="…";
@@ -1207,7 +1268,9 @@ function detailBody(j){
   const bc=j.band?('b-'+j.band):'';
   const lit=GAUGE[j.band]||0;
   const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span>
-    <div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}</div></div>`;
+    <div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}
+    ${x.action_label?`<button class="btn-2" data-openpanel="1"
+      style="margin-top:7px; padding:5px 11px; font-size:10px">${esc(x.action_label)} →</button>`:''}</div></div>`;
   const fair=(j.fairness_flags||[]);
   const dh=t=>`<div class="dhead"><span class="t">// ${t}</span><span class="ln"></span></div>`;
   return `<button class="detail-close" onclick="closeDetail()">×</button>
@@ -1239,6 +1302,10 @@ function descHTML(t){
 function wireDetail(){
   const t=$("#descToggle"); if(t) t.onclick=()=>{const d=$("#desc"); d.classList.toggle("open");
     t.textContent=d.classList.contains("open")?"daha az göster ▴":"tamamını göster ▾";};
+  /* "Belgeyi doğrula" eylem etiketi profil paneline götürür — doğrulama orada,
+     bağlamıyla (D-012 notu) birlikte yapılır. */
+  document.querySelectorAll("#detail [data-openpanel]").forEach(b=>b.onclick=()=>{
+    closeDetail(); openProfilePanel();});
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape") closeDetail();});
 
