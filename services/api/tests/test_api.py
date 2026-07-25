@@ -850,10 +850,13 @@ def test_legacy_surface_gated_when_classic_off(client, monkeypatch):
         assert client.get("/api/profiles").status_code == 404
         assert client.get("/api/feed").status_code == 404
         assert client.get("/classic").status_code == 404
-        assert client.post("/api/jobs/evaluate",
-                           json={"text": "x" * 50}).status_code == 404
         # durumsuz yüzey çalışmaya devam eder
         assert client.post("/api/feed", json={"profile": {"facts": []}}).status_code == 200
+        # D-061: yapıştırma ucu artık kapıda DEĞİL — durumsuz hâle geldiği için
+        # classic kapalıyken de çalışması gerekiyor (özellik kaybı düzeltmesi).
+        assert client.post("/api/jobs/evaluate",
+                           json={"text": "x" * 50}).status_code == 200
+        assert client.get("/api/sources").status_code == 200
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 200
     finally:
@@ -935,3 +938,82 @@ def test_feed_facets_follow_other_filters(client):
         "filters": {"region": "Türkiye", "level": lvl}}).json()
     assert combo["evaluated_total"] + combo["unevaluated_total"] == n, \
         f"rozet {lvl}={n} dedi, gelen {combo['evaluated_total']+combo['unevaluated_total']}"
+
+
+# ---------------------------------------------------------------------------
+# D-061 — ilan yapıştır durumsuz + kaynak şeffaflığı
+# ---------------------------------------------------------------------------
+
+_PASTE = ("Agir vasita soforu araniyor. C+E sinifi ehliyet ve SRC belgesi "
+          "sarttir. En az 5 yil agir vasita deneyimi gereklidir. Istanbul "
+          "merkezli calisma, vardiyali sistem.")
+
+
+def test_pasted_job_uses_payload_profile(client):
+    """Yapıştırılan ilan, GÖVDEDE gelen profile göre değerlendirilir (D-061).
+
+    Sunucudaki global profil kullanılmaz — /classic üretimde kapalı olduğu için
+    bu uç durumsuz hâle geldi; profilsiz istekte de kimsenin izini taşımamalı.
+    """
+    bos = client.post("/api/jobs/evaluate", json={
+        "text": _PASTE, "profile": {"facts": []}}).json()
+    assert bos["met"] == [], "boş profilde karşılanan şart olmamalı"
+
+    dolu = client.post("/api/jobs/evaluate", json={
+        "text": _PASTE,
+        "profile": {"facts": [{"key": "heavy_driving", "years": 6},
+                              {"key": "license_ce", "verified": True},
+                              {"key": "src", "verified": True}]}}).json()
+    assert dolu["met"], "sürücü profili şart karşılamalı"
+    assert dolu["band"] is not None
+    # Sunucuda iz kalmadı
+    assert STORE.profile.facts == ()
+
+
+def test_pasted_job_is_not_added_to_corpus(client):
+    """Yapıştırılan metin korpusa karışmaz (veri hijyeni + kaynak izni)."""
+    before = len(STORE.postings)
+    client.post("/api/jobs/evaluate", json={
+        "text": _PASTE, "profile": {"facts": []}})
+    assert len(STORE.postings) == before
+    assert "pasted" not in STORE.postings
+
+
+def test_pasted_job_endpoint_open_without_classic(client, monkeypatch):
+    """Yapıştırma ucu classic kapalıyken de ÇALIŞIR.
+
+    Regresyon: D-059'da /classic kapatılınca bu uç da kapıya takılmıştı ve
+    "ilan yapıştır" özelliği kullanıcıdan tamamen koptu.
+    """
+    monkeypatch.delenv("ISUYGUN_CLASSIC", raising=False)
+    try:
+        r = client.post("/api/jobs/evaluate", json={
+            "text": _PASTE, "profile": {"facts": [{"key": "heavy_driving", "years": 6}]}})
+        assert r.status_code == 200, r.text
+        assert r.json()["met"], "profil gövdeden gelmeli"
+        # profil verilmezse: global profilin izi SIZMAMALI
+        STORE.set_fact("heavy_driving", years=9)
+        try:
+            anon = client.post("/api/jobs/evaluate", json={"text": _PASTE}).json()
+            assert anon["met"] == [], \
+                "classic kapalıyken profilsiz istek global profili kullanmamalı"
+        finally:
+            STORE.reset_profile()
+    finally:
+        monkeypatch.setenv("ISUYGUN_CLASSIC", "1")
+
+
+def test_sources_endpoint_exposes_permission_evidence(client):
+    """Kaynak şeffaflığı: her kayıt izin/risk/durum taşımalı, reddedilenler
+    görünür olmalı (LinkedIn/Indeed iddiası denetlenebilsin)."""
+    src = client.get("/api/sources").json()
+    assert src, "kaynak listesi boş olamaz"
+    for s in src:
+        assert s["scraping_permission"] in ("allowed", "conditional", "rejected", "unknown")
+        assert "may_fetch_network" in s
+    red = [s for s in src if s["scraping_permission"] == "rejected"]
+    adlar = " ".join(s["name"] for s in red).lower()
+    assert "linkedin" in adlar and "indeed" in adlar, \
+        "reddedilen kaynaklar listede açıkça görünmeli"
+    assert all(not s["may_fetch_network"] for s in red), \
+        "reddedilen kaynak için ağ çekimi ASLA açık olmamalı"

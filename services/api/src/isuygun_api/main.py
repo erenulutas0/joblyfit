@@ -141,10 +141,13 @@ app = FastAPI(
 #: Sunucu-profilli eski yüzeyin uçları (D-059). Ortak tek profile okuyup
 #: yazarlar; ziyaretçi izolasyonu olmadığı için üretimde kapatılırlar.
 #: (yöntem, yol-öneki) çiftleri; None = her yöntem.
+#: NOT: ``/api/jobs/evaluate`` bu listede DEĞİL (D-061). Durumsuz hâle geldi:
+#: profil gövdede gelir, gelmezse boş profille değerlendirir. Kapalı tutmak
+#: "ilan yapıştır" özelliğini kullanıcıdan koparıyordu — /classic üretimde
+#: kapandığı için özellik erişilemez hâle gelmişti.
 _LEGACY_RULES: tuple[tuple[str | None, str], ...] = (
     (None, "/api/profile"),      # /api/profile, /api/profile/*, /api/profiles*
     ("GET", "/api/feed"),        # global profille feed
-    ("POST", "/api/jobs/evaluate"),
     (None, "/classic"),
 )
 
@@ -336,6 +339,10 @@ class PastedJobIn(BaseModel):
     employer: str = ""
     city: str = ""
     url: str = ""
+    #: Geçici profil (D-061). Verilirse değerlendirme buna göre yapılır ve
+    #: sunucuda saklanmaz; verilmezse classic'in global profili kullanılır
+    #: (yalnız ISUYGUN_CLASSIC açıkken — kapalıyken boş profil).
+    profile: ProfilePayload | None = None
 
 
 class SourceOut(BaseModel):
@@ -1062,7 +1069,14 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
         source="Yapıştırılan ilan",
         requirements=reqs,
     )
-    result = match(job, STORE.profile, calibrated_occupation=False)
+    # Profil gövdeden gelir (D-061). Gelmezse: classic açıkken global profil,
+    # kapalıyken BOŞ — paylaşılan profilin izini yapıştırma sonucunda
+    # göstermek, D-059'da kapattığımız sızıntının başka bir kapısı olurdu.
+    if body.profile is not None:
+        profile = _profile_from_payload(body.profile)
+    else:
+        profile = STORE.profile if _classic_enabled() else CareerProfile(profile_id="anon")
+    result = match(job, profile, calibrated_occupation=False)
     exp = build_explanation(result)
 
     posting = SimpleNamespace(job=job, url=body.url.strip(), posted_at=None,

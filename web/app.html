@@ -343,6 +343,45 @@ a{color:var(--ph); text-decoration:none}
   letter-spacing:.08em; text-transform:uppercase; padding:5px 0}
 .apx:hover{color:var(--bad)}
 
+/* ==================== üst bar gezinme düğmeleri ==================== */
+.navb{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.1em;
+  padding:8px 11px; border:1px solid transparent; color:var(--ink-3)}
+.navb:hover{color:var(--ink); border-color:var(--line-2)}
+.navb.on{color:var(--ph); border-color:var(--ph-line); background:var(--ph-soft)}
+
+/* ==================== ilan yapıştır ==================== */
+.pgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:16px}
+.pgrid .wide{grid-column:1/-1}
+@media(max-width:660px){.pgrid{grid-template-columns:1fr}}
+.pin{background:var(--panel); border:1px solid var(--line-2); padding:11px 13px;
+  font-size:13.5px; color:var(--ink)}
+.pin:focus{outline:none; border-color:var(--ph-line)}
+.ptext{width:100%; margin-top:9px; background:var(--panel); border:1px solid var(--line-2);
+  padding:13px 15px; font-family:var(--sans); font-size:14px; line-height:1.6;
+  color:var(--ink); resize:vertical}
+.ptext:focus{outline:none; border-color:var(--ph-line)}
+.pcard{background:var(--panel); border:1px solid var(--line);
+  border-left:2px solid var(--line-2); padding:18px 20px}
+.pcard.b-strong{border-left-color:var(--good)} .pcard.b-good{border-left-color:var(--mid)}
+.pcard.b-cond{border-left-color:var(--warn)} .pcard.b-weak{border-left-color:var(--bad)}
+
+/* ==================== kaynaklar ==================== */
+.srow{background:var(--panel); border:1px solid var(--line); padding:15px 17px;
+  margin-bottom:9px}
+.stop{display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+  flex-wrap:wrap}
+.sflags{display:flex; flex-wrap:wrap; gap:6px}
+.pill.perm-allowed{background:var(--good-soft); color:var(--good)}
+.pill.perm-conditional{background:var(--warn-soft); color:var(--warn)}
+.pill.perm-rejected{background:var(--bad-soft); color:var(--bad)}
+.pill.perm-unknown{background:var(--panel-2); color:var(--ink-3)}
+.pill.net-on{background:var(--ph-soft); color:var(--ph)}
+.pill.net-off{background:var(--panel-2); color:var(--ink-4)}
+.snote{font-size:13px; color:var(--ink-2); line-height:1.55; margin-top:9px}
+.sev{font-size:12.5px; color:var(--ink-3); line-height:1.55; margin-top:8px;
+  padding-left:11px; border-left:2px solid var(--line-2)}
+.lnk{color:var(--ph); text-decoration:underline; font:inherit; padding:0}
+
 /* bölüm başlığı */
 .sec-h{display:flex; align-items:center; gap:14px; margin:30px 0 14px}
 .sec-h .t{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.16em;
@@ -510,7 +549,9 @@ const S={profiles:[], catalog:[], feed:null, view:"load",
   f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
   /* profil paneli: null | "profile". `cv` son yükleme raporu; `unlock`
      "şunu eklersen ≈N ilan" önerileri (null = hesaplanıyor). */
-  panel:null, profile:null, cv:null, unlock:null};
+  panel:null, profile:null, cv:null, unlock:null,
+  /* İlan yapıştır sonucu ve kaynak listesi (null = henüz istenmedi). */
+  paste:null, sources:null};
 
 /* Kıdem merdiveni — sıra bilgi taşır (giriş → tepe), alfabetik değil.
    Etiketler kullanıcı dilinde; anahtarlar API'nin ürettiği değerler. */
@@ -637,6 +678,14 @@ function render(){
     root.innerHTML=topbar()+`<main class="wrap feed">${viewApps()}</main>`+detailMarkup();
     wireApps(); wireTopbar(); return;
   }
+  if(S.view==="paste"){
+    root.innerHTML=topbar()+`<main class="wrap feed">${viewPaste()}</main>`+detailMarkup();
+    wirePaste(); wireTopbar(); return;
+  }
+  if(S.view==="sources"){
+    root.innerHTML=topbar()+`<main class="wrap feed">${viewSources()}</main>`+detailMarkup();
+    wireSources(); wireTopbar(); return;
+  }
   root.innerHTML=topbar()+`<main class="wrap feed">${viewFeed()}</main>`+detailMarkup();
   wireFeed();
 }
@@ -648,6 +697,10 @@ function topbar(){
     <div class="sysline"><span class="sysdot"></span>
       <span class="tag-l">tarama <b>aktif</b></span></div>
     <div class="grow"></div>
+    ${p?`<button class="navb ${S.view==='paste'?'on':''}" id="pasteBtn"
+      title="Başka bir sitede gördüğün ilanın metnini değerlendir">İLAN YAPIŞTIR</button>
+    <button class="navb ${S.view==='sources'?'on':''}" id="srcBtn"
+      title="Hangi kaynaklardan ilan çekiyoruz, hangi izinle">KAYNAKLAR</button>`:''}
     ${p?`<button class="btn-2 ${S.view==='apps'?'on':''}" id="appsBtn"
       style="padding:8px 14px; font-size:11px${S.view==='apps'?'; border-color:var(--ph-line); color:var(--ph)':''}">
       BAŞVURULARIM${APPS.length?` <b style="opacity:.6">${APPS.length}</b>`:''}
@@ -1097,6 +1150,11 @@ function wireTopbar(){
   $("#cvBtn")&&($("#cvBtn").onclick=openProfilePanel);
   $("#appsBtn")&&($("#appsBtn").onclick=()=>{
     S.view=(S.view==="apps")?"feed":"apps"; render();});
+  $("#pasteBtn")&&($("#pasteBtn").onclick=()=>{
+    S.view=(S.view==="paste")?"feed":"paste"; render();});
+  $("#srcBtn")&&($("#srcBtn").onclick=()=>{
+    S.view=(S.view==="sources")?"feed":"sources"; render();
+    if(S.view==="sources"&&!S.sources) loadSources();});
 }
 
 function wireFeed(){
@@ -1384,6 +1442,145 @@ function wireApps(){
     if(!confirm("Bu başvuru kaydı silinsin mi?")) return;
     APPS=APPS.filter(x=>x.id!==b.dataset.apdel); apSave(); render();
   });
+}
+
+/* ---------------- ilan yapıştır (D-061) ----------------
+   LinkedIn/Indeed gibi çekemediğimiz kaynaklardaki ilanı da değerlendirmenin
+   TEK meşru yolu: metni kullanıcı getirir. Sunucu o adrese istek atmaz, metin
+   saklanmaz, korpusa karışmaz — kaynak izni ve veri hijyeni gereği. */
+function viewPaste(){
+  const j=S.paste;
+  return `
+    <div class="sec-h"><span class="t">// ilan yapıştır</span><span class="ln"></span></div>
+    <div class="notice">Başka bir sitede — <b>LinkedIn dahil</b> — bir ilan gördüysen
+      metnini buraya yapıştır; korpustaki ilanlarla <b>aynı</b> değerlendirmeden geçer.
+      <b>Sunucu o adrese hiçbir istek atmaz</b>, içeriği sen getirirsin. Yapıştırdığın
+      metin <b>saklanmaz</b> ve ilan listesine eklenmez.</div>
+
+    <div class="pgrid">
+      <input id="pjTitle" class="pin" placeholder="Pozisyon (boşsa metnin ilk satırı alınır)">
+      <input id="pjEmp" class="pin" placeholder="Şirket (isteğe bağlı)">
+      <input id="pjCity" class="pin" placeholder="Şehir (isteğe bağlı)">
+      <input id="pjUrl" class="pin wide" placeholder="İlanın adresi — yalnızca geri dönebilmen için, çekilmez">
+    </div>
+    <textarea id="pjText" class="ptext" rows="12"
+      placeholder="İlanın tamamını buraya yapıştır (en az 40 karakter)…"></textarea>
+    <div class="dact" style="margin-top:12px">
+      <button class="btn" id="pjGo">DEĞERLENDİR</button>
+      <span class="tag-l" id="pjHint">profilin: ${activeProfile()?.fact_count||0} beceri</span>
+    </div>
+    <div id="pjOut" style="margin-top:20px">${j?pasteVerdict(j):''}</div>`;
+}
+
+/* Yapıştırılan ilanın kararı — feed kartıyla AYNI dili kullanır (bant, defter,
+   adalet uyarısı). Ayrı bir "yapıştırma dili" uydurmak iki anlatının zamanla
+   sapması demekti. */
+function pasteVerdict(j){
+  const lit=GAUGE[j.band]||0;
+  const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span>
+    <div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}</div></div>`;
+  const dh=t=>`<div class="dhead"><span class="t">// ${t}</span><span class="ln"></span></div>`;
+  return `<div class="pcard ${j.band?'b-'+j.band:'b-none'}">
+    <div class="dband ${j.band?'b-'+j.band:''}">
+      ${j.band?`<span class="gauge">${[1,2,3,4].map(i=>`<i class="${i<=lit?'on':''}"></i>`).join('')}</span>`:''}
+      <span class="bl">${esc(j.band_label||'Değerlendirilemedi')}${j.confidence_label?' · GÜVEN: '+esc(j.confidence_label.toUpperCase()):''}</span>
+    </div>
+    <h3 style="font-family:var(--disp); font-size:17px; margin-top:12px">${esc(j.title)}</h3>
+    <div class="emp">${esc(j.employer)}${j.city?' · '+esc(j.city):''}${j.salary_text?' · '+esc(j.salary_text):''}</div>
+    ${j.worth_applying?`<div class="notice" style="margin-top:14px; border-left-color:var(--ph)">${esc(j.worth_applying)}</div>`:''}
+    ${j.met?.length?dh(`karşıladıkların [${j.met.length}]`)+`<div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
+    ${j.unmet?.length?dh(`karşılamadıkların [${j.unmet.length}]`)+`<div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}
+    ${j.unknown?.length?dh(`bilinmeyenler [${j.unknown.length}]`)+`<div class="ledger">${j.unknown.map(x=>line(x,'unk','?')).join('')}</div>`:''}
+    ${(j.fairness_flags||[]).length?dh("adalet uyarısı")+
+      (j.fairness_flags||[]).map(fl=>`<div class="notice" style="border-left-color:var(--bad)">
+        ${esc(fl.note)}${fl.evidence?`<div class="ev">"${esc(fl.evidence)}"</div>`:''}</div>`).join(''):''}
+    ${j.insufficient_data_note?`<div class="notice" style="margin-top:12px">${esc(j.insufficient_data_note)}</div>`:''}
+    <div class="tag-l" style="margin-top:14px">${esc(j.disclaimer||'')}</div>
+  </div>`;
+}
+
+function wirePaste(){
+  const go=$("#pjGo"), out=$("#pjOut");
+  if(!go) return;
+  go.onclick=async()=>{
+    const text=($("#pjText").value||"").trim();
+    if(text.length<40){
+      out.innerHTML=`<div class="notice" style="border-left-color:var(--warn)">
+        İlan metni çok kısa — değerlendirme için en az <b>40 karakter</b> gerekiyor.</div>`;
+      return;
+    }
+    go.disabled=true; go.textContent="DEĞERLENDİRİLİYOR…";
+    out.innerHTML=`<div class="load" style="min-height:auto;padding:40px 0"><div class="radar"></div></div>`;
+    try{
+      /* Profil gövdede gider (D-061): sunucuda saklanmaz, yalnız bu
+         değerlendirmede kullanılır. */
+      S.paste=await jpost("/jobs/evaluate",{text,
+        title:$("#pjTitle").value, employer:$("#pjEmp").value,
+        city:$("#pjCity").value, url:$("#pjUrl").value,
+        profile:profilePayload()});
+      out.innerHTML=pasteVerdict(S.paste);
+    }catch(e){
+      out.innerHTML=`<div class="notice" style="border-left-color:var(--bad)">
+        <b>Değerlendirilemedi:</b> ${esc(e.message)}</div>`;
+    }finally{ const g=$("#pjGo"); if(g){g.disabled=false; g.textContent="DEĞERLENDİR";} }
+  };
+}
+
+/* ---------------- kaynaklar (D-061) ----------------
+   Şeffaflık sayfası: hangi kaynak, hangi izinle, hangi kanıtla. Bu ürünün
+   iddiası "yalnızca izni kanıtlanmış kaynaklardan çekiyoruz" — iddiayı
+   denetlenebilir kılmayan bir ürün onu yalnızca söylemiş olur. */
+async function loadSources(){
+  try{ S.sources=await api("/sources"); }catch(e){ S.sources=[]; }
+  if(S.view==="sources") render();
+}
+const PERM_TR={allowed:"İZİNLİ", conditional:"ŞARTLI", rejected:"REDDEDİLDİ",
+  unknown:"BİLİNMİYOR"};
+function viewSources(){
+  const list=S.sources;
+  if(list===null) return `<div class="load"><div class="radar"></div><span>kaynaklar yükleniyor</span></div>`;
+  const aktif=list.filter(s=>s.may_fetch_network).length;
+  const red=list.filter(s=>s.scraping_permission==="rejected");
+  return `
+    <div class="console"><div class="console-row">
+      <div class="stat"><div class="n">${list.length}</div><div class="l tag-l">kayıtlı kaynak</div></div>
+      <div class="stat"><div class="n ph">${aktif}</div><div class="l tag-l">çekim açık</div></div>
+      <div class="stat"><div class="n" style="color:var(--bad)">${red.length}</div><div class="l tag-l">reddedilmiş</div></div>
+    </div></div>
+
+    <div class="notice">İlanlar yalnızca <b>izni kaynağın kendi yayınında kanıtlanmış</b>
+      uçlardan çekilir. Bunlar şirketlerin kariyer sayfası kurabilmesi için yayınladığı,
+      kimlik doğrulaması istemeyen public API'lerdir; amaçlanan kullanım kullanıcıyı
+      ilanın <b>kendi sayfasına</b> göndermektir — biz de öyle yapıyoruz.</div>
+
+    <div class="notice" style="border-left-color:var(--bad); margin-top:11px">
+      <b>LinkedIn ve Indeed çekilmiyor, çekilmeyecek.</b> LinkedIn'in okuma API'si yok
+      ve robots.txt'i otomatik erişimi açıkça yasaklıyor; Indeed'in publisher API'si
+      kapatıldı. <b>Bunları aşmanın yolu aranmıyor.</b> Orada gördüğün bir ilanı
+      değerlendirmek istersen <button class="lnk" data-goto="paste">metnini yapıştır</button> —
+      içeriği sen getirirsin, sunucu o adrese istek atmaz.</div>
+
+    <div class="sec-h"><span class="t">// kaynak kaydı</span><span class="ln"></span></div>
+    ${list.map(s=>`<article class="srow">
+      <div class="stop">
+        <div><b>${esc(s.name)}</b><div class="tag-l">${esc(s.source_id)} · ${esc(s.access_method)}</div></div>
+        <div class="sflags">
+          <span class="pill perm-${esc(s.scraping_permission)}">${PERM_TR[s.scraping_permission]||esc(s.scraping_permission)}</span>
+          <span class="pill">RİSK: ${esc(s.policy_risk.toUpperCase())}</span>
+          <span class="pill">${esc(s.status.toUpperCase())}</span>
+          <span class="pill ${s.may_fetch_network?'net-on':'net-off'}">${s.may_fetch_network?'ÇEKİM AÇIK':'ÇEKİM KAPALI'}</span>
+        </div>
+      </div>
+      ${s.note?`<div class="snote">${esc(s.note)}</div>`:''}
+      ${s.permission_evidence?`<div class="sev"><b>İzin kanıtı:</b> ${esc(s.permission_evidence)}</div>`:''}
+      ${s.attribution_required||s.redistribution_policy?`<div class="tag-l" style="margin-top:7px">
+        ${s.attribution_required?'ATIF ZORUNLU':''}${s.attribution_required&&s.redistribution_policy?' · ':''}${s.redistribution_policy?esc(s.redistribution_policy.toUpperCase()):''}
+      </div>`:''}
+    </article>`).join('')}`;
+}
+function wireSources(){
+  document.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{
+    S.view=b.dataset.goto; render();});
 }
 
 /* ---------------- detay ---------------- */
