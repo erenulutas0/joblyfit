@@ -267,6 +267,8 @@ class JobDetail(JobSummary):
     verification_notice: str | None = None
     listing_only_note: str | None = None
     insufficient_data_note: str | None = None
+    #: Kıdem tavanı bandı düşürdüyse gerekçesi (D-063).
+    seniority_note: str | None = None
     disclaimer: str
 
 
@@ -1056,6 +1058,7 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
     veri hijyeni hem de kaynak izni açısından gereklidir — o metnin nereden
     geldiğini ve yeniden yayınlanabilir olup olmadığını biz bilemeyiz.
     """
+    from isuygun_ingest import jobmeta
     from isuygun_ingest.extract import extract_requirements, infer_occupation
 
     title = body.title.strip() or _first_line(body.text)
@@ -1068,6 +1071,10 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
         occupation_id=infer_occupation(title, reqs),
         source="Yapıştırılan ilan",
         requirements=reqs,
+        # Yapıştırılan ilan da kıdem tavanına girer (D-063): korpustaki ilanla
+        # aynı hattan geçmesi gerekiyor, yoksa iki değerlendirme sapar.
+        experience_level=jobmeta.detect(
+            title=title, city=body.city, description=body.text).experience_level,
     )
     # Profil gövdeden gelir (D-061). Gelmezse: classic açıkken global profil,
     # kapalıyken BOŞ — paylaşılan profilin izini yapıştırma sonucunda
@@ -1091,6 +1098,7 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
         verification_notice=exp.verification_notice,
         listing_only_note=exp.listing_only_note,
         insufficient_data_note=exp.insufficient_data_note,
+        seniority_note=exp.seniority_note,
         disclaimer=exp.disclaimer,
     )
 
@@ -1532,6 +1540,7 @@ def _detail_for(job_id: str, profile: CareerProfile) -> JobDetail:
         verification_notice=exp.verification_notice,
         listing_only_note=exp.listing_only_note,
         insufficient_data_note=exp.insufficient_data_note,
+        seniority_note=exp.seniority_note,
         disclaimer=exp.disclaimer,
     )
 

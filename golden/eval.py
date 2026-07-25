@@ -78,6 +78,8 @@ def _job(d: dict) -> JobPosting:
         job_id=d["job_id"], title=d["title"], employer=d["employer"],
         city=d["city"], occupation_id=d["occupation_id"],
         source="golden", is_public_sector=False,
+        # Kıdem tavanı (D-063) buna bakar; taşınmazsa düzeltme ölçülemez.
+        experience_level=d.get("experience_level"),
         # `extraction_confidence` ve `is_legal_eligibility` MUTLAKA taşınır:
         # ilki düşük güvenli çıkarımın hard eleme yapmasını engeller (FS-4),
         # ikincisi şartı skordan çıkarır (D-013). Varsayılana bırakıldığında

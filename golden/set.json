@@ -122,7 +122,8 @@
       "is_legal_eligibility": false,
       "source_span": "dagitim"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -161,7 +162,8 @@
       "is_legal_eligibility": false,
       "source_span": "psikoteknik"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -200,7 +202,8 @@
       "is_legal_eligibility": false,
       "source_span": "psikoteknik"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -249,7 +252,8 @@
       "is_legal_eligibility": false,
       "source_span": "sevkiyat"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -278,7 +282,8 @@
       "is_legal_eligibility": false,
       "source_span": "kraftfahrer"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -307,7 +312,8 @@
       "is_legal_eligibility": false,
       "source_span": "berufskraftfahrer"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -336,7 +342,8 @@
       "is_legal_eligibility": false,
       "source_span": "truck driver"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -365,7 +372,8 @@
       "is_legal_eligibility": false,
       "source_span": "kraftfahrer"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -394,7 +402,8 @@
       "is_legal_eligibility": false,
       "source_span": "berufskraftfahrer"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -423,7 +432,8 @@
       "is_legal_eligibility": false,
       "source_span": "customer service"
      }
-    ]
+    ],
+    "experience_level": "executive"
    },
    "etiket": {
     "ilgili": false,
@@ -482,7 +492,8 @@
       "is_legal_eligibility": false,
       "source_span": "yuksek lisans"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": false,
@@ -601,7 +612,8 @@
       "is_legal_eligibility": false,
       "source_span": "git"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": false,
@@ -640,7 +652,8 @@
       "is_legal_eligibility": false,
       "source_span": "roadmap"
      }
-    ]
+    ],
+    "experience_level": "executive"
    },
    "etiket": {
     "ilgili": false,
@@ -769,7 +782,8 @@
       "is_legal_eligibility": false,
       "source_span": "bachelor"
      }
-    ]
+    ],
+    "experience_level": "lead"
    },
    "etiket": {
     "ilgili": true,
@@ -878,7 +892,8 @@
       "is_legal_eligibility": false,
       "source_span": "bachelor"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1017,7 +1032,8 @@
       "is_legal_eligibility": false,
       "source_span": "spark"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1116,7 +1132,8 @@
       "is_legal_eligibility": false,
       "source_span": "agile"
      }
-    ]
+    ],
+    "experience_level": "mid"
    },
    "etiket": {
     "ilgili": true,
@@ -1195,7 +1212,8 @@
       "is_legal_eligibility": false,
       "source_span": "bachelor"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1304,7 +1322,8 @@
       "is_legal_eligibility": false,
       "source_span": "github"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1383,7 +1402,8 @@
       "is_legal_eligibility": false,
       "source_span": "dbt"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1462,7 +1482,8 @@
       "is_legal_eligibility": false,
       "source_span": "roadmap"
      }
-    ]
+    ],
+    "experience_level": "lead"
    },
    "etiket": {
     "ilgili": true,
@@ -1541,7 +1562,8 @@
       "is_legal_eligibility": false,
       "source_span": "english"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -1600,7 +1622,8 @@
       "is_legal_eligibility": false,
       "source_span": "etl"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1689,7 +1712,8 @@
       "is_legal_eligibility": false,
       "source_span": "export"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1768,7 +1792,8 @@
       "is_legal_eligibility": false,
       "source_span": "master's"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -1907,7 +1932,8 @@
       "is_legal_eligibility": false,
       "source_span": "export"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2026,7 +2052,8 @@
       "is_legal_eligibility": false,
       "source_span": "english"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2135,7 +2162,8 @@
       "is_legal_eligibility": false,
       "source_span": "chef"
      }
-    ]
+    ],
+    "experience_level": "architect"
    },
    "etiket": {
     "ilgili": true,
@@ -2264,7 +2292,8 @@
       "is_legal_eligibility": false,
       "source_span": "payroll"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2353,7 +2382,8 @@
       "is_legal_eligibility": false,
       "source_span": "export"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2422,7 +2452,8 @@
       "is_legal_eligibility": false,
       "source_span": "github"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -2531,7 +2562,8 @@
       "is_legal_eligibility": false,
       "source_span": "ci/cd"
      }
-    ]
+    ],
+    "experience_level": "mid"
    },
    "etiket": {
     "ilgili": true,
@@ -2640,7 +2672,8 @@
       "is_legal_eligibility": false,
       "source_span": "roadmap"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2729,7 +2762,8 @@
       "is_legal_eligibility": false,
       "source_span": "master's"
      }
-    ]
+    ],
+    "experience_level": null
    },
    "etiket": {
     "ilgili": true,
@@ -2858,7 +2892,8 @@
       "is_legal_eligibility": false,
       "source_span": "german"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -2977,7 +3012,8 @@
       "is_legal_eligibility": false,
       "source_span": "salesforce"
      }
-    ]
+    ],
+    "experience_level": "senior"
    },
    "etiket": {
     "ilgili": true,
@@ -3036,7 +3072,8 @@
       "is_legal_eligibility": false,
       "source_span": "export"
      }
-    ]
+    ],
+    "experience_level": "lead"
    },
    "etiket": {
     "ilgili": true,

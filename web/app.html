@@ -1475,6 +1475,15 @@ function viewPaste(){
 /* Yapıştırılan ilanın kararı — feed kartıyla AYNI dili kullanır (bant, defter,
    adalet uyarısı). Ayrı bir "yapıştırma dili" uydurmak iki anlatının zamanla
    sapması demekti. */
+/* Kıdem tavanı notu (D-063). Bandın neden yükselmediğini söylemeyen bir tavan
+   sessiz bir cezadır; kullanıcı gerekçeyi görmeli. Sunucu `**vurgu**` yollar,
+   `rich()` yalnızca onu kalınlaştırır. */
+function senNote(j){
+  if(!j.seniority_note) return '';
+  return `<div class="notice" style="margin-top:14px; border-left-color:var(--warn)">
+    <b>Kıdem notu:</b> ${rich(j.seniority_note)}</div>`;
+}
+
 function pasteVerdict(j){
   const lit=GAUGE[j.band]||0;
   const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span>
@@ -1487,6 +1496,7 @@ function pasteVerdict(j){
     </div>
     <h3 style="font-family:var(--disp); font-size:17px; margin-top:12px">${esc(j.title)}</h3>
     <div class="emp">${esc(j.employer)}${j.city?' · '+esc(j.city):''}${j.salary_text?' · '+esc(j.salary_text):''}</div>
+    ${senNote(j)}
     ${j.worth_applying?`<div class="notice" style="margin-top:14px; border-left-color:var(--ph)">${esc(j.worth_applying)}</div>`:''}
     ${j.met?.length?dh(`karşıladıkların [${j.met.length}]`)+`<div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
     ${j.unmet?.length?dh(`karşılamadıkların [${j.unmet.length}]`)+`<div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}
@@ -1631,6 +1641,7 @@ function detailBody(j){
             .map(r=>`<button class="fo" data-fbr="${esc(r)}">${esc(r)}</button>`).join('')}
         </div></div>`
       :j.band?`<div class="fbx tag-l">eşleşme geri bildirimin alındı ✓</div>`:''}
+    ${senNote(j)}
     ${j.worth_applying?`<div class="notice" style="margin-top:16px; border-left-color:var(--ph)">${esc(j.worth_applying)}</div>`:''}
     ${j.met?.length?dh(`karşıladıkların [${j.met.length}]`)+`<div class="ledger">${j.met.map(x=>line(x,'met','✓')).join('')}</div>`:''}
     ${j.unmet?.length?dh(`karşılamadıkların [${j.unmet.length}]`)+`<div class="ledger">${j.unmet.map(x=>line(x,'unmet','✕')).join('')}</div>`:''}

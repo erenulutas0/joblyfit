@@ -17,9 +17,13 @@ import pytest
 
 _EVAL = Path(__file__).resolve().parents[3] / "golden" / "eval.py"
 
-#: Ölçülen zemin (2026-07-25, 37 vaka): 18/37 = 0,486.
-#: Kıdem körlüğü düzeltilince bu sayının belirgin düşmesi beklenir.
-ASIRI_IDDIA_ESIGI = 0.49
+#: Ölçülen zemin (2026-07-25, 37 vaka).
+#:   D-062 (kıdem körlüğü varken) : 18/37 = %48,6
+#:   D-063 (kıdem tavanı sonrası) :  8/37 = %21,6  <-- şimdiki
+#: Kalan 8 vaka kıdemden değil: zorunlu şartın bilinmemesi (2), meslek kayması
+#: (2) ve çekirdek becerinin doğrulanmamış olması (4). Sıradaki iyileştirmeler
+#: bunları hedefler ve eşik yine aşağı çekilir.
+ASIRI_IDDIA_ESIGI = 0.22
 
 
 @pytest.fixture(scope="module")

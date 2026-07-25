@@ -65,6 +65,9 @@ class MatchExplanation:
     disclaimer: str = DISCLAIMER
     listing_only_note: str | None = None
     insufficient_data_note: str | None = None
+    #: Kıdem tavanı bandı düşürdüyse gerekçesi (D-063). Sessiz tavan, açıklaması
+    #: olmayan bir cezadır; kullanıcı bandın neden yükselmediğini görmeli.
+    seniority_note: str | None = None
 
 
 CONF_LABEL = {"high": "Yüksek", "medium": "Orta", "low": "Düşük"}
@@ -190,4 +193,5 @@ def build_explanation(result: MatchResult) -> MatchExplanation:
         worth_applying=text,
         worth_applying_rule=rule,
         insufficient_data_note=INSUFFICIENT_DATA_NOTE if result.insufficient_data else None,
+        seniority_note=result.seniority_note,
     )

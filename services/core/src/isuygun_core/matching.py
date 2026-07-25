@@ -44,6 +44,9 @@ class MatchResult:
     # Hiçbir şart değerlendirilemedi → bant üretilmez (D-011).
     insufficient_data: bool = False
     semantic_contribution: float = 0.0
+    #: Kıdem tavanı uygulandıysa gerekçesi (D-063). Kullanıcıya gösterilir:
+    #: bandın neden yükselmediğini söylemeyen bir tavan, sessiz bir cezadır.
+    seniority_note: str | None = None
 
     @property
     def met(self) -> list[RequirementOutcome]:
@@ -120,11 +123,74 @@ def _cap_for(discriminative_assessed: int) -> MatchBand | None:
     return None
 
 
+# D-063 — kıdem tavanı: iddianın gücü, **doğrulanmış kıdemi** aşamaz.
+#
+# D-022'nin aynı mantığı, başka bir eksende. Ölçüm (golden set, 14.504 ilanlık
+# korpus): ilanın kıdem basamağı eşleşmeye HİÇ girmiyordu ve yeni mezun profili
+# (yıl beyanı yok) üst düzey rollerin %16,8'ine strong/good alıyordu — 9 yıllık
+# kıdemlinin oranı %26,2. İki sayının yakınlığı kanıttı: fark yalnızca beceri
+# sayısından geliyordu, kıdemden değil. 49 ilanda yeni mezuna Staff/Senior rolü
+# için "güçlü eşleşme" deniyordu — ürünün önlemek için var olduğu yanlış umut.
+#
+# Eşikler **teamül**dür, ölçülmüş değil; bu yüzden sert eleme yapmazlar.
+_SENIORITY_MIN_YEARS: dict[str, float] = {
+    "mid": 2.0, "senior": 5.0, "lead": 7.0, "architect": 8.0, "executive": 10.0,
+}
+
+#: Kıdem açığı bandı en fazla buraya çeker. **WEAK değil**: adayın
+#: reddedileceğini iddia etmiyoruz (D-019) — yalnızca "güçlü/iyi" diyecek
+#: dayanağımız yok. Kullanıcı ilanı görmeye devam eder, gerekçeyi okur.
+_SENIORITY_CAP = MatchBand.CONDITIONAL
+
+
+def _evidenced_years(profile: CareerProfile) -> float | None:
+    """Profilin beyan ettiği **en yüksek** deneyim yılı.
+
+    Vekil bir ölçüdür: profil "toplam kaç yıl çalıştın" diye sormuyor, alan
+    başına yıl tutuyor. En yükseğini almak kullanıcının lehinedir — kıdemi
+    olduğundan düşük göstermek, tavanı haksız yere indirirdi.
+
+    ``None`` = hiç yıl beyanı yok. Bu "sıfır yıl" DEĞİLDİR (D-011); doğrulanamaz
+    demektir ve tavan da bu yüzden iner.
+    """
+    years = [f.years for f in profile.facts if f.years is not None]
+    return max(years) if years else None
+
+
+def _seniority_cap(job_level: str | None,
+                   profile: CareerProfile) -> tuple[MatchBand | None, str | None]:
+    """Kıdem açığı için bant tavanı ve gerekçesi.
+
+    Yalnızca **üst basamaklar** tavan uygular. `intern`/`junior` rollerde
+    tersine bir uyumsuzluk (fazla niteliklilik) olabilir ama o aşırı iddia
+    değildir — kapsam dışı bırakıldı, uydurma bir ceza eklemek istemedik.
+    """
+    need = _SENIORITY_MIN_YEARS.get(job_level or "")
+    if need is None:
+        return None, None            # kıdem belirtilmemiş → tavan yok (D-011)
+    have = _evidenced_years(profile)
+    if have is None:
+        return _SENIORITY_CAP, (
+            f"İlan {job_level} düzeyinde bir rol; bu genellikle {need:.0f}+ yıl "
+            f"deneyim ister. Profilinde **yıl bilgisi yok**, bu yüzden kıdem "
+            f"şartını doğrulayamıyoruz — eşleşme şartlı sayılır."
+        )
+    if have < need:
+        return _SENIORITY_CAP, (
+            f"İlan {job_level} düzeyinde bir rol ({need:.0f}+ yıl beklenir); "
+            f"profilinde beyan edilen en yüksek deneyim {have:.0f} yıl. "
+            f"Bu seni **eler demiyoruz** — yalnızca güçlü eşleşme diyecek "
+            f"dayanağımız yok."
+        )
+    return None, None
+
+
 def _band(
     score: float,
     has_blocking_unmet: bool,
     has_pending_verification: bool,
     discriminative_assessed: int,
+    seniority_cap: MatchBand | None = None,
 ) -> MatchBand:
     if has_blocking_unmet:
         # Hard şart karşılanmıyorsa hiçbir koşulda "güçlü" denmez (FR-402).
@@ -142,9 +208,11 @@ def _band(
     else:
         band = MatchBand.WEAK
 
-    cap = _cap_for(discriminative_assessed)
-    if cap is not None and _BAND_RANK[band] > _BAND_RANK[cap]:
-        return cap
+    # Tavanların **en düşüğü** uygulanır: kanıt miktarı (D-022) ve kıdem
+    # (D-063) bağımsız kısıtlardır, biri diğerini gevşetemez.
+    for cap in (_cap_for(discriminative_assessed), seniority_cap):
+        if cap is not None and _BAND_RANK[band] > _BAND_RANK[cap]:
+            band = cap
     return band
 
 
@@ -239,10 +307,16 @@ def match(
         for o in outcomes
     )
 
+    sen_cap, sen_note = _seniority_cap(job.experience_level, profile)
+    band = _band(score, has_blocking, pending_verify, discriminative_assessed,
+                 seniority_cap=sen_cap)
     return MatchResult(
         job=job,
         outcomes=outcomes,
-        band=_band(score, has_blocking, pending_verify, discriminative_assessed),
+        band=band,
         confidence=_confidence(coverage, unknown_count, calibrated_occupation),
         semantic_contribution=sem,
+        # Not yalnızca tavan GERÇEKTEN bandı düşürdüyse anlamlıdır: skor zaten
+        # "şartlı" veriyorsa kıdemden söz etmek yanıltıcı olurdu.
+        seniority_note=sen_note if (sen_cap is not None and band == sen_cap) else None,
     )

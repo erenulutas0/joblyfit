@@ -30,8 +30,14 @@ from .fairness import FairnessFlag
 from .salary import Salary
 
 #: Parmak izine giren dosyalar — çıkarım sonucunu belirleyen her şey.
+#:
+#: ``pipeline.py`` de buradadır (D-063): işlenmiş kaydı **kuran** yer
+#: ``normalize()``'dır. Yokluğu latent bir tuzaktı ve gerçekten patladı:
+#: ``JobPosting.experience_level`` eklendiğinde parmak izi değişmediği için
+#: önbellekteki kayıtlar kıdemsiz kalıyor, kıdem tavanı sessizce uygulanmıyordu.
+#: Kural netleşti: **işlenmiş kaydın içeriğini belirleyen her dosya** girer.
 _LOGIC_FILES = ("lexicon.py", "extract.py", "salary.py", "jobmeta.py",
-                "fairness.py")
+                "fairness.py", "pipeline.py")
 
 #: **Çekim** mantığını belirleyen dosyalar. Ayrı bir parmak izi gerekir çünkü
 #: bunlar değiştiğinde ham kayıtların kendisi geçersizleşir; yeniden normalize
@@ -98,6 +104,8 @@ def extraction_fingerprint() -> str:
 
 
 def _posting_to_dict(p: NormalizedPosting) -> dict:
+    # ``asdict`` job'un TÜM alanlarını alır (experience_level dahil, D-063);
+    # okuma tarafı ise alanları tek tek kurduğu için orada eklemek şart.
     return {
         "job": {**asdict(p.job),
                 "requirements": [asdict(r) for r in p.job.requirements]},
@@ -128,6 +136,11 @@ def _posting_from_dict(d: dict) -> NormalizedPosting:
             city=job["city"], occupation_id=job["occupation_id"], source=job["source"],
             requirements=tuple(Requirement(**r) for r in job["requirements"]),
             is_public_sector=job["is_public_sector"],
+            # D-063: kıdem eşleşmeyi etkiler. Burada okunmazsa önbellekten
+            # gelen ilanlar kıdemsiz görünür ve kıdem tavanı **sessizce
+            # uygulanmaz** — dağıtımdan sonra düzeltme hiç devreye girmezdi.
+            # Golden set sadakat denetimi bunu 11 sapmayla yakaladı.
+            experience_level=job.get("experience_level"),
         ),
         employer_key=d["employer_key"], title_key=d["title_key"],
         city_key=d["city_key"], content_fingerprint=d["content_fingerprint"],

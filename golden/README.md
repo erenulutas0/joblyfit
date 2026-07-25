@@ -23,7 +23,19 @@ sözünü bozmuş olur — %90 isabet bunu telafi etmez.
 | `set.json` | 3 persona + 37 **donmuş** ilan anlık kopyası + elle etiket |
 | `eval.py` | Ölçüm aracı: `python golden/eval.py` (veya `--json`) |
 | `verify_fidelity.py` | Donmuş kopya canlı hattın bandını üretiyor mu? |
+| `patch_field.py` | Donmuş vakalara yeni alan ekler — **job_id ile eşleyerek** |
 | `../services/core/tests/test_golden.py` | CI korkuluğu — eşik aşılırsa kırmızı |
+
+## ⚠ Golden set'i ASLA yeniden örneklemeyin
+
+Örnekleme, sistemin **ürettiği banda** göre tabakalıdır. Eşleştirici
+değişince örnek yeniden dizilir ve **indeks bazlı etiketler başka ilanlara
+yapışır**. Bu gerçekten oldu: kıdem tavanı eklendikten sonra yeniden
+örneklemede 5 vakanın etiketi yanlış ilana bağlandı ve ölçüm geçersiz bir
+sonuç üretti (fark yalnızca hizalama denetimiyle görüldü).
+
+Kural: **set bir kez donar.** Yeni bir alan gerekiyorsa `patch_field.py`
+kullanılır — o, vakaları `job_id` ile eşler, sırayla değil.
 
 ## Neden donmuş anlık kopya
 
@@ -62,25 +74,41 @@ Uygulanan yargılar:
 
 ## Ölçülen zemin (2026-07-25, 37 vaka)
 
-```
-AŞIRI İDDİA        : 18  (%48,6)   <-- birincil
-alakasıza bant     :  0
-eksik iddia        :  0
-tam isabet         : %51,3
-komşu isabet (±1)  : %78,4
-```
+| Ölçü | D-062 (kıdem körü) | D-063 (kıdem tavanı) |
+|---|---|---|
+| **AŞIRI İDDİA** | 18 — **%48,6** | 8 — **%21,6** |
+| alakasıza bant | 0 | 0 |
+| eksik iddia | 0 | 1 |
+| tam isabet | %51,3 | **%75,7** |
+| komşu isabet (±1) | %78,4 | **%94,6** |
 
 **Kök neden — kıdem körlüğü.** `match()` yalnızca `requirements` ve
-`is_public_sector` okur; ilanın `experience_level`'ı eşleşmeye **hiç girmez**.
-Ölçüm (14.504 ilanlık korpus):
+`is_public_sector` okuyordu; ilanın `experience_level`'ı eşleşmeye **hiç
+girmiyordu**. Ölçüm (14.504 ilanlık korpus):
 
 | Profil | Bantlanan | Üst düzey role `strong`/`good` |
 |---|---|---|
 | Yeni mezun (yıl beyanı yok) | 1.474 | **247 (%16,8)** — 49'u `strong` |
 | 9 yıllık kıdemli | 1.766 | 463 (%26,2) |
 
-Yeni mezunun oranı gerçek kıdemliye yakın; kıdem hesaba girseydi neredeyse
-sıfır olmalıydı. Aradaki fark yalnızca beceri sayısından geliyor.
+Yeni mezunun oranı gerçek kıdemliye yakındı; kıdem hesaba girseydi neredeyse
+sıfır olmalıydı. Aradaki fark yalnızca beceri sayısından geliyordu.
+
+**Düzeltme sonrası (canlı doğrulama, `level=senior` filtresiyle aynı ilanlar):**
+
+| Profil | Bant dağılımı |
+|---|---|
+| Yeni mezun (yıl yok) | `cond: 40` — hiç `strong`/`good` yok, gerekçe notu var |
+| 9 yıllık kıdemli | `strong: 23`, `good: 17` |
+
+### Kalan 8 aşırı iddia (kıdemden değil)
+
+* 4 vaka — çekirdek beceri **doğrulanmamış** (ML rolünde ML bilinmiyor)
+* 2 vaka — **zorunlu** şart bilinmiyor (yüksek lisans, Almanca)
+* 2 vaka — **meslek kayması** (satış/partner ve program yöneticiliği rolleri
+  devops profiline "güçlü" görünüyor)
+
+Sıradaki iyileştirmeler bunları hedefler; eşik yine aşağı çekilir.
 
 ## Sınırlar — dürüstçe
 

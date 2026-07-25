@@ -154,6 +154,15 @@ class JobPosting:
     source: str
     requirements: tuple[Requirement, ...] = ()
     is_public_sector: bool = False
+    #: İşverenin başlıkta beyan ettiği kıdem basamağı (D-063):
+    #: intern|junior|mid|senior|lead|architect|executive | None(belirtilmemiş).
+    #:
+    #: Çıkarımı ingest yapar (``jobmeta``); burada durur çünkü **eşleşmeyi
+    #: etkiler**: "Senior" bir rol, ilan metninde yazmasa da örtük bir kıdem
+    #: şartıdır. Alan eklenmeden önce eşleşme bunu hiç görmüyordu ve yeni mezun
+    #: profiline Staff/Senior rolleri için "güçlü eşleşme" deniyordu (D-062
+    #: ölçümü: 49 ilan).
+    experience_level: str | None = None
 
 
 # --------------------------------------------------------------------------

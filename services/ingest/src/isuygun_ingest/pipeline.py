@@ -369,6 +369,11 @@ def normalize(raw: RawPosting, *, adapter_version: str) -> NormalizedPosting:
         source=registry.get(raw.source_id).name,
         requirements=reqs,
         is_public_sector=raw.is_public_sector,
+        # Kıdem eşleşmeye girer (D-063): "Senior" bir rol, metinde yazmasa da
+        # örtük bir kıdem şartıdır. `NormalizedPosting.experience_level` filtre
+        # ve rozet için duruyor; burada job'a da geçmesi gerekiyor çünkü
+        # `match()` yalnızca JobPosting görür.
+        experience_level=_meta.experience_level,
     )
     return NormalizedPosting(
         job=job,
