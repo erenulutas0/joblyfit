@@ -193,3 +193,94 @@ def test_uzmanlik_belgesi_dogrulama_kapisina_tabidir():
     assert uzman.category in GATE_RELEVANT_CATEGORIES
     # Temel eğitim sertifikası yasal kapı DEĞİL — kaynakçı olmanın önkoşulu değil.
     assert egitim.category not in GATE_RELEVANT_CATEGORIES
+
+
+# ---------------------------------------------------------------------------
+# Türkçe ek toleransı — ÇIKARIM tarafının koruması
+# ---------------------------------------------------------------------------
+# Golden set şartları DONMUŞ hâlde tutar (`golden/set.json` → `ilan.requirements`),
+# yani eşleştirme kalibrasyonunu ölçer ama çıkarımı HİÇ sınamaz. Sözlükteki bir
+# gerileme oradan sessizce geçer. Buradaki vakalar o boşluğu kapatır.
+#
+# Kök neden: desenler sonda `\b` istiyordu ve Türkçe eklemeli bir dil.
+# Ölçüm (5.930 TR ilanı): hiç şart okunamayan ilan %44 → %24,5.
+
+EKLI_BICIMLER = [
+    ("Matematik Öğretmeni aranıyor", "teaching"),
+    ("Öğretmenlik deneyimi olan", "teaching"),
+    ("Temizlik Görevlileri alınacaktır", "housekeeping"),
+    ("Temizlik Personeli aranıyor", "housekeeping"),
+    ("Mağazada çalışacak eleman", "retail"),
+    ("Aşçısı aranıyor", "cook"),
+    ("Garsonlar alınacak", "waiter"),
+    ("Hemşireler için ilan", "nursing"),
+    ("Kasiyerler alınacak", "retail"),
+    ("Vardiyalı çalışma", "shift_work"),
+    ("Tornacı aranıyor", "cnc"),
+    ("Kuryelik yapabilecek", "courier"),
+    ("Depoda görevlendirilmek üzere", "warehouse"),
+    ("Bordrolama işlemleri", "payroll"),
+    ("Almancası iyi olan", "german"),
+    ("İmalatta deneyimli", "production"),
+]
+
+
+@pytest.mark.parametrize("metin,anahtar", EKLI_BICIMLER)
+def test_turkce_ekli_bicimler_de_bulunur(metin, anahtar):
+    assert anahtar in {h.term.key for h in L.scan(metin)}, \
+        f"ek almış biçim okunamadı: {metin!r} → {anahtar}"
+
+
+#: Ek toleransının ASLA üretmemesi gereken eşleşmeler. Sondaki sınırı tamamen
+#: kaldırmak bunların hepsini yanlış eşleştirirdi; bu yüzden yalnızca gerçek
+#: Türkçe eklerine izin verilir ve 4 harften kısa biçimler katı kalır.
+TEHLIKELI_ESLESMELER = [
+    ("important to note", "foreign_trade"),   # import + "ant" ek DEĞİL
+    ("javascript bilgisi", "java"),           # java + "script"
+    ("komisyon oranı yüksek", "waiter"),      # komi + "syon"
+    ("gitti ve geldi", "git"),                # git + "ti"
+    ("mikrobiyoloji laboratuvarı", "acc_software"),   # mikro + "biyoloji"
+    ("sefer sayısı artacak", "cook"),         # sef + "er"
+    ("Sema Hanım ile görüşün", "digital_marketing"),  # sem + "a" (özel ad)
+    ("sapa bir yerde", "acc_software"),       # sap + "a"
+    ("semt pazarı kurulur", "digital_marketing"),
+    ("etap etap teslim edilecek", "acc_software"),
+]
+
+
+@pytest.mark.parametrize("metin,olmamali", TEHLIKELI_ESLESMELER)
+def test_ek_toleransi_yanlis_eslesme_uretmez(metin, olmamali):
+    assert olmamali not in {h.term.key for h in L.scan(metin)}, \
+        f"ek toleransı yanlış eşleşme üretti: {metin!r} → {olmamali}"
+
+
+def test_govde_uretimi_cok_kisa_govde_uretmez():
+    """"sema" → "sem" ÜRETİLMEZ: Sema özel ad, SEM pazarlama terimi.
+
+    Kısa gövdeye inmek, ek toleransının en büyük riski. Eşik kalkarsa bu test
+    kırılır ve sebebi burada yazılıdır.
+    """
+    assert "sem" not in L._govdeler("sema")
+    assert "sef" not in L._govdeler("sefa")
+    # Yeterince uzun gövdeler ÜRETİLİR.
+    assert "ogretmen" in L._govdeler("ogretmeni")
+    assert "garson" in L._govdeler("garsonlar")
+
+
+def test_genel_satis_tokeni_var():
+    """Ölçümdeki en büyük tek boşluk: "Satış Danışmanı" hiçbir token tutmuyordu.
+
+    Sözlükte yalnızca *saha* ve *B2B* satış vardı; okunamayan TR ilanlarında
+    "satis" 352, "danismani" 187 kez geçiyordu.
+    """
+    for metin in ("Satış Danışmanı", "Satış Temsilcisi aranıyor",
+                  "Mağaza Satış Elemanı", "Satış Uzmanı"):
+        assert "sales" in {h.term.key for h in L.scan(metin)}, metin
+
+
+def test_universite_mezuniyeti_yaygin_ifadeyle_de_bulunur():
+    """Türkiye ilanlarının en yaygın diploma ifadesi tutmuyordu."""
+    for metin in ("Üniversitelerin ilgili bölümlerinden mezun",
+                  "İlgili bölümünden mezun olmak",
+                  "Fakülte mezunu adaylar"):
+        assert "bachelor" in {h.term.key for h in L.scan(metin)}, metin

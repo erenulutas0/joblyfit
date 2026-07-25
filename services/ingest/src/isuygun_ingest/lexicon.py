@@ -45,17 +45,61 @@ class Term:
     asks_years: bool = False         # süre sorulur mu
 
 
-def _compile(form: str) -> re.Pattern[str]:
-    """Kelime sınırına saygılı desen.
+# TÜRKÇE EK TOLERANSI — ölçülmüş bir kök nedenin düzeltmesi.
+#
+# Desenler sonda `\b` istiyordu ve Türkçe eklemeli bir dil olduğu için bu her eki
+# bloke ediyordu. Ölçüm (5.930 TR ilanı): ilanların **%44'ünden hiç şart
+# okunamıyordu**. Örnekler — solda tutan, sağda TUTMAYAN:
+#   "Öğretmen aranıyor" ✓ | "Matematik Öğretmen**i**" ✗
+#   "Temizlik Görevlisi" ✓ | "Temizlik Görevli**leri**" ✗
+#   "Mağaza sorumlusu"  ✓ | "**Mağazada** çalışacak"  ✗
+#   "Aşçı aranıyor"     ✓ | "Aşçı**sı** aranıyor"     ✗
+#
+# Sondaki sınırı tamamen KALDIRMAK çözüm değil: "import" → "important",
+# "java" → "javascript", "komi" → "komisyon" eşleşirdi. Bu yüzden yalnızca
+# GERÇEK Türkçe eklerine izin verilir. Liste folded (ASCII) hâlde yazılır çünkü
+# `fold()` ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c dönüşümünü zaten yapmıştır.
+_TR_EK = (
+    r"(?:l[ae]r|l[iu]k|l[iu]g[iu]|c[iu]l[iu]k|c[iu]l[iu]g[iu]"
+    # -lama/-leme: fiilden isim ("bordrolama", "depolama", "stoklama").
+    r"|l[ae]m[ae]"
+    r"|s[iu]z|l[iu]|c[iu]|[csz][iu]|n[iu]n|y[ae]|d[ae]n|t[ae]n|d[ae]|t[ae]|[iuea])"
+)
+#: En fazla üç ek zinciri: "gorev-li-ler-den" gibi biçimler için yeter.
+_TR_EK_ZINCIR = _TR_EK + r"{0,3}"
+#: Ek toleransı yalnızca bu uzunluktan itibaren uygulanır. 3 harfli biçimler
+#: Türkçe ÖZEL ADLARA çarpıyor: "sem"+"a" = Sema, "sap"+"a" = Sapa,
+#: "sef"+"a" = Sefa. Bu biçimler ("git", "sap", "seo", "sef", "sem"…) katı
+#: kalır; zaten kısa oldukları için ek almadan da geçiyorlar.
+_EK_MIN_UZUNLUK = 4
 
-    Düz ``in`` araması kelime içi eşleşiyordu: "geçerli" içindeki "gece" yüzünden
-    şoför CV'sine gece vardiyası öneriliyordu.
+
+#: Kelimenin SONUNDAKİ tek eki yakalar — gövde üretmek için.
+_EK_SON = re.compile(_TR_EK + r"$")
+
+
+def _govdeler(word: str) -> tuple[str, ...]:
+    """Kelime + Türkçe ekleri soyulmuş gövdeleri (en fazla 3 ek).
+
+    Tek kelimelik biçimler regex'le değil **sözlük aramasıyla** eşleşiyor
+    (100+ deseni 30 MB metne karşı çalıştırmak pahalı olurdu). Sözlük tam
+    eşitlik arar, dolayısıyla "ogretmeni" → "ogretmen" bulunamıyordu. Çözüm
+    ters yönden: metindeki kelimeden gövde üretip sözlüğe bakılır — kelime
+    başına birkaç sözlük araması, regex yok.
+
+    Yanlış gövde üretmek zararsızdır: sözlükte yoksa eşleşme olmaz. Gövdenin
+    ``_EK_MIN_UZUNLUK``tan kısa olması ENGELLENİR — "sema" → "sem" olurdu ve
+    Sema bir özel ad, SEM ise pazarlama terimi.
     """
-    f = fold(form)
-    # "c++" / "c#" gibi terimlerde sondaki \b işe yaramaz — sembolle biterler.
-    tail = r"(?!\w)" if not f[-1].isalnum() else r"\b"
-    head = r"(?<!\w)" if not f[0].isalnum() else r"\b"
-    return re.compile(head + re.escape(f) + tail)
+    out = [word]
+    govde = word
+    for _ in range(3):
+        m = _EK_SON.search(govde)
+        if not m or m.start() < _EK_MIN_UZUNLUK:
+            break
+        govde = govde[: m.start()]
+        out.append(govde)
+    return tuple(out)
 
 
 def T(key, label, category, forms, cluster="genel", asks_years=False) -> Term:
@@ -129,6 +173,15 @@ TERMS: tuple[Term, ...] = (
       ["saha satis", "field sales", "bayi ziyaret", "musteri portfoy"], "Pazarlama ve satış", True),
     T("b2b_sales", "B2B satış", EXPERIENCE,
       ["b2b satis", "b2b sales", "kurumsal satis", "key account"], "Pazarlama ve satış", True),
+    # GENEL SATIŞ — ölçümde en büyük tek boşluk. Okunamayan TR ilanlarında
+    # "satis" 352, "danismani" 187 kez geçiyordu ama sözlükte yalnızca *saha* ve
+    # *B2B* satış vardı: "Satış Danışmanı" başlıklı bir ilan HİÇBİR token
+    # tutmuyordu. Biçimler eksiz gövde: ek toleransı "danismanı",
+    # "temsilcisi", "elemanları" çekimlerini yakalar.
+    T("sales", "Satış / mağaza danışmanlığı", EXPERIENCE,
+      ["satis danisman", "satis temsilcisi", "satis temsilci", "satis eleman",
+       "satis personel", "satis sorumlu", "satis uzman", "sales representative",
+       "sales consultant", "musteri danisman"], "Pazarlama ve satış", True),
     T("retail", "Perakende / mağaza", EXPERIENCE,
       ["magaza", "perakende", "kasiyer", "retail", "reyon",
        "verkaufer", "verkäufer", "einzelhandel", "kassierer"], "Perakende ve hizmet", True),
@@ -247,7 +300,11 @@ TERMS: tuple[Term, ...] = (
       ["garson", "servis elemani", "waiter", "barista", "komi",
        "servicekraft", "kellner", "bedienung"], "Yiyecek ve turizm", True),
     T("housekeeping", "Kat hizmetleri / temizlik", EXPERIENCE,
-      ["kat hizmetleri", "temizlik gorevlisi", "housekeeping",
+      # Biçimler EKSİZ gövde olarak yazılır: "temizlik gorevli" ek toleransıyla
+      # "gorevlisi" ve "gorevlileri"nin ikisini de yakalar. Tam çekimli
+      # ("gorevlisi") yazılırsa yalnızca o tek çekim tutar — ölçümde
+      # "Temizlik Görevlileri" ilanları bu yüzden okunamıyordu.
+      ["kat hizmetleri", "temizlik gorevli", "temizlik personel", "housekeeping",
        "reinigungskraft", "gebäudereiniger", "gebaeudereiniger"], "Yiyecek ve turizm", True),
     T("front_desk", "Ön büro / resepsiyon", EXPERIENCE,
       ["on buro", "resepsiyon", "front desk", "receptionist"], "Yiyecek ve turizm", True),
@@ -270,7 +327,12 @@ TERMS: tuple[Term, ...] = (
 
     # ---- eğitim düzeyi ----
     T("bachelor", "Lisans mezuniyeti", EDUCATION,
-      ["lisans mezunu", "bachelor", "universite mezunu", "bachelor's degree", "4 yillik"], "Eğitim düzeyi"),
+      # "üniversitelerin ilgili bölümlerinden mezun" Türkiye ilanlarının en
+       # yaygın diploma ifadesi (okunamayan ilanlarda "bolumlerinden" 124,
+       # "universitelerin" 181 kez) ve hiçbir biçim onu tutmuyordu.
+      ["lisans mezunu", "bachelor", "universite mezunu", "bachelor's degree", "4 yillik",
+       "bolumlerinden mezun", "bolumunden mezun", "fakulte mezunu",
+       "lisans egitimi", "lisans duzeyinde"], "Eğitim düzeyi"),
     T("highschool", "Lise mezuniyeti", EDUCATION,
       ["lise mezunu", "high school", "meslek lisesi"], "Eğitim düzeyi"),
     T("masters", "Yüksek lisans", EDUCATION, ["yuksek lisans", "master's", "msc", "mba"], "Eğitim düzeyi"),
@@ -311,8 +373,14 @@ def _probe(folded_form: str) -> str | None:
 
 
 def _form_pattern(folded: str) -> re.Pattern[str]:
+    """Çok kelimeli biçimin deseni — sonda Türkçe ek zincirine izin verir.
+
+    "gazalti kaynak" biçimi "gazaltı kaynakçısı" metnini de bulmalı.
+    """
     head = r"\b" if folded[0].isalnum() else r"(?<!\w)"
-    tail = r"\b" if folded[-1].isalnum() else r"(?!\w)"
+    if not folded[-1].isalnum():
+        return re.compile(head + re.escape(folded) + r"(?!\w)")
+    tail = (_TR_EK_ZINCIR if len(folded) >= _EK_MIN_UZUNLUK else "") + r"\b"
     return re.compile(head + re.escape(folded) + tail)
 
 
@@ -364,7 +432,14 @@ def scan(text: str, *, want_years: bool = True) -> list[Hit]:
 
     # 2) Tek kelimelik biçimler: sözlük araması, regex yok.
     for word, pos in where.items():
-        term = _SIMPLE.get(word)
+        # Kelimenin kendisi ve ek soyulmuş gövdeleri denenir (bkz. _govdeler):
+        # "ogretmeni" → "ogretmen". Sözlük tam eşitlik aradığı için eklemeli
+        # her biçim eşleşmeden kaçıyordu.
+        term = None
+        for g in _govdeler(word):
+            term = _SIMPLE.get(g)
+            if term is not None:
+                break
         if term is not None:
             prev = first.get(term.key)
             if prev is None or pos < prev[0]:
