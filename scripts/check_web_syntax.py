@@ -32,7 +32,29 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
-SCRIPT_RE = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+SCRIPT_RE = re.compile(r"<script([^>]*)>(.*?)</script>", re.S)
+_TYPE_RE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]+)""", re.I)
+
+#: JavaScript sayılan `type` değerleri. `<script>` etiketi JS dışında VERİ de
+#: taşır: `application/ld+json` (arama motoru için yapılandırılmış veri),
+#: `text/template` vb. İlk sürüm bunları da Node'a veriyordu ve JSON-LD
+#: eklendiğinde "SyntaxError: Unexpected token ':'" diye YANLIŞ POZİTİF
+#: üretti — geçerli JSON'u bozuk JS sandı.
+_JS_TYPES = {"", "text/javascript", "application/javascript", "module",
+             "text/ecmascript", "application/ecmascript"}
+
+
+def _js_bloklari(kaynak: str) -> list[str]:
+    """Yalnızca gerçekten JavaScript olan inline blokları döndürür."""
+    out: list[str] = []
+    for attrs, gövde in SCRIPT_RE.findall(kaynak):
+        if re.search(r"\bsrc\s*=", attrs, re.I):
+            continue                      # dış dosya — parse edilecek gövde yok
+        m = _TYPE_RE.search(attrs)
+        if (m.group(1).lower() if m else "") not in _JS_TYPES:
+            continue                      # veri bloğu (ld+json, template…)
+        out.append(gövde)
+    return out
 
 #: Bu sayfalarda inline script BULUNMASI zorunlu. Regex bir gün sessizce
 #: eşleşmeyi bırakırsa kontrol "0 blok denetledim, temiz" demesin.
@@ -84,7 +106,7 @@ def main() -> int:
     blok_sayisi: dict[str, int] = {}
     for sayfa in sayfalar:
         etiket = sayfa.relative_to(ROOT).as_posix()
-        bloklar = SCRIPT_RE.findall(sayfa.read_text(encoding="utf-8"))
+        bloklar = _js_bloklari(sayfa.read_text(encoding="utf-8"))
         blok_sayisi[sayfa.name] = len(bloklar)
         for i, kod in enumerate(bloklar, 1):
             mesaj = _parse_hatasi(node, kod, etiket)

@@ -10,6 +10,23 @@
 <meta property="og:title" content="JoblyFit — iş ilanlarını kanıtıyla gösteren iş arama motoru">
 <meta property="og:description" content="Tutan, tutmayan ve bilinmeyen şartları açıkça gösterir. Yüzde yok, olasılık yok.">
 <meta property="og:url" content="https://joblyfit.com/">
+<!-- Kanonik adres: www → apex yönlendirmesi Caddy'de var ama arama motoruna
+     tek doğru adresi burada da söylüyoruz. -->
+<link rel="canonical" href="https://joblyfit.com/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<!-- Marka adının ürünle ilişkilendirilmesi için. "joblyfit" araması yeni bir
+     kelime; Google'ın bunu bir ürün adı olarak tanıması gerekiyor. Uydurma
+     alan YOK: yalnızca doğrulanabilir bilgi (ad, adres, açıklama, dil). -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","@id":"https://joblyfit.com/#org","name":"JoblyFit",
+  "url":"https://joblyfit.com/","inLanguage":"tr-TR",
+  "description":"İş ilanlarının şartlarını profilinle karşılaştırıp tutan, tutmayan ve bilinmeyen şartları açıkça gösteren iş arama motoru."},
+ {"@type":"WebSite","@id":"https://joblyfit.com/#site","name":"JoblyFit",
+  "url":"https://joblyfit.com/","inLanguage":"tr-TR",
+  "publisher":{"@id":"https://joblyfit.com/#org"}}
+]}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">

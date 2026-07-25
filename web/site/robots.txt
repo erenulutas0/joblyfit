@@ -1,0 +1,12 @@
+# joblyfit.com — tarama politikası
+#
+# Kök domain SEO yüzeyidir: içeriği sunucudan gelir, tarayıcı olmadan okunur.
+# Uygulama (app.joblyfit.com) `noindex` işaretlidir çünkü içeriği istemcide
+# oluşur; tarayıcıya boş bir kabuk görünür ve "yükleniyor" yazan bir sonuç
+# kimseye yardım etmez. Orayı ENGELLEMİYORUZ — engellenirse Google `noindex`
+# etiketini de göremez.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://joblyfit.com/sitemap.xml

@@ -5,6 +5,19 @@
 # --- Uygulama: app.joblyfit.com ---
 {$DOMAIN} {
 	encode zstd gzip
+
+	# Uygulama sayfası `noindex` işaretli (bkz. web/app.html): içeriği istemcide
+	# oluşuyor, bota boş kabuk görünüyor. Taramayı burada ENGELLEMİYORUZ —
+	# engellenirse Google `noindex` etiketini de göremez ve sayfa dizinde kalır.
+	# Uygulama Python'dan servis edildiği için robots.txt 404 dönüyordu.
+	handle /robots.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond `User-agent: *
+Allow: /
+Sitemap: https://joblyfit.com/sitemap.xml
+` 200
+	}
+
 	reverse_proxy app:8137
 }
 
