@@ -1266,6 +1266,25 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     profile = _profile_from_payload(body.profile)
     full = _full_feed(profile)
     f = body.filters
+    # Filtre+facet sonucu da LRU'lanır: "daha fazla" tıklamaları ve sayfa
+    # geçişleri aynı filtrelerle gelir; 12,6k satırlık süzme+sayım döngüsünü
+    # (ölçüm: ~230 ms) her dilim için tekrarlamak boşa CPU'ydu.
+    fkey = (STORE.corpus_version, _fingerprint_of(profile),
+            f.q.strip(), f.region, f.city, f.level, f.arrangement,
+            f.employment, f.long_open)
+    cached = _FILTERED_CACHE.get(fkey)
+    if cached is not None:
+        _FILTERED_CACHE.move_to_end(fkey)
+        ev, un, facets, breakdown = cached
+        lim = body.limit
+        return FeedPageOut(
+            evaluated=ev[body.offset_evaluated:body.offset_evaluated + lim],
+            unevaluated=un[body.offset_unevaluated:body.offset_unevaluated + lim],
+            evaluated_total=len(ev), unevaluated_total=len(un),
+            corpus_total=len(full.evaluated) + len(full.unevaluated),
+            profile_is_empty=full.profile_is_empty, ingest=full.ingest,
+            facets=facets, unevaluated_breakdown=breakdown,
+        )
     qids = _qids(f.q)
 
     def base_ok(j: JobSummary) -> bool:
@@ -1332,6 +1351,22 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
         else:
             missing += 1
 
+    facets = {
+        "experience_levels": level_c,
+        "arrangements": arr_c,
+        "employment_types": emp_c,
+        "cities": sorted(city_c.items(), key=lambda kv: (-kv[1], kv[0])),
+        "city_unspecified": city_unspec,
+        "long_open_count": long_open_n,
+        "regions": [{"name": r, "count": region_c[r]}
+                    for r in regions.ALL if region_c.get(r)],
+    }
+    breakdown = {"unreadable": unreadable, "missing_data": missing,
+                 "listing_only": kamu}
+    _FILTERED_CACHE[fkey] = (ev, un, facets, breakdown)
+    while len(_FILTERED_CACHE) > 16:
+        _FILTERED_CACHE.popitem(last=False)
+
     lim = body.limit
     return FeedPageOut(
         evaluated=ev[body.offset_evaluated:body.offset_evaluated + lim],
@@ -1341,21 +1376,12 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
         corpus_total=len(full.evaluated) + len(full.unevaluated),
         profile_is_empty=full.profile_is_empty,
         ingest=full.ingest,
-        facets={
-            "experience_levels": level_c,
-            "arrangements": arr_c,
-            "employment_types": emp_c,
-            "cities": sorted(city_c.items(), key=lambda kv: (-kv[1], kv[0])),
-            "city_unspecified": city_unspec,
-            "long_open_count": long_open_n,
-            "regions": [{"name": r, "count": region_c[r]}
-                        for r in regions.ALL if region_c.get(r)],
-        },
-        unevaluated_breakdown={
-            "unreadable": unreadable, "missing_data": missing,
-            "listing_only": kamu,
-        },
+        facets=facets,
+        unevaluated_breakdown=breakdown,
     )
+
+
+_FILTERED_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
 
 
 def _build_feed(profile: CareerProfile) -> FeedOut:

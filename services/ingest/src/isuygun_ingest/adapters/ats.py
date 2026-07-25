@@ -269,7 +269,14 @@ FETCHERS = {"lever": _lever, "greenhouse": _greenhouse,
 #: Pano başına alınacak en yeni ilan sayısı. Tek bir dev şirketin 780 ilanı
 #: feed'i doldurup diğer 70 işvereni görünmez kılıyordu; sınır çeşitliliği korur.
 #: Kırpma **sessiz değildir** — ingest raporunda `truncated` olarak görünür.
-MAX_PER_BOARD = 40
+#:
+#: 40 → 120 (D-060): eski sınır 14.116 ilanı dışarıda bırakıyordu ve asıl
+#: gerekçesi arayüzdü — tam liste tarayıcıya gidiyordu, tek şirket feed'i
+#: boğuyordu. Sayfalama sunucuya geçince (istemci 40'lık dilim alır, sıralama
+#: bant öncelikli) bu baskı kalktı. ATS API'leri panoyu zaten TEK istekte
+#: komple döndürür; kırpma bizde olur — yani sınırı gevşetmek ek ağ isteği
+#: DEĞİL, yalnızca bellek/işleme maliyetidir (ölçümü commit mesajında).
+MAX_PER_BOARD = 120
 
 
 def fetch_board(board: Board, *, limit: int = MAX_PER_BOARD) -> tuple[list[RawPosting], int]:
