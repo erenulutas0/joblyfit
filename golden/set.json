@@ -1,0 +1,3049 @@
+{
+ "surum": 1,
+ "personas": {
+  "sofor": {
+   "aciklama": "7 yil agir vasita deneyimi; C+E, SRC, psikoteknik DOGRULANMIS",
+   "facts": [
+    {
+     "key": "heavy_driving",
+     "years": 7,
+     "verified": true
+    },
+    {
+     "key": "license_ce",
+     "verified": true
+    },
+    {
+     "key": "src",
+     "verified": true
+    },
+    {
+     "key": "psiko",
+     "verified": true
+    }
+   ]
+  },
+  "yenimezun_yazilim": {
+   "aciklama": "Yeni mezun yazilimci; YIL BEYANI YOK (kidem dogrulanamaz)",
+   "facts": [
+    {
+     "key": "python"
+    },
+    {
+     "key": "sql"
+    },
+    {
+     "key": "software_dev"
+    },
+    {
+     "key": "english"
+    },
+    {
+     "key": "bachelor"
+    }
+   ]
+  },
+  "devops": {
+   "aciklama": "6-9 yil deneyimli platform/devops muhendisi",
+   "facts": [
+    {
+     "key": "docker_k8s",
+     "years": 6
+    },
+    {
+     "key": "cicd",
+     "years": 6
+    },
+    {
+     "key": "cloud",
+     "years": 5
+    },
+    {
+     "key": "python",
+     "years": 8
+    },
+    {
+     "key": "git"
+    },
+    {
+     "key": "english"
+    }
+   ]
+  }
+ },
+ "vakalar": [
+  {
+   "id": "sofor-0",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-jooble:-479602295292131750",
+    "title": "Kamyon Şoförü",
+    "employer": "Tetikoğlu Kimya",
+    "city": "İstanbul, Başakşehir",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "src",
+      "label": "SRC mesleki yeterlilik belgesi",
+      "kind": "hard",
+      "category": "license",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "src"
+     },
+     {
+      "key": "psiko",
+      "label": "Psikoteknik belgesi",
+      "kind": "required",
+      "category": "certificate",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "psikoteknik"
+     },
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "kamyon soforu"
+     },
+     {
+      "key": "courier",
+      "label": "Kurye / dağıtım",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "dagitim"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "strong",
+    "gerekce": "Kamyon soforu; SRC+psiko+agir vasita hepsi karsilandi"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "sofor-1",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-jooble:2858656289457319670",
+    "title": "Şoför",
+    "employer": "Toros Ticaret",
+    "city": "İzmir, Konak",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "src",
+      "label": "SRC mesleki yeterlilik belgesi",
+      "kind": "hard",
+      "category": "license",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "src"
+     },
+     {
+      "key": "psiko",
+      "label": "Psikoteknik belgesi",
+      "kind": "required",
+      "category": "certificate",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "psikoteknik"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Sofor ilani, iki sart da karsilandi; sart sayisi az"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "sofor-2",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-jooble:5623718252874645320",
+    "title": "Şoför",
+    "employer": "Smmm Özdemir Kavas",
+    "city": "İzmir, Kemalpaşa",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "src",
+      "label": "SRC mesleki yeterlilik belgesi",
+      "kind": "hard",
+      "category": "license",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "src"
+     },
+     {
+      "key": "psiko",
+      "label": "Psikoteknik belgesi",
+      "kind": "required",
+      "category": "certificate",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "psikoteknik"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Sofor ilani; SRC+psiko karsilandi"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "sofor-3",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-jooble:2131300245965455522",
+    "title": "Sevkiyat Şoförü",
+    "employer": "Belirtilmemiş",
+    "city": "İzmir, Konak",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "src",
+      "label": "SRC mesleki yeterlilik belgesi",
+      "kind": "hard",
+      "category": "license",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "src"
+     },
+     {
+      "key": "psiko",
+      "label": "Psikoteknik belgesi",
+      "kind": "required",
+      "category": "certificate",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "psikoteknik"
+     },
+     {
+      "key": "warehouse",
+      "label": "Depo / stok",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "sevkiyat"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Sevkiyat soforu; depo sarti bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "sofor-4",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-arbeitsagentur:12117-YF-45842-YF-S",
+    "title": "Kraftfahrer (m/w/d)",
+    "employer": "Grotemeier GmbH & Co. KG",
+    "city": "Bünde Nordrhein-Westfalen Deutschland",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "kraftfahrer"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Almanya suruculuk; tek sart, calisma izni belirsiz"
+   },
+   "olcum_aninda_uretilen": "cond"
+  },
+  {
+   "id": "sofor-5",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-arbeitsagentur:11949-17298743-S",
+    "title": "Berufskraftfahrer/in",
+    "employer": "Stadtgemeinde Judenburg",
+    "city": "Judenburg Steiermark Deutschland",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "berufskraftfahrer"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Avusturya suruculuk; tek sart"
+   },
+   "olcum_aninda_uretilen": "cond"
+  },
+  {
+   "id": "sofor-6",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7778487003",
+    "title": "CDL B Truck Driver",
+    "employer": "Misfits Market",
+    "city": "Chicago, Illinois",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "truck driver"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "ABD CDL; tek sart, CDL ehliyeti TR ehliyetiyle ayni degil"
+   },
+   "olcum_aninda_uretilen": "cond"
+  },
+  {
+   "id": "sofor-7",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-arbeitsagentur:10001-1003359267-S",
+    "title": "Kraftfahrer (m/w/d)",
+    "employer": "Jobs'n'PEOPLE Zeitarbeit GmbH",
+    "city": "Linkenheim-Hochstetten Baden-Württemberg Deutschland",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "kraftfahrer"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Almanya suruculuk; tek sart"
+   },
+   "olcum_aninda_uretilen": "cond"
+  },
+  {
+   "id": "sofor-8",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-arbeitsagentur:13218-220033_2026-S",
+    "title": "Berufskraftfahrer (m/w/d)",
+    "employer": "ZAG Zeitarbeit-Gesellschaft GmbH Halle-kfm.",
+    "city": "Halle (Saale) Sachsen-Anhalt Deutschland",
+    "occupation_id": "Lojistik ve taşımacılık",
+    "requirements": [
+     {
+      "key": "heavy_driving",
+      "label": "Ağır vasıta sürücülüğü",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "berufskraftfahrer"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Almanya suruculuk; tek sart"
+   },
+   "olcum_aninda_uretilen": "cond"
+  },
+  {
+   "id": "sofor-9",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8000900",
+    "title": "Head of Prudential Risk",
+    "employer": "Monzo",
+    "city": "Cardiff, London or Remote (UK)",
+    "occupation_id": "Perakende ve hizmet",
+    "requirements": [
+     {
+      "key": "call_center",
+      "label": "Çağrı merkezi / müşteri hizmetleri",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "customer service"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": false,
+    "en_yuksek_savunulabilir_bant": null,
+    "gerekce": "Risk yoneticiligi -- sofor profiliyle alakasiz"
+   },
+   "olcum_aninda_uretilen": "none"
+  },
+  {
+   "id": "sofor-10",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-api-jooble:-1470208384651962455",
+    "title": "Nakit ve Cari İşlemler Uzmanı",
+    "employer": "OK KARDEŞLER TREYLER SAN. VE TİC.A.Ş.",
+    "city": "Aydın, Aydın Merkez",
+    "occupation_id": "İnsan kaynakları",
+    "requirements": [
+     {
+      "key": "excel",
+      "label": "Excel / ofis programları",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "excel"
+     },
+     {
+      "key": "english",
+      "label": "İngilizce",
+      "kind": "preferred",
+      "category": "language",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "ingilizce"
+     },
+     {
+      "key": "bachelor",
+      "label": "Lisans mezuniyeti",
+      "kind": "preferred",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "lisans mezunu"
+     },
+     {
+      "key": "masters",
+      "label": "Yüksek lisans",
+      "kind": "preferred",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "yuksek lisans"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": false,
+    "en_yuksek_savunulabilir_bant": null,
+    "gerekce": "Nakit/cari uzmani -- alakasiz"
+   },
+   "olcum_aninda_uretilen": "none"
+  },
+  {
+   "id": "sofor-11",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7913123",
+    "title": "Senior Software Engineer, Benefits ",
+    "employer": "Justworks",
+    "city": "New York, New York",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "javascript"
+     },
+     {
+      "key": "go",
+      "label": "Go",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": 5.0,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "golang"
+     },
+     {
+      "key": "ruby",
+      "label": "Ruby",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ruby"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "redis"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "git"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": false,
+    "en_yuksek_savunulabilir_bant": null,
+    "gerekce": "Yazilim muhendisligi -- alakasiz"
+   },
+   "olcum_aninda_uretilen": "none"
+  },
+  {
+   "id": "sofor-12",
+   "persona": "sofor",
+   "ilan": {
+    "job_id": "src-ats-ashby:59bf6fc3-865b-4d2b-954f-ac5961498337",
+    "title": "Head of Customer Success, Mid-Market - Americas",
+    "employer": "Harvey",
+    "city": "New York",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "llm"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": false,
+    "en_yuksek_savunulabilir_bant": null,
+    "gerekce": "Musteri basarisi yoneticisi -- alakasiz"
+   },
+   "olcum_aninda_uretilen": "none"
+  },
+  {
+   "id": "yenimezun_yazilim-13",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8007449",
+    "title": "Senior/Staff Applied Research Software Engineer",
+    "employer": "Twilio",
+    "city": "Remote - India",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "javascript"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "vue_angular",
+      "label": "Vue / Angular",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "angular"
+     },
+     {
+      "key": "node",
+      "label": "Node.js",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "node.js"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "machine learning"
+     },
+     {
+      "key": "bachelor",
+      "label": "Lisans mezuniyeti",
+      "kind": "hard",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "bachelor"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior/Staff rolu; yeni mezun icin kidem sarti dogrulanamaz + 7 bilinmeyen"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-14",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7716377",
+    "title": "Senior Software Engineer",
+    "employer": "Tripadvisor",
+    "city": "Kraków",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "csharp",
+      "label": "C#/.NET",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "c#"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "bachelor",
+      "label": "Lisans mezuniyeti",
+      "kind": "required",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "bachelor"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior rolu; 4 bilinmeyen, kidem dogrulanamaz"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-15",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:4120599009",
+    "title": "Senior Software Engineer, Streaming",
+    "employer": "Attentive",
+    "city": "United States",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "postgres"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "dynamodb"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "machine learning"
+     },
+     {
+      "key": "data_eng",
+      "label": "Veri mühendisliği",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "spark"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior rolu; 9 bilinmeyen"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-16",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7774824003",
+    "title": "Software Engineer II, Messaging Infrastructure",
+    "employer": "Klaviyo",
+    "city": "Dublin, IE",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "mysql"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "redis"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "devops"
+     },
+     {
+      "key": "agile",
+      "label": "Agile / Scrum",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "agile"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "'Engineer II' orta duzey; 5 bilinmeyen"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-17",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7913297",
+    "title": "Senior Software Engineer, Over-the-Air Updates",
+    "employer": "Nuro",
+    "city": "Mountain View, California (HQ)",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "cpp",
+      "label": "C/C++",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "c++"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "gcp"
+     },
+     {
+      "key": "bachelor",
+      "label": "Lisans mezuniyeti",
+      "kind": "required",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "bachelor"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior rolu; C/C++ bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-18",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8617114002",
+    "title": "Senior Software Engineer, Release Infra ",
+    "employer": "Brex",
+    "city": "Seattle, Washington, United States",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "swift_kotlin",
+      "label": "Mobil (Swift/Kotlin)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "kotlin"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "github"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior rolu; 6 bilinmeyen"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "yenimezun_yazilim-19",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7735023003",
+    "title": "Senior Sales Engineer, Commercial",
+    "employer": "Fivetran",
+    "city": "Dublin, Dublin, Ireland, EMEA",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "data_eng",
+      "label": "Veri mühendisliği",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "dbt"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior SATIS muhendisi -- meslek kismen kayiyor + kidem"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "yenimezun_yazilim-20",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8055701",
+    "title": "Staff Software Engineer, API Platform",
+    "employer": "Stripe",
+    "city": "San Francisco, Seattle",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "ruby",
+      "label": "Ruby",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ruby"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Staff seviye; Java/Ruby bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "yenimezun_yazilim-21",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8526793002",
+    "title": "Software Engineer I",
+    "employer": "Duolingo",
+    "city": "Beijing, China",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "swift_kotlin",
+      "label": "Mobil (Swift/Kotlin)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "kotlin"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "data science"
+     },
+     {
+      "key": "english",
+      "label": "İngilizce",
+      "kind": "required",
+      "category": "language",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "english"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "'Software Engineer I' GIRIS seviyesi; python+ingilizce karsilandi"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "yenimezun_yazilim-22",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8070572",
+    "title": "Data Analyst, Financial Data Engineering",
+    "employer": "Stripe",
+    "city": "New York",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "data science"
+     },
+     {
+      "key": "data_eng",
+      "label": "Veri mühendisliği",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "etl"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Veri analisti; python+sql karsilandi, giris duzeyi makul"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "yenimezun_yazilim-23",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8074854",
+    "title": "Senior Software Engineer - Storage Engine - Elasticsearch",
+    "employer": "Elastic",
+    "city": "Ireland",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "postgresql"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "elasticsearch"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "github"
+     },
+     {
+      "key": "excel",
+      "label": "Excel / ofis programları",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "excel"
+     },
+     {
+      "key": "foreign_trade",
+      "label": "Dış ticaret / gümrük",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "export"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Senior storage engine; Java zorunlu ve bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "yenimezun_yazilim-24",
+   "persona": "yenimezun_yazilim",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8052468",
+    "title": "Credit Risk Strategy and Analytics ",
+    "employer": "Stripe",
+    "city": "United States ",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "data science"
+     },
+     {
+      "key": "excel",
+      "label": "Excel / ofis programları",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "excel"
+     },
+     {
+      "key": "bachelor",
+      "label": "Lisans mezuniyeti",
+      "kind": "required",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "bachelor"
+     },
+     {
+      "key": "masters",
+      "label": "Yüksek lisans",
+      "kind": "required",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "master's"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Yuksek lisans sarti bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-67",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8042034",
+    "title": "Senior Machine Learning Engineer",
+    "employer": "Cloudflare",
+    "city": "Hybrid",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "javascript"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "postgres"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "gcp"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "machine learning"
+     },
+     {
+      "key": "data_eng",
+      "label": "Veri mühendisliği",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "airflow"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     },
+     {
+      "key": "foreign_trade",
+      "label": "Dış ticaret / gümrük",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "export"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Senior ML rolu; kidem uygun ama cekirdek ML becerisi bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-68",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7790264003",
+    "title": "Senior Software Engineer - AI & Task Mining",
+    "employer": "Celonis",
+    "city": "Munich, Germany",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "github"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "machine learning"
+     },
+     {
+      "key": "data_eng",
+      "label": "Veri mühendisliği",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "etl"
+     },
+     {
+      "key": "english",
+      "label": "İngilizce",
+      "kind": "required",
+      "category": "language",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "english"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Senior AI rolu; 5 sart karsilandi, ML bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-69",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8015631",
+    "title": "Partner Solutions Architect (GSI) - AMER West",
+    "employer": "Datadog",
+    "city": "California, USA, Remote; Illinois, USA, Remote; Texas, USA, Remote; Washington, USA, Remote",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "javascript"
+     },
+     {
+      "key": "php",
+      "label": "PHP",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "php"
+     },
+     {
+      "key": "ruby",
+      "label": "Ruby",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ruby"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "devops"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "gitlab"
+     },
+     {
+      "key": "cook",
+      "label": "Aşçılık / mutfak",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "chef"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Partner Solutions Architect -- satis/partner rolu, meslek kayiyor"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-70",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7914438",
+    "title": "Senior Software Engineer, Workforce Payments",
+    "employer": "Justworks",
+    "city": "New York, New York",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "javascript"
+     },
+     {
+      "key": "go",
+      "label": "Go",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": 5.0,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "golang"
+     },
+     {
+      "key": "ruby",
+      "label": "Ruby",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ruby"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "redis"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "git"
+     },
+     {
+      "key": "payroll",
+      "label": "Bordro ve özlük",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "payroll"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Go(5y) ve SQL ZORUNLU sartlari bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-71",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8007032",
+    "title": "Senior Data Engineer",
+    "employer": "Cloudflare",
+    "city": "In-Office",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "container"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "google cloud"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "machine learning"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     },
+     {
+      "key": "foreign_trade",
+      "label": "Dış ticaret / gümrük",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "export"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Senior Data Engineer; python+docker+cloud karsilandi"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-72",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8008599",
+    "title": "IT Infrastructure Engineer",
+    "employer": "Tanium",
+    "city": "Addison, TX (Hybrid); Bellevue, WA (Hybrid); Durham, NC (Hybrid); Emeryville, CA (Hybrid); Reston, VA (Hybrid)",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "docker"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "azure"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "hard",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "github"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "strong",
+    "gerekce": "IT Infrastructure Engineer; 5 sartin 5'i karsilandi, bilinmeyen yok"
+   },
+   "olcum_aninda_uretilen": "strong"
+  },
+  {
+   "id": "devops-73",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:6105394004",
+    "title": "Software Engineer, CDN Content",
+    "employer": "Vercel",
+    "city": "Hybrid - San Francisco",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "js"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "next.js"
+     },
+     {
+      "key": "node",
+      "label": "Node.js",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "node.js"
+     },
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "redis"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "CDN icerik muhendisi; tercih edilen sartlar bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-74",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7992597",
+    "title": "Senior Backend Engineer - Connectivity",
+    "employer": "N26",
+    "city": "Berlin, Barcelona",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": 5.0,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "go",
+      "label": "Go",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "golang"
+     },
+     {
+      "key": "swift_kotlin",
+      "label": "Mobil (Swift/Kotlin)",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "kotlin"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Senior backend; kidem uygun, 2 sart karsilandi"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-75",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8039605",
+    "title": "Forward Deployed Engineer",
+    "employer": "Twilio",
+    "city": "Remote - US",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "cloud",
+      "label": "Bulut (AWS/Azure/GCP)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "aws"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     },
+     {
+      "key": "ml",
+      "label": "Makine öğrenmesi / AI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "llm"
+     },
+     {
+      "key": "crm",
+      "label": "CRM kullanımı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "crm"
+     },
+     {
+      "key": "masters",
+      "label": "Yüksek lisans",
+      "kind": "hard",
+      "category": "education",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "master's"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Yuksek lisans ZORUNLU ve bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-76",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:7792246003",
+    "title": "Senior Software Engineer FullStack Kotlin / React - Berlin (f/m/d)",
+    "employer": "Doctolib",
+    "city": "Berlin, Berlin, Germany",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "software_dev",
+      "label": "Yazılım geliştirme",
+      "kind": "required",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "software engineer"
+     },
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "java",
+      "label": "Java",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "java"
+     },
+     {
+      "key": "ruby",
+      "label": "Ruby",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "rails"
+     },
+     {
+      "key": "swift_kotlin",
+      "label": "Mobil (Swift/Kotlin)",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "kotlin"
+     },
+     {
+      "key": "react",
+      "label": "React",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.9,
+      "is_legal_eligibility": false,
+      "source_span": "react"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "ci/cd"
+     },
+     {
+      "key": "agile",
+      "label": "Agile / Scrum",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "agile"
+     },
+     {
+      "key": "english",
+      "label": "İngilizce",
+      "kind": "required",
+      "category": "language",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "english"
+     },
+     {
+      "key": "german",
+      "label": "Almanca",
+      "kind": "required",
+      "category": "language",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "german"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Almanca ZORUNLU ve bilinmiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-77",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8067440",
+    "title": "Senior Technical Program Manager, Services Tools & Diagnostics",
+    "employer": "Twilio",
+    "city": "Remote - US",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "python",
+      "label": "Python",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "python"
+     },
+     {
+      "key": "javascript",
+      "label": "JavaScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "js"
+     },
+     {
+      "key": "typescript",
+      "label": "TypeScript",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "typescript"
+     },
+     {
+      "key": "node",
+      "label": "Node.js",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "node.js"
+     },
+     {
+      "key": "sql",
+      "label": "SQL / veritabanı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "sql"
+     },
+     {
+      "key": "git",
+      "label": "Git / versiyon kontrol",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "git"
+     },
+     {
+      "key": "analytics",
+      "label": "Analitik / BI",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "tableau"
+     },
+     {
+      "key": "product",
+      "label": "Ürün yönetimi",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "roadmap"
+     },
+     {
+      "key": "agile",
+      "label": "Agile / Scrum",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "jira"
+     },
+     {
+      "key": "crm",
+      "label": "CRM kullanımı",
+      "kind": "required",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.85,
+      "is_legal_eligibility": false,
+      "source_span": "salesforce"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "cond",
+    "gerekce": "Teknik Program Yoneticisi -- meslek kayiyor"
+   },
+   "olcum_aninda_uretilen": "good"
+  },
+  {
+   "id": "devops-78",
+   "persona": "devops",
+   "ilan": {
+    "job_id": "src-ats-greenhouse:8071620",
+    "title": "Tech Lead, Agent Framework - Observability",
+    "employer": "Elastic",
+    "city": "Ireland",
+    "occupation_id": "Yazılım ve veri",
+    "requirements": [
+     {
+      "key": "nosql",
+      "label": "NoSQL",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.45,
+      "is_legal_eligibility": false,
+      "source_span": "elasticsearch"
+     },
+     {
+      "key": "docker_k8s",
+      "label": "Docker / Kubernetes",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "kubernetes"
+     },
+     {
+      "key": "cicd",
+      "label": "CI/CD ve DevOps",
+      "kind": "preferred",
+      "category": "skill",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "terraform"
+     },
+     {
+      "key": "foreign_trade",
+      "label": "Dış ticaret / gümrük",
+      "kind": "preferred",
+      "category": "experience",
+      "min_years": null,
+      "extraction_confidence": 0.8,
+      "is_legal_eligibility": false,
+      "source_span": "export"
+     }
+    ]
+   },
+   "etiket": {
+    "ilgili": true,
+    "en_yuksek_savunulabilir_bant": "good",
+    "gerekce": "Tech Lead observability; docker+cicd karsilandi"
+   },
+   "olcum_aninda_uretilen": "good"
+  }
+ ]
+}
