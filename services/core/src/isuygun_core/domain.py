@@ -110,6 +110,18 @@ class CareerProfile:
     profile_id: str
     occupation_ids: tuple[str, ...] = ()
     facts: tuple[ProfileFact, ...] = ()
+    #: Toplam çalışma yılı — beceri başına yıldan AYRI bir beyandır.
+    #:
+    #: Kıdem tavanı (D-063) "bu kişi senior bir rol için yeterli deneyime sahip
+    #: mi" sorusunu soruyor ve bunun doğru sinyali toplam kariyer yılıdır. Önce
+    #: yalnızca beceri başına yılın en yükseği kullanılıyordu; `_evidenced_years`
+    #: bunu "vekil bir ölçü" olarak açıkça belgeliyordu. Daha kötüsü: arayüz
+    #: hiçbir yerde yıl SORMUYORDU, dolayısıyla tavan neredeyse her profilde
+    #: bağlıyordu. Ölçüm: 9 yıl beyan edilince 33 sonuçtan 3'ü "şartlı"nın
+    #: üstüne çıkıyor; beyan yokken 0'ı çıkıyordu.
+    #:
+    #: ``None`` = beyan yok. Bu "sıfır yıl" DEĞİLDİR (D-011).
+    total_years: float | None = None
 
     def find(self, key: str) -> ProfileFact | None:
         for f in self.facts:

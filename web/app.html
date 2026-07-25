@@ -637,7 +637,8 @@ function profilePayload(){
   const p=lpActive();
   if(!p) return {facts:[], occupation_ids:[]};
   return {facts:p.facts.map(f=>({key:f.key, years:f.years??null,
-    verified:f.verification==="verified"})), occupation_ids:[]};
+    verified:f.verification==="verified"})), occupation_ids:[],
+    total_years:(typeof p.total_years==="number")?p.total_years:null};
 }
 /* Üst bar / anahtar menüsünün beklediği meta görünümü. */
 function syncProfiles(){
@@ -656,6 +657,7 @@ function profileVM(){
         verification:f.verification, years:f.years??null,
         counts_as_present:!c.needs_verification||f.verification==="verified"};}),
     pending_cv_suggestions:p.pending||[],
+    total_years:(typeof p.total_years==="number")?p.total_years:null,
   };
 }
 
@@ -782,7 +784,7 @@ function topbar(){
 
 /* ---------------- onboarding ---------------- */
 function startOnboarding(){
-  S.ob={step:0, collar:null, region:"", city:"", keys:new Set(), custom:[], name:""};
+  S.ob={step:0, collar:null, region:"", city:"", keys:new Set(), custom:[], name:"", totalYears:null};
   S.view="onboarding"; render();
 }
 const OB_STEPS=["intro","collar","region","keywords","name"];
@@ -909,6 +911,21 @@ function obStep(step){
     <p class="sub">Birden çok profil tutabilirsin — "Eren-Yazılım" ve "Eren-Mavi yaka"
       gibi. Üst bardan tek tıkla geçersin.</p>
     <input class="name-in" id="nameIn" value="${esc(S.ob.name||obSuggestName())}" maxlength="80" placeholder="Profil adı">
+
+    <!-- DENEYİM YILI hiçbir yerde sorulmuyordu, ama kıdem tavanı (D-063) onu
+         okuyor: beyan yoksa senior/mid ilanlar "şartlı"da sıkışıyor. Ölçüm:
+         9 yıl beyan edilince 33 sonuçtan 3'ü şartlının üstüne çıktı, beyan
+         yokken 0'ı çıkıyordu. Boş bırakılabilir — "0 yıl" ile "bilmiyoruz"
+         aynı şey değil (D-011), boş bırakılırsa BİLMİYORUZ olarak kalır. -->
+    <div style="margin-top:22px">
+      <span class="tag-l">toplam deneyim — isteğe bağlı</span>
+      <p class="sub" style="margin-top:6px">Kaç yıldır çalışıyorsun? Üst düzey
+        ilanlarda "iyi/güçlü eşleşme" diyebilmemiz için gereken tek bilgi bu.
+        Boş bırakırsan <b>uydurmayız</b>: bilmiyoruz olarak kalır.</p>
+      <input class="name-in" id="yearsIn" type="number" min="0" max="60" step="0.5"
+        style="max-width:180px" value="${S.ob.totalYears??''}" placeholder="ör. 6">
+    </div>
+
     <div class="ob-actions">
       <button class="btn-ghost" data-back="1">← geri</button>
       <button class="btn" data-finish="1">profili oluştur ✓</button>
@@ -983,6 +1000,10 @@ function wireOnboarding(){
   $("#customIn")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault(); addC();}});
   step.querySelectorAll("[data-rmc]").forEach(b=>b.onclick=()=>{o.custom.splice(+b.dataset.rmc,1); render();});
   const nm=$("#nameIn"); if(nm) nm.oninput=()=>{o.name=nm.value;};
+  const yi=$("#yearsIn"); if(yi) yi.oninput=()=>{
+    const v=parseFloat(yi.value);
+    /* Boş ya da geçersiz => null (BİLMİYORUZ), 0 değil. */
+    o.totalYears=Number.isFinite(v)?Math.max(0,Math.min(60,v)):null;};
   step.querySelector("[data-finish]")?.addEventListener("click",finishOnboarding);
 }
 
@@ -997,6 +1018,7 @@ async function finishOnboarding(){
        (user_asserted) olarak girer, belge alanları panelden doğrulanır. */
     const pid=uid();
     LP.profiles.push({id:pid, name, collar:o.collar, attrs,
+      total_years:o.totalYears,
       facts:[...o.keys].map(k=>({key:k, verification:"user_asserted", years:null})),
       pending:[], created_at:new Date().toISOString()});
     LP.active_id=pid; lpSave(); syncProfiles();
@@ -1471,6 +1493,19 @@ function panelBody(){
         <button class="no" data-no="${esc(s.key)}" title="Reddet">×</button>
       </div>`).join(''):''}
 
+    <!-- TOPLAM DENEYİM. Kıdem tavanı (D-063) bunu okuyor ama arayüz hiçbir
+         yerde SORMUYORDU: uygulama, toplamayı reddettiği bir veri yüzünden
+         bandı düşürüyordu. Onboarding'e eklendi; burası mevcut profiller için. -->
+    ${dh(`toplam deneyim`)}
+    <div class="sug">
+      <div class="nm">Kaç yıldır çalışıyorsun?<i>üst düzey ilanlarda
+        "iyi/güçlü eşleşme" diyebilmemiz için gereken bilgi — boş = bilmiyoruz,
+        sıfır değil</i></div>
+      <input class="yr" type="number" min="0" max="60" step="0.5" id="totalYearsIn"
+        placeholder="yıl" value="${pr.total_years??''}">
+      <button class="ok" data-savey="1">KAYDET</button>
+    </div>
+
     ${dh(`profilindeki beceriler [${facts.length}]`)}
     ${facts.some(f=>!f.counts_as_present&&f.verification!=="verified")?`
       <div class="notice" style="margin-bottom:11px">Belge isteyen alanlar (ehliyet,
@@ -1547,6 +1582,15 @@ function wirePanel(){
       ?{...f, verification:"verified"}:f);
     await refreshAfterProfileChange();
   });
+  const sy=$("[data-savey]");
+  if(sy) sy.onclick=async()=>{
+    const p=lpActive(); if(!p) return;
+    const v=parseFloat($("#totalYearsIn")?.value);
+    /* Boş/geçersiz => null: "0 yıl" ile "bilmiyoruz" aynı şey değil (D-011). */
+    p.total_years=Number.isFinite(v)?Math.max(0,Math.min(60,v)):null;
+    sy.disabled=true; sy.textContent="…";
+    await refreshAfterProfileChange();
+  };
   document.querySelectorAll("[data-unlock]").forEach(b=>b.onclick=async()=>{
     b.disabled=true; b.textContent="…";
     const p=lpActive(); if(!p) return;

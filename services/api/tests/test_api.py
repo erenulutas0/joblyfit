@@ -1027,3 +1027,28 @@ def test_sources_endpoint_exposes_permission_evidence(client):
         "reddedilen kaynaklar listede açıkça görünmeli"
     assert all(not s["may_fetch_network"] for s in red), \
         "reddedilen kaynak için ağ çekimi ASLA açık olmamalı"
+
+
+def test_total_years_reaches_the_profile_and_is_clamped(client):
+    """İstemcinin gönderdiği toplam yıl profile geçer ve 0–60'a kırpılır."""
+    from isuygun_api.main import ProfilePayload, _profile_from_payload
+
+    assert _profile_from_payload(ProfilePayload()).total_years is None
+    assert _profile_from_payload(ProfilePayload(total_years=7)).total_years == 7.0
+    # 0 GERÇEK bir beyandır (yeni mezun) — None'a çevrilmemeli.
+    assert _profile_from_payload(ProfilePayload(total_years=0)).total_years == 0.0
+
+
+def test_total_years_is_part_of_the_cache_fingerprint(client):
+    """Parmak izine girmezse beyan HİÇBİR ŞEY değiştirmemiş gibi görünür.
+
+    Bu seansta aynı sınıftan bir hata `experience_level`de yaşandı: değer
+    okunuyordu ama önbellek geçersizleşmiyordu, dolayısıyla düzeltme
+    üretimde sessizce hiç uygulanmıyordu.
+    """
+    from isuygun_api.main import ProfilePayload, _fingerprint_of, _profile_from_payload
+
+    fp = lambda y: _fingerprint_of(_profile_from_payload(ProfilePayload(total_years=y)))
+    assert fp(None) != fp(9), "yıl beyanı parmak izini değiştirmiyor — önbellek bayat kalır"
+    assert fp(0) != fp(None), "0 yıl ile beyan yokluğu aynı parmak izini üretiyor"
+    assert fp(9) == fp(9), "parmak izi kararlı olmalı"

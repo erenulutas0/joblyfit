@@ -245,16 +245,21 @@ def _evidence_note(discriminative_assessed: int) -> str:
 
 
 def _evidenced_years(profile: CareerProfile) -> float | None:
-    """Profilin beyan ettiği **en yüksek** deneyim yılı.
+    """Profilin beyan ettiği deneyim yılı — **toplam** ya da alan başına en yüksek.
 
-    Vekil bir ölçüdür: profil "toplam kaç yıl çalıştın" diye sormuyor, alan
-    başına yıl tutuyor. En yükseğini almak kullanıcının lehinedir — kıdemi
-    olduğundan düşük göstermek, tavanı haksız yere indirirdi.
+    Kıdem tavanı "bu rol için yeterli deneyim var mı" diye sorar ve bunun doğru
+    sinyali TOPLAM kariyer yılıdır; `total_years` artık ayrı bir alan olarak
+    sorulur. Alan başına yıl da hesaba katılır ve **en yüksek** alınır:
+    kullanıcının lehinedir, kıdemi olduğundan düşük göstermek tavanı haksız
+    yere indirirdi. (10 yıllık biri Python'a 2 yıl önce başlamış olabilir;
+    "2 yıl" onun kıdemi değildir.)
 
     ``None`` = hiç yıl beyanı yok. Bu "sıfır yıl" DEĞİLDİR (D-011); doğrulanamaz
     demektir ve tavan da bu yüzden iner.
     """
     years = [f.years for f in profile.facts if f.years is not None]
+    if profile.total_years is not None:
+        years.append(profile.total_years)
     return max(years) if years else None
 
 

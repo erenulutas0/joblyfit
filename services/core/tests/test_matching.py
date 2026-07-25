@@ -333,3 +333,61 @@ def test_worth_applying_does_not_claim_missing_points_when_nothing_is_missing():
     assert exp.worth_applying_rule == "met_all_thin_posting"
     # Gerekçe kaybolmasın: not açıklamada da taşınmalı.
     assert exp.evidence_note and "1 şart" in exp.evidence_note
+
+
+# ---------------------------------------------------------------------------
+# D-073 — toplam deneyim yılı beyanı
+# ---------------------------------------------------------------------------
+# Kıdem tavanı (D-063) deneyim yılını okuyordu ama arayüz onu HİÇBİR YERDE
+# sormuyordu: uygulama, toplamayı reddettiği bir veri yüzünden bandı
+# düşürüyordu. Ölçüm (canlı, 33 sonuç): beyan yokken 0'ı "şartlı"nın üstünde,
+# 9 yıl beyan edilince 3'ü üstünde.
+
+
+def test_total_years_lifts_the_seniority_cap():
+    """Toplam yıl beyanı, kıdem tavanını kaldırmaya YETER.
+
+    Beceri başına yıl girmek zorunda kalmamalı: 10 yıllık biri Python'a 2 yıl
+    önce başlamış olabilir ve "2 yıl" onun kıdemi değildir.
+    """
+    from isuygun_core import match
+    from isuygun_core.domain import CareerProfile, MatchBand, ProfileFact
+
+    beceriler = tuple(
+        ProfileFact(key=k, category="skill", verification="user_asserted", years=None)
+        for k in ("python", "sql", "docker_k8s", "cicd", "cloud", "git")
+    )
+    yilsiz = CareerProfile(profile_id="p", facts=beceriler)
+    yilli = CareerProfile(profile_id="p", facts=beceriler, total_years=9.0)
+
+    r0 = match(_skill_job("senior"), yilsiz, calibrated_occupation=True)
+    r1 = match(_skill_job("senior"), yilli, calibrated_occupation=True)
+    assert r0.band == MatchBand.CONDITIONAL, "kurgu bozuk: yılsız tavan bağlamalı"
+    assert r0.seniority_note, "yılsız profilde gerekçe yazılmalı"
+    assert r1.band != MatchBand.CONDITIONAL, \
+        "toplam yıl beyan edildi ama kıdem tavanı hâlâ bağlıyor"
+    assert r1.seniority_note is None, "tavan bağlamadığı hâlde gerekçe üretildi"
+
+
+def test_total_years_none_is_not_zero():
+    """Beyan yokluğu "sıfır yıl" DEĞİLDİR (D-011).
+
+    `total_years=0` gerçek bir beyandır (yeni mezun) ve `None`dan ayrı
+    davranmalı — ikisi eşitlenirse "bilmiyoruz" sessizce "deneyimi yok"a döner.
+    """
+    from isuygun_core.domain import CareerProfile
+    from isuygun_core.matching import _evidenced_years
+
+    assert _evidenced_years(CareerProfile(profile_id="p")) is None
+    assert _evidenced_years(CareerProfile(profile_id="p", total_years=0.0)) == 0.0
+
+
+def test_highest_of_total_and_per_skill_years_wins():
+    """İkisi de varsa en yüksek alınır — kullanıcının lehine."""
+    from isuygun_core.domain import CareerProfile, ProfileFact
+    from isuygun_core.matching import _evidenced_years
+
+    f = (ProfileFact(key="python", category="skill",
+                     verification="user_asserted", years=3.0),)
+    assert _evidenced_years(CareerProfile(profile_id="p", facts=f, total_years=11.0)) == 11.0
+    assert _evidenced_years(CareerProfile(profile_id="p", facts=f, total_years=1.0)) == 3.0

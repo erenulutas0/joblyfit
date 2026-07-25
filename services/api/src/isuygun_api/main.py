@@ -408,6 +408,9 @@ def _evaluate(posting, profile: CareerProfile):
 class ProfilePayload(BaseModel):
     facts: list[FactIn] = []
     occupation_ids: list[str] = []
+    #: Toplam çalışma yılı (beceri başına yıldan ayrı beyan). Kıdem tavanının
+    #: (D-063) okuduğu asıl sinyal budur; arayüz bunu onboarding'de sorar.
+    total_years: float | None = Field(None, ge=0, le=60)
 
 
 def _profile_from_payload(body: ProfilePayload | None) -> CareerProfile:
@@ -437,10 +440,17 @@ def _profile_from_payload(body: ProfilePayload | None) -> CareerProfile:
                 verification="verified" if f.verified else "user_asserted",
                 years=years,
             ))
+    # `Field(ge=0, le=60)` şemada zaten sınırlıyor; burada da kırpıyoruz çünkü
+    # profil nesnesi başka yollardan da kurulabilir ve 900 yıllık bir kıdem
+    # beyanı tavanı sessizce anlamsızlaştırır.
+    toplam = None
+    if body is not None and body.total_years is not None:
+        toplam = max(0.0, min(60.0, float(body.total_years)))
     return CareerProfile(
         profile_id="istemci",
         facts=tuple(facts),
         occupation_ids=tuple((body.occupation_ids if body else [])[:50]),
+        total_years=toplam,
     )
 
 
@@ -1150,15 +1160,21 @@ def _profile_fingerprint() -> tuple:
         STORE.active_id,
         tuple(sorted((f.key, f.verification, f.years) for f in p.facts)),
         tuple(sorted(p.occupation_ids)),
+        p.total_years,      # kıdem tavanını değiştirir → önbelleği bozmalı
     )
 
 
 def _fingerprint_of(profile: CareerProfile) -> tuple:
     """Geçici (istemci) profilin önbellek kimliği — kimliksiz, yalnız içerik."""
+    # `total_years` MUTLAKA burada olmalı: kıdem tavanını (D-063) doğrudan
+    # değiştirir. Parmak izine girmezse kullanıcı yılını beyan eder, önbellek
+    # eski sonucu döndürür ve beyan HİÇBİR ŞEY değiştirmemiş gibi görünür.
+    # Bu seansta aynı sınıftan bir hata `experience_level`de yaşandı.
     return (
         tuple(sorted((f.key, f.verification, f.years or -1.0)
                      for f in profile.facts)),
         tuple(sorted(profile.occupation_ids)),
+        profile.total_years if profile.total_years is not None else -1.0,
     )
 
 
