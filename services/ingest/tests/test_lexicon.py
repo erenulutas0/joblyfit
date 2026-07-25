@@ -126,3 +126,70 @@ def test_legal_eligibility_detected_but_separate():
     """D-013: askerlik şartı tespit edilir ama normal terim olarak dönmez."""
     assert "military" in L.find_legal_eligibility("Askerliğini tamamlamış olmak")
     assert not any(h.term.key.startswith("legal") for h in L.scan("askerliğini tamamlamış"))
+
+
+# --------------------------------------------------------------------------
+# İSG: sertifika ≠ uzmanlık (canlı persona testinden çıkan düzeltme)
+# --------------------------------------------------------------------------
+# Tek token'ken kaynakçı profilinin 24 sonucunun 11'i "İş Güvenliği Uzmanı"
+# ilanıydı. 17.858 ilanlık ölçümde token 174 ilanda tutuyordu ve 128'i sırf
+# "iş sağlığı ve güvenliği kurallarına uymak" kalıp metninden geliyordu.
+
+#: Türkiye ilanlarında neredeyse standart olan güvenlik kalıp metinleri.
+#: Bunlar bir NİTELİK beyan etmez; hiçbir İSG token'ını tetiklememeli.
+ISG_KALIP_METINLERI = (
+    "İş sağlığı ve güvenliği kurallarına uymak",
+    "İSG kurallarına uygun çalışmak",
+    "İş sağlığı ve güvenliği talimatlarına riayet etmek",
+    "Şirketin iş sağlığı ve güvenliği politikalarına uyum",
+)
+
+
+@pytest.mark.parametrize("metin", ISG_KALIP_METINLERI)
+def test_isg_kalip_metni_hicbir_isg_tokenini_tetiklemez(metin):
+    """Kalıp metin nitelik değildir — Aşçı/Garson ilanlarını İSG'ye bağlıyordu."""
+    anahtarlar = {h.term.key for h in L.scan(metin)}
+    assert "osgb" not in anahtarlar, f"eğitim sertifikası kalıp metne takıldı: {metin!r}"
+    assert "isg_specialist" not in anahtarlar, f"uzmanlık kalıp metne takıldı: {metin!r}"
+
+
+@pytest.mark.parametrize("metin", [
+    "İş Güvenliği Uzmanı aranıyor",
+    "C sınıfı iş güvenliği uzmanı",
+    "İSG uzmanı olarak görevlendirilmek üzere",
+    "İş sağlığı ve güvenliği uzmanı (B sınıfı)",
+])
+def test_uzmanlik_ilanlari_uzmanlik_belgesine_baglanir(metin):
+    anahtarlar = {h.term.key for h in L.scan(metin)}
+    assert "isg_specialist" in anahtarlar, f"uzmanlık ilanı tanınmadı: {metin!r}"
+    # Ruhsatlı meslek, çalışanın temel eğitim sertifikasıyla KARIŞMAMALI.
+    assert "osgb" not in anahtarlar
+
+
+@pytest.mark.parametrize("metin", [
+    "İş güvenliği sertifikası olan adaylar",
+    "İSG eğitimi almış olmak",
+    "İş güvenliği belgesi tercih edilir",
+])
+def test_egitim_sertifikasi_ayri_tokene_baglanir(metin):
+    anahtarlar = {h.term.key for h in L.scan(metin)}
+    assert "osgb" in anahtarlar, f"eğitim sertifikası tanınmadı: {metin!r}"
+    assert "isg_specialist" not in anahtarlar, \
+        "temel sertifika, ruhsatlı uzmanlık sanılıyor — kullanıcıyı giremeyeceği " \
+        "mesleğe yönlendirir"
+
+
+def test_osgb_isveren_turu_nitelik_sayilmaz():
+    """OSGB bir işveren türü (Ortak Sağlık Güvenlik Birimi), çalışan niteliği değil."""
+    anahtarlar = {h.term.key for h in L.scan("Bir OSGB firmasında görevlendirilmek üzere")}
+    assert "osgb" not in anahtarlar
+    assert "isg_specialist" not in anahtarlar
+
+
+def test_uzmanlik_belgesi_dogrulama_kapisina_tabidir():
+    """Ruhsatlı meslek: doğrulanmadan "karşılanıyor" sayılamaz (D-012)."""
+    uzman = next(t for t in L.TERMS if t.key == "isg_specialist")
+    egitim = next(t for t in L.TERMS if t.key == "osgb")
+    assert uzman.category in GATE_RELEVANT_CATEGORIES
+    # Temel eğitim sertifikası yasal kapı DEĞİL — kaynakçı olmanın önkoşulu değil.
+    assert egitim.category not in GATE_RELEVANT_CATEGORIES

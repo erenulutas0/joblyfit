@@ -189,8 +189,45 @@ TERMS: tuple[Term, ...] = (
        "produktionshelfer", "produktionsmitarbeiter", "fertigung", "montage"], "Üretim ve teknik", True),
     T("quality", "Kalite kontrol", EXPERIENCE,
       ["kalite kontrol", "quality control", "iso 9001", "kalite guvence"], "Üretim ve teknik", True),
-    T("osgb", "İş güvenliği sertifikası", CERT,
-      ["is guvenligi uzmani", "isg", "osgb", "is sagligi"], "Üretim ve teknik"),
+    # İSG İKİ AYRI ŞEY ve tek token'da birleşikti. Sonuç canlı persona
+    # testinde ölçüldü: kaynakçı profilinin 24 sonucunun 11'i (%46) "İş
+    # Güvenliği Uzmanı" ilanıydı — kullanıcının giremeyeceği, ayrı bakanlık
+    # sınavı ve teknik diploma isteyen ruhsatlı bir meslek.
+    #
+    # 17.858 ilan üzerinde ölçüm: eski token 174 ilanda tutuyordu, bunun
+    # **128'i (%74)** yalnızca "is sagligi" biçiminden geliyordu. Yani
+    # "İş sağlığı ve güvenliği kurallarına uymak" KALIP METNİ. Eşleşenler
+    # arasında Aşçı, Garson, Temizlik Görevlisi, Forklift Operatörü vardı.
+    #
+    # Şu biçimler bu yüzden KASITLI olarak dışarıda:
+    #   * "is sagligi" → alanın adı, bir nitelik değil; neredeyse her mavi
+    #     yaka ilanının kalıp metninde geçiyor
+    #   * çıplak "isg" → "İSG kurallarına uygun çalışmak" kalıbı (24 ilan)
+    #   * "osgb" → İŞVEREN türü (Ortak Sağlık Güvenlik Birimi), çalışanın
+    #     niteliği değil. Kaybı yok: OSGB ilanları zaten "iş güvenliği uzmanı"
+    #     arıyor ve aşağıdaki token onları tutuyor.
+    #
+    # Anahtar `osgb` olarak KALDI. Yeniden adlandırmak semantik olarak daha
+    # doğru olurdu ama katalogda bulunmayan anahtar API sınırında sessizce
+    # atlanıyor (main.py `_profile_from_payload`) — yani bu chip'i işaretlemiş
+    # her kullanıcının beyanı kaybolurdu. "İş güvenliği sertifikası" işaretleyen
+    # kişi zaten eğitim sertifikasını kastediyordu; niyeti korumak, iç isim
+    # güzelliğinden önemli.
+    # ÖLÇÜM NOTU: bu token bugünkü korpusta (17.858 ilan) **0** ilanla eşleşiyor
+    # ve bu bir darlık hatası DEĞİL. 6331 sayılı kanunda temel İSG eğitimini
+    # işveren vermek zorunda, dolayısıyla adaydan istemiyor. Chip listede
+    # kalıyor: kullanıcı beyan edebilsin ve İŞKUR gibi kaynaklar eklendiğinde
+    # (orada daha sık isteniyor) kendiliğinden çalışsın. Sıfır eşleşen bir chip
+    # zarar vermez; aşırı geniş bir chip 128 yanlış eşleşme veriyordu.
+    T("osgb", "İş güvenliği eğitim sertifikası", CERT,
+      ["is guvenligi sertifikasi", "is guvenligi belgesi", "is guvenligi egitimi",
+       "isg sertifikasi", "isg belgesi", "isg egitimi"], "Üretim ve teknik"),
+    # Ruhsatlı MESLEK: bakanlık sınavı + A/B/C sınıf belgesi + teknik diploma.
+    # LICENSE olduğu için doğrulanmadan "karşılanıyor" sayılmaz (D-012).
+    T("isg_specialist", "İş güvenliği uzmanlığı belgesi (A/B/C)", LICENSE,
+      ["is guvenligi uzmani", "isg uzmani", "is guvenligi uzmanligi",
+       "is sagligi ve guvenligi uzmani", "a sinifi is guvenligi",
+       "b sinifi is guvenligi", "c sinifi is guvenligi"], "Üretim ve teknik"),
 
     # ---- sağlık ----
     T("nurse_license", "Hemşirelik tescil belgesi", LICENSE,
