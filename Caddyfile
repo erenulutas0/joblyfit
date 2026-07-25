@@ -36,7 +36,22 @@
 	}
 	handle {
 		root * /srv/site
-		try_files {path} /index.html
 		file_server
+	}
+
+	# Bilinmeyen yol → GERÇEK 404. İlk sürümde burada `try_files {path}
+	# /index.html` vardı: bu bir SPA kalıbı, oysa tanıtım sayfası SPA değil, tek
+	# statik sayfa. Sonuç "yumuşak 404" idi — joblyfit.com/olmayan-sayfa HTTP 200
+	# + ana sayfa döndürüyordu. Arama motoru bunu içerik ikizi sayıp dizinden
+	# düşürür, kullanıcı da yanlış adreste olduğunu hiç anlamaz.
+	#
+	# `status {err.status_code}` ŞART: onsuz Caddy 404.html'i 200 ile servis eder
+	# ve hata yine gizlenir — düzeltmenin tamamı bu satırda.
+	handle_errors {
+		root * /srv/site
+		rewrite * /404.html
+		file_server {
+			status {err.status_code}
+		}
 	}
 }
