@@ -250,6 +250,14 @@ a{color:var(--ph); text-decoration:none}
   color:var(--ink-2); transition:all .12s}
 .fo:hover{border-color:var(--ink-3); color:var(--ink)}
 .fo.on{border-color:var(--ph-line); background:var(--ph-soft); color:var(--ph)}
+/* GÖRÜNÜR ODAK. Ölçümde bütün chip'lerde `outline: none` çıktı — klavyeyle
+   gezen kullanıcı nerede olduğunu göremiyordu.
+   Seçici bilinçli olarak GENEL: tek tek sınıf saymak, sonradan eklenen her
+   kontrolü sessizce kapsam dışında bırakır (aynı hatayı sözdizimi denetiminde
+   de yapmıştık — yalnızca eski sayfaya bakıyordu).
+   `:focus-visible` kullanılır ki fareyle tıklayanda halka çıkmasın: fare
+   tıklamasında halka "seçili" ile karıştırılıp yanlış sinyal verir. */
+:focus-visible{outline:2px solid var(--mid); outline-offset:2px}
 .fo b{opacity:.5; font-weight:600; margin-left:5px}
 /* Şehir listesi uzun olabilir (Avrupa'da 421 grup) — kaydırılır, sayfa değil. */
 .fopts.scroll{max-height:132px; overflow-y:auto; padding-right:4px;
@@ -442,6 +450,10 @@ a{color:var(--ph); text-decoration:none}
 .notice{background:var(--panel); border:1px solid var(--line-2); border-left:2px solid var(--warn);
   padding:13px 16px; font-size:13.5px; color:var(--ink-2); margin-bottom:12px}
 .notice.err{border-left-color:var(--bad)}
+/* Feed isteği düştüğünde: liste eski, filtreler yeni. Uyuşmazlık en üstte ve
+   kırmızı durur — sessiz kalması "filtreler çalışmıyor" izlenimi veriyordu. */
+.feed-err{border-left-color:var(--bad); color:var(--ink);
+  display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:16px 0 0}
 
 /* ==================== detay paneli ==================== */
 .scrim{position:fixed; inset:0; background:rgba(3,5,4,.6); z-index:60; opacity:0;
@@ -547,6 +559,11 @@ const S={profiles:[], catalog:[], feed:null, view:"load",
   q:"", region:"", ob:null,
   /* Bir ilanın "şunu ekle" düğmesinden gelindiyse istenen alanın etiketi. */
   wantField:null,
+  /* Son feed isteği başarısız olduysa sebebi. Ekrandaki liste bu durumda
+     filtreleri YANSITMAZ ve bunu kullanıcıya söylemek zorundayız. */
+  feedError:null,
+  /* Onboarding şehir listesi: null = henüz istenmedi, [] = yok/başarısız. */
+  obCities:null,
   /* filtreler. Hepsi "" = kısıt yok. `fopen` panelin açık/kapalı hâli. */
   f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
   /* profil paneli: null | "profile". `cv` son yükleme raporu; `unlock`
@@ -676,7 +693,17 @@ async function boot(){
     S.catalog=await api("/catalog");
     syncProfiles();
     if(!LP.profiles.length){ startOnboarding(); }
-    else{ await loadFeed(); S.view="feed"; render(); }
+    else{
+      /* Profilin bölge/şehir tercihi SAYFA YENİLENİNCE de uygulanır. Önceden
+         yalnızca profil değiştirme yolu uyguluyordu (`[data-act]`): "Türkiye"
+         seçmiş kullanıcı sayfayı yenileyince tüm bölgelere düşüyor ve listeye
+         ABD ilanları giriyordu. Tercih profilde kayıtlıysa her açılışta
+         geçerli olmalı. */
+      const a=activeProfile();
+      S.region=a?.attrs?.region||"";
+      S.f.city=a?.attrs?.city||"";
+      await loadFeed(); S.view="feed"; render();
+    }
   }catch(e){
     $("#root").innerHTML=`<div class="load"><span>bağlantı hatası — ${esc(e.message)}</span>
       <button class="btn" onclick="boot()">tekrar dene</button></div>`;
@@ -775,11 +802,13 @@ function obStep(step){
     <h1>Ne tür bir iş arıyorsun?</h1>
     <p class="sub">Bu seçim, beceri listeni ve tarama alanını şekillendirir.</p>
     <div class="pick two">
-      <button class="pick-card reticle ${o.collar==='white'?'sel':''}" data-collar="white">
+      <button class="pick-card reticle ${o.collar==='white'?'sel':''}" data-collar="white"
+        aria-pressed="${o.collar==='white'?'true':'false'}">
         <span class="ic">[BEYAZ-YAKA]</span>
         <span class="t">Ofis & uzmanlık</span>
         <span class="d">Yazılım, tasarım, satış, finans, yönetim, pazarlama…</span></button>
-      <button class="pick-card reticle ${o.collar==='blue'?'sel':''}" data-collar="blue">
+      <button class="pick-card reticle ${o.collar==='blue'?'sel':''}" data-collar="blue"
+        aria-pressed="${o.collar==='blue'?'true':'false'}">
         <span class="ic">[MAVİ-YAKA]</span>
         <span class="t">Saha & üretim</span>
         <span class="d">Lojistik, üretim, sağlık, hizmet, teknik, sürüş…</span></button>
@@ -800,21 +829,32 @@ function obStep(step){
     [...(S.feed?.evaluated||[]),...(S.feed?.unevaluated||[])].forEach(j=>{
       if((j.regions||[]).includes("Türkiye")&&j.city_group)
         _cc.set(j.city_group,(_cc.get(j.city_group)||0)+1);});
-    const cities=[..._cc.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([c])=>c);
+    /* Sunucudan gelen gerçek şehirler; yoksa feed'deki dilimden türetilene
+       düşülür (ikinci profil açan kullanıcıda anında dolu olur). */
+    const cities=(S.obCities&&S.obCities.length) ? S.obCities
+      : [..._cc.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([c])=>c);
+    const sehirVar=o.region==="Türkiye"&&cities.length;
     return `
     <span class="tag-l">// konum</span>
     <h1>Nerede iş arıyorsun?</h1>
-    <p class="sub">Önce bölge. Türkiye'yi seçersen şehre kadar inebilirsin.</p>
+    <p class="sub">Önce bölge.${o.region==="Türkiye"&&!cities.length?"":" Türkiye'yi seçersen şehre kadar inebilirsin."}</p>
     <div class="pick flow">
-      <button class="pick-chip ${o.region===''?'sel':''}" data-region="">FARK ETMEZ</button>
-      ${base.map(n=>`<button class="pick-chip ${o.region===n?'sel':''}" data-region="${esc(n)}">[${RCODE[n]||'?'}] ${esc(n.toUpperCase())}</button>`).join('')}
+      <button class="pick-chip ${o.region===''?'sel':''}" data-region=""
+        aria-pressed="${o.region===''?'true':'false'}">FARK ETMEZ</button>
+      ${base.map(n=>`<button class="pick-chip ${o.region===n?'sel':''}" data-region="${esc(n)}"
+        aria-pressed="${o.region===n?'true':'false'}">[${RCODE[n]||'?'}] ${esc(n.toUpperCase())}</button>`).join('')}
     </div>
-    ${o.region==="Türkiye"&&cities.length?`
+    ${sehirVar?`
       <div style="margin-top:20px"><span class="tag-l">şehir — isteğe bağlı</span>
       <div class="pick flow" style="margin-top:10px">
-        <button class="pick-chip ${o.city===''?'sel':''}" data-city="">TÜMÜ</button>
-        ${cities.map(c=>`<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}">${esc(c.toUpperCase())}</button>`).join('')}
-      </div></div>`:''}
+        <button class="pick-chip ${o.city===''?'sel':''}" data-city=""
+          aria-pressed="${o.city===''?'true':'false'}">TÜMÜ</button>
+        ${cities.map(c=>`<button class="pick-chip ${o.city===c?'sel':''}" data-city="${esc(c)}"
+          aria-pressed="${o.city===c?'true':'false'}">${esc(c.toUpperCase())}</button>`).join('')}
+      </div></div>`
+     :(o.region==="Türkiye"?`<div class="fnote" style="margin-top:16px">şehir listesi
+        alınamadı — bölge seçimiyle devam edebilirsin, şehri sonra filtrelerden
+        seçersin.</div>`:'')}
     <div class="ob-actions">
       <button class="btn-ghost" data-back="1">← geri</button>
       <button class="btn" data-next="1">devam →</button>
@@ -884,13 +924,43 @@ function obSuggestName(){
   return parts.join(' · ')||'Profilim';
 }
 
+/* Onboarding şehir listesi: boş profille tek istek, GERÇEK facet sayıları.
+   `null` = henüz istenmedi, `[]` = istendi ve yok/başarısız. */
+async function loadObCities(){
+  S.obCities=[];
+  try{
+    const r=await jpost("/feed",{profile:{}, filters:{region:"Türkiye"}, limit:1});
+    S.obCities=(r.facets?.cities||[])
+      .map(c=>Array.isArray(c)?c[0]:c).filter(Boolean).slice(0,8);
+  }catch(e){ S.obCities=[]; }   // sessiz: şehir seçimi İSTEĞE BAĞLI, akış durmaz
+  if(S.ob) render();
+}
+
 function wireOnboarding(){
   const o=S.ob, step=$("#obStep");
-  const go=d=>{o.step=Math.max(0,Math.min(OB_STEPS.length-1,o.step+d)); render();};
+  const go=d=>{
+    /* İLERİ giderken kutuda BEKLEYEN kelime yutulmaz. Kullanıcı yazıp EKLE'ye
+       (ya da Enter'a) basmadan DEVAM'a geçerse beyanı sessizce kayboluyordu —
+       kelimeler eşleştirmede kanıt olduğu için doğrudan eşleşme kalitesi
+       kaybı. GERİ giderken absorbe etmiyoruz: geri dönen kullanıcı vazgeçmiş
+       olabilir, ona sormadan kayıt eklemek sürpriz olurdu. */
+    if(d>0){
+      const v=($("#customIn")?.value||"").trim();
+      if(v && !o.custom.includes(v)) o.custom.push(v);
+    }
+    o.step=Math.max(0,Math.min(OB_STEPS.length-1,o.step+d)); render();
+  };
   step.querySelectorAll("[data-next]").forEach(b=>b.onclick=()=>go(1));
   step.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>go(-1));
   step.querySelectorAll("[data-collar]").forEach(b=>b.onclick=()=>{o.collar=b.dataset.collar; o.keys.clear(); render();});
-  step.querySelectorAll("[data-region]").forEach(b=>b.onclick=()=>{o.region=b.dataset.region; o.city=""; render();});
+  step.querySelectorAll("[data-region]").forEach(b=>b.onclick=()=>{
+    o.region=b.dataset.region; o.city="";
+    /* Şehir listesi SUNUCUDAN gelir. Önceden `S.feed`den türetiliyordu ve ilk
+       kez gelen kullanıcıda `S.feed` henüz null olduğu için liste hiç
+       çizilmiyordu — metin "şehre kadar inebilirsin" diyor, hiçbir şey
+       açılmıyordu. Feed yüklü olsa bile yalnızca 40 satırlık dilimden sayardı. */
+    if(o.region==="Türkiye" && S.obCities===null) loadObCities();
+    render();});
   step.querySelectorAll("[data-city]").forEach(b=>b.onclick=()=>{o.city=b.dataset.city; render();});
   step.querySelectorAll("[data-key]").forEach(b=>b.onclick=()=>{
     const k=b.dataset.key; o.keys.has(k)?o.keys.delete(k):o.keys.add(k); b.classList.toggle("sel");});
@@ -920,8 +990,11 @@ async function finishOnboarding(){
     LP.active_id=pid; lpSave(); syncProfiles();
     /* Bölge tercihi filtre olur; arama BOŞ başlar. Özel kelimeyi aramaya
        zorlamak feed'i tek sonuca düşürüyordu — profilde saklanır. */
+    /* Onboarding'de seçilen şehir FİLTREYE de uygulanır. Önceden yalnızca
+       `attrs`a yazılıyor ve `S.f.city` boş bırakılıyordu: kullanıcı "İstanbul"
+       seçiyor, sonra bütün Türkiye'yi görüyordu. */
     S.region=o.region||""; S.q="";
-    S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
+    S.f={level:"",arr:"",emp:"",city:o.city||"",longOpen:false}; S.citySearch="";
     await loadFeed(); S.view="feed"; S.ob=null; render();
   }catch(e){ alert("Hata: "+e.message); boot(); }
 }
@@ -945,7 +1018,22 @@ async function fetchFeed(){
 }
 /* Filtre/arama değişiminde: sunucudan taze sayfa + odak kaybetmeden boya. */
 async function refetchAndPaint(){
-  try{ await fetchFeed(); }catch(e){ /* eski sayfa ekranda kalır */ }
+  /* SESSİZ BAŞARISIZLIK "FİLTRE BOZUK"LA AYNI GÖRÜNÜR. Önceki sürüm hatayı
+     yutuyordu: `S.f` değiştiği için chip yeşile dönüyor, ama liste eski
+     payload'dan çizildiği için hiç değişmiyordu. Kullanıcı chip'i seçili
+     görüp listenin aynı kaldığını görüyor ve haklı olarak "filtreler
+     çalışmıyor" diyordu — oysa filtre uygulanmadı, istek düştü.
+
+     Artık ekrandaki listenin filtrelerle UYUŞMADIĞI açıkça yazılır. Filtre
+     durumunu geri almıyoruz: arama kutusuna yazılmış metni geri almak daha
+     kötü bir tutarsızlık olurdu; onun yerine uyuşmazlığı söyleyip tekrar
+     deneme yolu veriyoruz. */
+  try{
+    await fetchFeed();
+    S.feedError=null;
+  }catch(e){
+    S.feedError=e?.message || "bağlantı hatası";
+  }
   if(S.view==="feed") repaintKeepFocus();
 }
 let _qT=null;
@@ -974,8 +1062,12 @@ const activeFilterCount=()=>
    tutulmayan bir vaattir) — TEK istisna SEÇİLİ seçenek: diğer filtreler onu
    sıfıra düşürse bile ekranda kalmalı, yoksa kullanıcı seçimi geri alamaz. */
 function fopts(list,counts,sel,attr){
+  /* `aria-pressed`: seçim durumu yalnızca CSS sınıfıyla taşınırsa ekran
+     okuyucu hangi filtrenin etkin olduğunu HİÇ bildirmez — görme engelli
+     kullanıcı için filtreler görünmez olur. */
   return list.filter(([k])=>(counts||{})[k]||sel===k)
-    .map(([k,label])=>`<button class="fo ${sel===k?'on':''}" data-${attr}="${k}">
+    .map(([k,label])=>`<button class="fo ${sel===k?'on':''}" data-${attr}="${k}"
+      aria-pressed="${sel===k?'true':'false'}">
       ${label}<b>${(counts||{})[k]||0}</b></button>`).join('');
 }
 
@@ -1004,7 +1096,8 @@ function viewFilters(){
       placeholder="şehir ara…" value="${esc(S.citySearch)}">`:''}
     <div class="fopts ${ct.list.length>18?'scroll':''}">
       ${ct.list.slice(0,GOSTER).map(([c,n])=>`<button class="fo ${S.f.city===c?'on':''}"
-        data-city="${esc(c)}">${esc(c)}<b>${n}</b></button>`).join('')}
+        data-city="${esc(c)}" aria-pressed="${S.f.city===c?'true':'false'}"
+        >${esc(c)}<b>${n}</b></button>`).join('')}
     </div>
     ${!ct.list.length?`<div class="fnote">"${esc(S.citySearch)}" ile eşleşen şehir yok.</div>`:''}
     ${kesildi?`<div class="fnote">+${kesildi} şehir daha — aramayla bul</div>`:''}
@@ -1043,14 +1136,30 @@ function viewFeed(){
   const regions=(f.facets?.regions||[]);
 
   return `
+    ${S.feedError?`<div class="notice feed-err">
+      <b>Filtreler uygulanamadı.</b> Aşağıdaki liste <b>eski</b> — seçtiğin
+      filtreleri yansıtmıyor. Sebep: ${esc(S.feedError)}
+      <button class="btn-2" data-retry="1" style="margin-left:10px">tekrar dene</button>
+    </div>`:''}
     <div class="console">
       <div class="console-row">
-        <div class="stat"><div class="n">${total}</div><div class="l tag-l">taranan ilan</div></div>
+        <!-- ÜÇ SAYI ARTIK AYNI BÖLENDEN. Önceden ilk sayı korpus genelini
+             (12.628), diğer ikisi FİLTRELİ alt kümeyi gösteriyordu; kullanıcı
+             bunları aynı toplamın kırılımı sanıyor ve "8424 veri eksik ne
+             demek" diye haklı olarak soruyordu. Şimdi ilk sayı filtredeki
+             toplam (evT+unT) ve toplama tutuyor; korpus boyutu altta bağlam
+             satırında, filtre varsa açıkça belirtilerek duruyor. -->
+        <div class="stat"><div class="n">${evT+unT}</div><div class="l tag-l">${
+          (S.region||S.q||activeFilterCount())?'bu filtrede':'taranan ilan'}</div></div>
         <div class="stat"><div class="n ph">${evT}</div><div class="l tag-l">değerlendirilen</div></div>
         <div class="stat"><div class="n" style="color:var(--warn)">${unT}</div><div class="l tag-l">değerlendirilemedi</div></div>
         <div class="console-hi">
           <div class="who">${esc(p?p.name:'—')}</div>
-          <div class="sub">profil etkin · ${p?p.fact_count:0} beceri kayıtlı</div>
+          <div class="sub">profil etkin · ${p?p.fact_count:0} beceri kayıtlı${
+            /* Filtre varken korpus boyutu BAĞLAM olarak burada durur; yukarıdaki
+               üç sayının bölenini değiştirmez. */
+            (S.region||S.q||activeFilterCount())&&total>(evT+unT)
+              ? ` · korpusta ${total} ilan tarandı` : ''}</div>
         </div>
       </div>
     </div>
@@ -1152,7 +1261,8 @@ function wireTopbar(){
        tercihine döner. Filtreler sıfırlanmazsa önceki profilin şehri yeni
        profilin bölgesiyle çakışıp sessizce boş liste verebiliyordu. */
     S.region=a?.attrs?.region||""; S.q="";
-    S.f={level:"",arr:"",emp:"",city:"",longOpen:false}; S.citySearch="";
+    S.f={level:"",arr:"",emp:"",city:a?.attrs?.city||"",longOpen:false};
+    S.citySearch="";
     S.view="feed";
     await loadFeed(); render();
   });
@@ -1203,6 +1313,7 @@ function wireFeed(){
     repaint(); const n=$("#citySearch"); if(n){n.focus(); n.setSelectionRange(p,p);}};
   /* Aynı seçeneğe tekrar tıklamak filtreyi kaldırır — kullanıcı "geri al"
      için temizle düğmesini aramak zorunda kalmasın. */
+  $("[data-retry]")&&($("[data-retry]").onclick=()=>refetchAndPaint());
   const pick=(attr,key)=>document.querySelectorAll(`[data-${attr}]`).forEach(el=>el.onclick=()=>{
     const v=el.dataset[attr]; S.f[key]=(S.f[key]===v?"":v); refetchAndPaint();});
   pick("city","city");
