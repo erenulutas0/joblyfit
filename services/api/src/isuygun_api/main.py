@@ -1125,21 +1125,41 @@ def _fingerprint_of(profile: CareerProfile) -> tuple:
     )
 
 
-def _feed_body(cache_key: tuple, profile: CareerProfile) -> bytes:
-    """Feed'i hazır JSON bayt olarak üretir/önbellekten verir.
+def _full_feed(profile: CareerProfile) -> FeedOut:
+    """Profil için TAM feed nesnesi — sayfalamanın kaynağı (D-060).
 
-    Önbellek artık çok girdili LRU (D-059): ziyaretçiler ayrı profiller
-    gönderdiğinden tek-girdili önbellek her farklı ziyaretçide tam yeniden
-    hesap demekti. Gövde ~10 MB olduğundan sınır küçük tutulur (8 girdi);
-    sayfalama işi gövdeyi küçülttüğünde artırılabilir. ``response_model``
-    doğrulaması bilinçli atlanır — ölçümde isabette bile 173 ms yiyordu.
+    Pahalı iş burada: tüm korpus değerlendirilir (~0,6-1,5 sn). Sonuç Python
+    nesnesi olarak LRU'da tutulur; sayfalama/filtreleme her istekte bu nesne
+    üzerinde çalışır (9k satırda birkaç ms). Bayt önbelleği yalnızca classic'in
+    GET yolunda kaldı.
+    """
+    key = (STORE.corpus_version, _fingerprint_of(profile))
+    hit = _FULL_CACHE.get(key)
+    if hit is not None:
+        _FULL_CACHE.move_to_end(key)
+        return hit
+    built = _build_feed(profile)
+    _FULL_CACHE[key] = built
+    while len(_FULL_CACHE) > _FEED_CACHE_MAX:
+        _FULL_CACHE.popitem(last=False)
+    return built
+
+
+_FULL_CACHE: "OrderedDict[tuple, FeedOut]" = OrderedDict()
+
+
+def _feed_body(cache_key: tuple, profile: CareerProfile) -> bytes:
+    """Classic'in GET yolu: TAM feed'i hazır JSON bayt olarak verir.
+
+    ``response_model`` doğrulaması bilinçli atlanır — ölçümde isabette bile
+    173 ms yiyordu. Yeni arayüz bu yolu kullanmaz (sayfalı POST'a geçti).
     """
     hit = _FEED_CACHE.get(cache_key)
     if hit is not None:
         _FEED_CACHE.move_to_end(cache_key)
         return hit
     body = json.dumps(
-        jsonable_encoder(_build_feed(profile)), ensure_ascii=False,
+        jsonable_encoder(_full_feed(profile)), ensure_ascii=False,
     ).encode("utf-8")
     _FEED_CACHE[cache_key] = body
     while len(_FEED_CACHE) > _FEED_CACHE_MAX:
@@ -1160,17 +1180,182 @@ def feed() -> Response:
                     media_type="application/json")
 
 
-@app.post("/api/feed", response_model=FeedOut)
-def feed_stateless(body: ProfilePayload) -> Response:
-    """Feed, istemcinin gönderdiği geçici profille (D-059).
+class FeedFiltersIn(BaseModel):
+    """İstemcinin filtre durumu. Boş dize = kısıt yok.
 
-    Profil sunucuya YAZILMAZ; yalnızca bu isteğin değerlendirmesine girer.
-    Kalıcı kopya tarayıcıdadır — ziyaretçi izolasyonu tam olarak budur.
+    ``level/arrangement/employment`` için ``"unspecified"`` GERÇEK bir
+    seçenektir (D-011): kullanıcı "kıdem yazmayanları göster" diyebilir.
     """
-    profile = _profile_from_payload(body)
-    key = (STORE.corpus_version, "v2", _fingerprint_of(profile))
-    return Response(content=_feed_body(key, profile),
-                    media_type="application/json")
+
+    q: str = Field("", max_length=200)
+    region: str = Field("", max_length=40)
+    city: str = Field("", max_length=80)          # city_group görünen adı
+    level: str = Field("", max_length=20)
+    arrangement: str = Field("", max_length=20)
+    employment: str = Field("", max_length=20)
+    long_open: bool = False
+
+
+class FeedQueryIn(BaseModel):
+    profile: ProfilePayload = ProfilePayload()
+    filters: FeedFiltersIn = FeedFiltersIn()
+    offset_evaluated: int = Field(0, ge=0, le=100_000)
+    offset_unevaluated: int = Field(0, ge=0, le=100_000)
+    limit: int = Field(40, ge=1, le=100)
+
+
+class FeedPageOut(BaseModel):
+    """Sayfalı feed (D-060). Tam liste DEĞİL — 9,6 MB'lık gövde telefonda
+    saniyelerce ayrıştırılıyordu; sayfa ~40 satırla gelir, gerisi istendikçe."""
+
+    evaluated: list[JobSummary]
+    unevaluated: list[JobSummary]
+    evaluated_total: int
+    unevaluated_total: int
+    #: Filtresiz korpus boyutu — "taranan ilan" sayacı bunu gösterir.
+    corpus_total: int
+    profile_is_empty: bool
+    ingest: dict
+    #: Rozet sayıları GERÇEĞİ söyler (D-057 kuralı sunucuda): her eksen,
+    #: "o eksen HARİÇ diğer bütün filtreler uygulanmış" listeden sayılır.
+    facets: dict
+    #: "Değerlendirilemedi"nin dökümü: şart okunamadı / profil verisi yok /
+    #: kamu ilanı. Sayfada yalnız 40 satır olduğundan istemci bunu sayamaz.
+    unevaluated_breakdown: dict
+
+
+def _qids(q: str) -> set[str] | None:
+    """Arama sorgusunun eşlediği ilan kimlikleri (katlamalı, tam metin).
+
+    Küçük LRU: aynı sorgu her filtre tıklamasında yeniden taranmasın diye.
+    ``None`` = sorgu yok (her şey geçer).
+    """
+    q = q.strip()
+    if not q:
+        return None
+    key = (STORE.corpus_version, q)
+    hit = _QIDS_CACHE.get(key)
+    if hit is not None:
+        _QIDS_CACHE.move_to_end(key)
+        return hit
+    parsed = search.parse(q)
+    ids = ({job_id for job_id, hay in STORE.search_index.items()
+            if search.matches(hay, parsed)}
+           if not parsed.is_empty else set())
+    _QIDS_CACHE[key] = ids
+    while len(_QIDS_CACHE) > 16:
+        _QIDS_CACHE.popitem(last=False)
+    return ids
+
+
+_QIDS_CACHE: "OrderedDict[tuple, set]" = OrderedDict()
+
+
+def _axis_val(j: JobSummary, field_name: str) -> str:
+    return getattr(j, field_name) or "unspecified"
+
+
+@app.post("/api/feed", response_model=FeedPageOut)
+def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
+    """Sayfalı + filtreli feed, istemcinin geçici profiliyle (D-059/D-060).
+
+    Profil sunucuya YAZILMAZ. Filtreleme artık sunucuda: istemci yalnızca
+    gördüğü sayfayı taşır, rozet sayıları ve dökümler burada hesaplanır —
+    istemcinin elinde tam liste olmadığından başka türlü doğru olamazlardı.
+    """
+    profile = _profile_from_payload(body.profile)
+    full = _full_feed(profile)
+    f = body.filters
+    qids = _qids(f.q)
+
+    def base_ok(j: JobSummary) -> bool:
+        """Eksen dışı filtreler: arama + bölge her sayımda uygulanır."""
+        if qids is not None and j.job_id not in qids:
+            return False
+        if f.region and f.region not in j.regions:
+            return False
+        return True
+
+    def ok_city(j): return not f.city or j.city_group == f.city
+    def ok_level(j): return not f.level or _axis_val(j, "experience_level") == f.level
+    def ok_arr(j): return not f.arrangement or _axis_val(j, "work_arrangement") == f.arrangement
+    def ok_emp(j): return not f.employment or _axis_val(j, "employment_type") == f.employment
+    def ok_long(j): return not f.long_open or j.long_open
+
+    def full_ok(j: JobSummary) -> bool:
+        return (base_ok(j) and ok_city(j) and ok_level(j) and ok_arr(j)
+                and ok_emp(j) and ok_long(j))
+
+    ev = [j for j in full.evaluated if full_ok(j)]
+    un = [j for j in full.unevaluated if full_ok(j)]
+
+    # --- facet sayaçları: D-057 kuralı — kendi ekseni hariç her şey uygulanır.
+    level_c: dict[str, int] = {}
+    arr_c: dict[str, int] = {}
+    emp_c: dict[str, int] = {}
+    city_c: dict[str, int] = {}
+    region_c: dict[str, int] = {}
+    long_open_n = 0
+    city_unspec = 0
+    for j in list(full.evaluated) + list(full.unevaluated):
+        if qids is not None and j.job_id not in qids:
+            continue
+        in_region = not f.region or f.region in j.regions
+        c, lv, ar, em, lo = ok_city(j), ok_level(j), ok_arr(j), ok_emp(j), ok_long(j)
+        if in_region and ar and em and c and lo:
+            k = _axis_val(j, "experience_level")
+            level_c[k] = level_c.get(k, 0) + 1
+        if in_region and lv and em and c and lo:
+            k = _axis_val(j, "work_arrangement")
+            arr_c[k] = arr_c.get(k, 0) + 1
+        if in_region and lv and ar and c and lo:
+            k = _axis_val(j, "employment_type")
+            emp_c[k] = emp_c.get(k, 0) + 1
+        if in_region and lv and ar and em and lo:
+            if j.city_group:
+                city_c[j.city_group] = city_c.get(j.city_group, 0) + 1
+            else:
+                city_unspec += 1
+        if in_region and lv and ar and em and c and j.long_open:
+            long_open_n += 1
+        if lv and ar and em and c and lo:      # bölge ekseni: bölge hariç
+            for r in j.regions:
+                region_c[r] = region_c.get(r, 0) + 1
+
+    # --- "değerlendirilemedi" dökümü (filtrelenmiş liste üstünde)
+    unreadable = missing = kamu = 0
+    for j in un:
+        if j.listing_only:
+            kamu += 1
+        elif not j.top_requirements:
+            unreadable += 1
+        else:
+            missing += 1
+
+    lim = body.limit
+    return FeedPageOut(
+        evaluated=ev[body.offset_evaluated:body.offset_evaluated + lim],
+        unevaluated=un[body.offset_unevaluated:body.offset_unevaluated + lim],
+        evaluated_total=len(ev),
+        unevaluated_total=len(un),
+        corpus_total=len(full.evaluated) + len(full.unevaluated),
+        profile_is_empty=full.profile_is_empty,
+        ingest=full.ingest,
+        facets={
+            "experience_levels": level_c,
+            "arrangements": arr_c,
+            "employment_types": emp_c,
+            "cities": sorted(city_c.items(), key=lambda kv: (-kv[1], kv[0])),
+            "city_unspecified": city_unspec,
+            "long_open_count": long_open_n,
+            "regions": [{"name": r, "count": region_c[r]}
+                        for r in regions.ALL if region_c.get(r)],
+        },
+        unevaluated_breakdown={
+            "unreadable": unreadable, "missing_data": missing,
+            "listing_only": kamu,
+        },
+    )
 
 
 def _build_feed(profile: CareerProfile) -> FeedOut:

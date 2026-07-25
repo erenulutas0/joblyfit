@@ -631,11 +631,18 @@ def test_feed_cache_invalidates_on_corpus_refresh(client):
     from isuygun_api.store import STORE
 
     client.get("/api/feed")
-    STORE.corpus_version += 1          # tazeleme taklidi
-    STORE.postings = dict(list(STORE.postings.items())[:5])
-    tazelenmis = client.get("/api/feed").json()
-    assert len(tazelenmis["evaluated"]) + len(tazelenmis["unevaluated"]) <= 5, \
-        "korpus küçüldü ama feed eski listeyi verdi (önbellek düşmemiş)"
+    orig = dict(STORE.postings)
+    try:
+        STORE.corpus_version += 1          # tazeleme taklidi
+        STORE.postings = dict(list(STORE.postings.items())[:5])
+        tazelenmis = client.get("/api/feed").json()
+        assert len(tazelenmis["evaluated"]) + len(tazelenmis["unevaluated"]) <= 5, \
+            "korpus küçüldü ama feed eski listeyi verdi (önbellek düşmemiş)"
+    finally:
+        # Korpus GERİ yüklenir: küçülmüş korpus modül-kapsamlı fixture'da
+        # kalıyor ve sıradaki testler 5 ilanla koşuyordu (sıraya bağlı kirlilik).
+        STORE.postings = orig
+        STORE.corpus_version += 1
 
 
 def test_pending_cv_suggestions_do_not_invalidate_feed(client, monkeypatch):
@@ -739,34 +746,32 @@ def test_stateless_feed_isolates_visitors(client):
     STORE.profile ile hesaplanıyordu ve B ziyaretçisi A'nın becerileriyle
     hesaplanmış eşleşmeler görüyordu.
     """
-    a = client.post("/api/feed", json={
-        "facts": [{"key": "heavy_driving", "years": 6},
-                  {"key": "src", "verified": True},
-                  {"key": "psiko", "verified": True},
-                  {"key": "license_ce", "verified": True}]}).json()
-    b = client.post("/api/feed", json={"facts": []}).json()
+    surucu = {"profile": {"facts": [
+        {"key": "heavy_driving", "years": 6},
+        {"key": "src", "verified": True},
+        {"key": "psiko", "verified": True},
+        {"key": "license_ce", "verified": True}]}}
+    a = client.post("/api/feed", json=surucu).json()
+    b = client.post("/api/feed", json={"profile": {"facts": []}}).json()
 
     assert a["profile_is_empty"] is False
     assert any("Şoför" in j["title"] for j in a["evaluated"]), \
         "şoför profili şoför ilanını bantlamalı"
     assert b["profile_is_empty"] is True
-    assert b["evaluated"] == [], "boş profilli ziyaretçi A'nın bantlarını GÖRMEMELİ"
+    assert b["evaluated"] == [] and b["evaluated_total"] == 0, \
+        "boş profilli ziyaretçi A'nın bantlarını GÖRMEMELİ"
     # sunucu tarafında hiçbir şey birikmedi
     assert STORE.profile.facts == (), "geçici profil global profile sızmamalı"
 
     # A tekrar gelir (önbellekten): kendi sonucu değişmemiş olmalı
-    a2 = client.post("/api/feed", json={
-        "facts": [{"key": "heavy_driving", "years": 6},
-                  {"key": "src", "verified": True},
-                  {"key": "psiko", "verified": True},
-                  {"key": "license_ce", "verified": True}]}).json()
-    assert len(a2["evaluated"]) == len(a["evaluated"])
+    a2 = client.post("/api/feed", json=surucu).json()
+    assert a2["evaluated_total"] == a["evaluated_total"]
 
 
 def test_stateless_feed_drops_legal_keys(client):
     """HTTP sınırından gelen ``legal_*`` alanları profile giremez (D-013)."""
     r = client.post("/api/feed", json={
-        "facts": [{"key": "legal_military"}]}).json()
+        "profile": {"facts": [{"key": "legal_military"}]}}).json()
     assert r["profile_is_empty"] is True, \
         "yasal uygunluk alanı geçici profilde bile fact sayılmamalı"
 
@@ -774,7 +779,7 @@ def test_stateless_feed_drops_legal_keys(client):
 def test_stateless_detail_ledger_follows_payload(client):
     """POST detay defteri, gönderilen profile göre hesaplanmalı."""
     feed = client.post("/api/feed", json={
-        "facts": [{"key": "heavy_driving", "years": 6}]}).json()
+        "profile": {"facts": [{"key": "heavy_driving", "years": 6}]}}).json()
     job = next(j for j in feed["evaluated"] if "Şoför" in j["title"])
 
     with_profile = client.post(f"/api/jobs/{job['job_id']}", json={
@@ -818,7 +823,7 @@ def test_signal_endpoints_record_anonymously(client):
     from isuygun_api import signals
 
     before = signals.counts()
-    feed = client.post("/api/feed", json={"facts": []}).json()
+    feed = client.post("/api/feed", json={"profile": {"facts": []}}).json()
     job = feed["unevaluated"][0]
 
     r1 = client.post("/api/feedback", json={
@@ -848,8 +853,85 @@ def test_legacy_surface_gated_when_classic_off(client, monkeypatch):
         assert client.post("/api/jobs/evaluate",
                            json={"text": "x" * 50}).status_code == 404
         # durumsuz yüzey çalışmaya devam eder
-        assert client.post("/api/feed", json={"facts": []}).status_code == 200
+        assert client.post("/api/feed", json={"profile": {"facts": []}}).status_code == 200
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 200
     finally:
         monkeypatch.setenv("ISUYGUN_CLASSIC", "1")
+
+
+# ---------------------------------------------------------------------------
+# D-060 — sunucu taraflı sayfalama + filtreler
+# ---------------------------------------------------------------------------
+
+
+def test_feed_pagination_pages_do_not_overlap(client):
+    """Sayfalar kesişmez, toplamlar sabittir, taşan offset boş döner."""
+    p1 = client.post("/api/feed", json={
+        "profile": {"facts": []}, "limit": 5}).json()
+    assert len(p1["unevaluated"]) == 5
+    assert p1["unevaluated_total"] > 5
+
+    p2 = client.post("/api/feed", json={
+        "profile": {"facts": []}, "limit": 5, "offset_unevaluated": 5}).json()
+    ids1 = {j["job_id"] for j in p1["unevaluated"]}
+    ids2 = {j["job_id"] for j in p2["unevaluated"]}
+    assert not ids1 & ids2, "ardışık sayfalar aynı ilanı içermemeli"
+    assert p2["unevaluated_total"] == p1["unevaluated_total"], \
+        "toplam, sayfadan bağımsız olmalı"
+
+    beyond = client.post("/api/feed", json={
+        "profile": {"facts": []}, "limit": 5,
+        "offset_unevaluated": p1["unevaluated_total"] + 50}).json()
+    assert beyond["unevaluated"] == []
+    assert beyond["unevaluated_total"] == p1["unevaluated_total"]
+
+
+def test_feed_filters_apply_server_side(client):
+    """Bölge + kıdem + arama sunucuda süzülmeli; sayfa yalnız eşleşeni taşır."""
+    r = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"region": "Türkiye"}}).json()
+    assert r["unevaluated_total"] > 0
+    assert all("Türkiye" in j["regions"] for j in r["unevaluated"])
+
+    q = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"q": "sofor"}}).json()      # katlamalı arama: ş'siz yazım
+    assert q["unevaluated_total"] > 0
+    got = {j["title"] for j in q["unevaluated"]}
+    assert any("Şoför" in t or "şoför" in t.lower() for t in got), \
+        f"katlamalı arama şoför ilanlarını bulmalı, gelen: {got}"
+
+
+def test_feed_facets_are_relative_and_sum_correctly(client):
+    """Filtre yokken eksen sayaçlarının toplamı, gösterilen satır toplamına
+    eşit olmalı (her satır tam bir eksende sayılır)."""
+    r = client.post("/api/feed", json={"profile": {"facts": []}}).json()
+    shown = r["evaluated_total"] + r["unevaluated_total"]
+    for axis in ("experience_levels", "arrangements", "employment_types"):
+        assert sum(r["facets"][axis].values()) == shown, axis
+
+    bd = r["unevaluated_breakdown"]
+    assert bd["unreadable"] + bd["missing_data"] + bd["listing_only"] \
+        == r["unevaluated_total"]
+
+
+def test_feed_facets_follow_other_filters(client):
+    """D-057 kuralı sunucuda: bir eksen seçilince DİĞER eksenlerin sayıları
+    o seçime göre daralmalı; rozet tıklanınca gelen sayı tutmalı."""
+    all_r = client.post("/api/feed", json={"profile": {"facts": []}}).json()
+    tr = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"region": "Türkiye"}}).json()
+    # Türkiye seçiliyken kıdem sayaçları, bölgesiz sayaçlardan büyük olamaz
+    for k, v in tr["facets"]["experience_levels"].items():
+        assert v <= all_r["facets"]["experience_levels"].get(k, 0) or v == 0
+
+    # rozet sözü: Türkiye + bir kıdem seçeneği → o sayıda satır dönmeli
+    lvl, n = next(iter(tr["facets"]["experience_levels"].items()))
+    combo = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"region": "Türkiye", "level": lvl}}).json()
+    assert combo["evaluated_total"] + combo["unevaluated_total"] == n, \
+        f"rozet {lvl}={n} dedi, gelen {combo['evaluated_total']+combo['unevaluated_total']}"
