@@ -250,7 +250,9 @@ def test_startup_does_not_empty_corpus_after_logic_change(tmp_path, monkeypatch)
         for i in range(3)
     ]
     monkeypatch.setattr(pipeline, "_fetch_all_boards", lambda b: (list(sahte), [], []))
-    monkeypatch.setattr(pipeline, "_fetch_api_sources", lambda: ([], [], []))
+    # `only=` D-065 ile eklendi: kısmi tazeleme yalnızca sırası gelen kaynakları
+    # çeker. Sahte fonksiyon imzayı kabul etmeli.
+    monkeypatch.setattr(pipeline, "_fetch_api_sources", lambda only=None: ([], [], []))
     monkeypatch.setattr(pipeline, "_cache_path", lambda: tmp_path / "c.json")
 
     ilk = pipeline.run_live_ingest(force_refresh=True)
@@ -263,3 +265,123 @@ def test_startup_does_not_empty_corpus_after_logic_change(tmp_path, monkeypatch)
     assert sonra["canonical"] == 3, \
         "dağıtımdan sonra açılışta korpus boşaldı (canlıda yaşanan hata)"
     assert sonra["stale_logic"] is True, "eski mantık kullanıldığı görünmeli"
+
+
+# ---------------------------------------------------------------------------
+# D-065 — kaynak başına min_poll_hours uygulanır (kısmi tazeleme)
+# ---------------------------------------------------------------------------
+
+
+def test_due_sources_respects_min_poll_hours():
+    """``min_poll_hours`` geçmeyen kaynak çekilmez.
+
+    Alan kayıtlarda bugüne kadar **hiçbir yerde uygulanmıyordu**; global 6 saat
+    bütün kaynaklara dayatılıyordu. Jooble için bu somut bir risk: kayıtta 12
+    saat yazıyor, anahtarın 500 istek sınırı var ve her çekim ~120 istek
+    harcıyor — 6 saatte bir çekim günde 480 istek eder.
+    """
+    from datetime import datetime, timedelta
+
+    from isuygun_ingest import registry
+    from isuygun_ingest.pipeline import _due_sources
+
+    simdi = datetime(2026, 7, 25, 12, 0, 0)
+    jooble = registry.get("src-api-jooble")
+    assert jooble.min_poll_hours == 12.0, "bu testin dayanağı: Jooble 12 saat"
+
+    # 6 saat önce çekildi → Jooble'ın sırası DEĞİL
+    son = {"src-api-jooble": (simdi - timedelta(hours=6)).isoformat()}
+    gelen, atlanan = _due_sources(son, simdi)
+    assert "src-api-jooble" not in gelen
+    assert atlanan["src-api-jooble"] == 6.0, "kalan süre bildirilmeli"
+
+    # 13 saat önce → sırası
+    son = {"src-api-jooble": (simdi - timedelta(hours=13)).isoformat()}
+    gelen, _ = _due_sources(son, simdi)
+    assert "src-api-jooble" in gelen
+
+
+def test_never_fetched_source_is_due():
+    """Hiç çekilmemiş kaynak beklemez — ilk koşuda her şey çekilir."""
+    from isuygun_ingest.pipeline import _due_sources
+
+    gelen, atlanan = _due_sources({})
+    assert "src-api-jooble" in gelen and not atlanan
+
+
+def test_corrupt_timestamp_is_treated_as_due():
+    """Bozuk damga sessizce kaynağı sonsuza kilitlemesin — güvenli taraf çekim."""
+    from isuygun_ingest.pipeline import _due_sources
+
+    gelen, _ = _due_sources({"src-api-jooble": "bu bir tarih degil"})
+    assert "src-api-jooble" in gelen
+
+
+def test_partial_refresh_keeps_raws_of_skipped_source(tmp_path, monkeypatch):
+    """Sırası gelmeyen kaynağın ham kayıtları KORUNUR, yenisi çekilmez.
+
+    Aksi hâlde nezaket aralığı ilanları kaybetmek anlamına gelirdi: kaynak
+    atlanır ve korpustan da düşerdi.
+    """
+    from datetime import datetime
+
+    from isuygun_ingest import cache, pipeline
+
+    monkeypatch.setattr(pipeline, "_cache_path", lambda: tmp_path / "c.json")
+
+    def raw(sid, ref):
+        return pipeline.RawPosting(
+            source_id=sid, source_posting_ref=ref,
+            url=f"https://e.invalid/{ref}", title=f"Ilan {ref}",
+            employer="E", city="İstanbul",
+            description="Aranan sartlar: forklift ehliyeti, vardiyali calisma.")
+
+    # 1) İlk koşu: iki kaynak da çekilir (biri pano, biri API)
+    monkeypatch.setattr(pipeline, "_fetch_all_boards",
+                        lambda b: ([raw("src-ats-greenhouse", "g1")],
+                                   [{"board": "greenhouse/x",
+                                     "source_id": "src-ats-greenhouse",
+                                     "employer": "E", "count": 1, "truncated": 0}], []))
+    monkeypatch.setattr(pipeline, "_fetch_api_sources",
+                        lambda only=None: ([raw("src-api-jooble", "j1")],
+                                           [{"board": "src-api-jooble",
+                                             "source_id": "src-api-jooble",
+                                             "employer": "J", "count": 1,
+                                             "truncated": 0}], []))
+    ilk = pipeline.run_live_ingest(force_refresh=True)
+    assert ilk["canonical"] == 2
+
+    # 2) Jooble'ı 1 saat önce çekilmiş göster (12 saatlik aralığın içinde),
+    #    Greenhouse'u 10 saat önce (6 saatlik aralığı geçmiş).
+    blob = json.loads((tmp_path / "c.json").read_text(encoding="utf-8"))
+    from datetime import timedelta
+    simdi = datetime.now()
+    blob["meta"]["source_fetched_at"] = {
+        "src-api-jooble": (simdi - timedelta(hours=1)).isoformat(),
+        "src-ats-greenhouse": (simdi - timedelta(hours=10)).isoformat(),
+    }
+    # Önbelleği bayat göster ki kısmi tazeleme yolu çalışsın.
+    blob["fetched_at"] = (simdi - timedelta(hours=10)).isoformat()
+    (tmp_path / "c.json").write_text(json.dumps(blob, ensure_ascii=False),
+                                     encoding="utf-8")
+
+    cagrilan = {"api": None}
+
+    def sahte_api(only=None):
+        cagrilan["api"] = only
+        return ([raw("src-api-jooble", "j2")],
+                [{"board": "src-api-jooble", "source_id": "src-api-jooble",
+                  "employer": "J", "count": 1, "truncated": 0}], [])
+
+    monkeypatch.setattr(pipeline, "_fetch_api_sources", sahte_api)
+    ikinci = pipeline.run_live_ingest()
+
+    assert cagrilan["api"] is not None, "API çekimi 'only' almalı"
+    assert "src-api-jooble" not in cagrilan["api"], \
+        "Jooble'ın sırası değil, çekilmemeli"
+    assert "src-api-jooble" in ikinci["skipped_sources"], \
+        "atlanan kaynak raporda görünmeli — sessiz olmamalı"
+
+    # Jooble ilanı KAYBOLMADI (eski ham kayıt korundu)
+    idler = {p.job.job_id for p in ikinci["canonical_postings"].values()}
+    assert any("j1" in i for i in idler), f"Jooble ilanı düştü: {idler}"

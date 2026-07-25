@@ -222,6 +222,7 @@ class Store:
             "truncated": result.get("truncated", 0),
             "from_cache": result.get("from_cache", False),
             "stale_logic": result.get("stale_logic", False),
+            "skipped_sources": result.get("skipped_sources", {}),
             "boards": result.get("boards", []),
             "errors": result.get("errors", []),
         }

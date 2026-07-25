@@ -631,11 +631,17 @@ def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
             except Exception as e:
                 # Tek bir pano bütün koşuyu düşüremez. Hata **yutulmuyor**;
                 # `errors` listesine girip ingest raporunda ve arayüzde görünüyor.
+                # `source_id` meta'ya yazılır (D-065): kısmi tazeleme, hangi
+                # kaydın hangi kaynağa ait olduğunu bilmeden eski meta'yı
+                # koruyamaz. Pano meta'sı "platform/slug", API meta'sı
+                # source_id kullanıyordu — geri eşleme güvenilir değildi.
                 local_errors.append({"board": f"{board.platform}/{board.slug}",
+                                     "source_id": board.source_id,
                                      "error": f"{type(e).__name__}: {e}"[:200]})
                 continue
             local_raws.extend(items)
             local_fetched.append({"board": f"{board.platform}/{board.slug}",
+                                  "source_id": board.source_id,
                                   "employer": board.employer,
                                   "count": len(items), "truncated": truncated})
         return local_raws, local_fetched, local_errors
@@ -647,12 +653,24 @@ def _fetch_all_boards(boards) -> tuple[list, list[dict], list[dict]]:
     return raws, fetched, errors
 
 
-def _fetch_api_sources() -> tuple[list, list[dict], list[dict]]:
-    """Pano tabanlı olmayan izinli API kaynakları (D-023)."""
+def _board_source(entry: dict) -> str | None:
+    """Meta/hata kaydının kaynağı. Kısmi tazeleme (D-065) buna dayanır."""
+    return entry.get("source_id")
+
+
+def _fetch_api_sources(only: set[str] | None = None
+                       ) -> tuple[list, list[dict], list[dict]]:
+    """Pano tabanlı olmayan izinli API kaynakları (D-023).
+
+    ``only`` verilirse yalnızca o kaynaklar çekilir — ``min_poll_hours``
+    süresi gelmeyenler atlanır (D-065).
+    """
     from .adapters.public_apis import FETCHERS
 
     raws, meta, errors = [], [], []
     for rec in registry.api_sources():
+        if only is not None and rec.source_id not in only:
+            continue
         fetch = FETCHERS.get(rec.source_id)
         if fetch is None:
             continue
@@ -660,16 +678,51 @@ def _fetch_api_sources() -> tuple[list, list[dict], list[dict]]:
             registry.assert_fetchable(rec.source_id)
             items = fetch(rec.source_id)
         except Exception as e:
-            errors.append({"board": rec.name, "error": str(e)[:160]})
+            errors.append({"board": rec.name, "source_id": rec.source_id,
+                           "error": str(e)[:160]})
             continue
         raws.extend(items)
-        meta.append({"board": rec.source_id, "employer": rec.name,
-                     "count": len(items), "truncated": 0})
+        meta.append({"board": rec.source_id, "source_id": rec.source_id,
+                     "employer": rec.name, "count": len(items), "truncated": 0})
     return raws, meta, errors
 
 
 def _cache_path(root: Path | None = None) -> Path:
     return (root or REPO_ROOT) / ".cache" / "ats_postings.json"
+
+
+def _due_sources(son_cekim: dict[str, str], simdi: datetime | None = None
+                 ) -> tuple[set[str], dict[str, float]]:
+    """Hangi kaynakların çekim zamanı geldi? (D-065)
+
+    Her kaynak kaydı ``min_poll_hours`` beyan eder ama bu alan bugüne kadar
+    **hiçbir yerde uygulanmıyordu** — yalnızca testte "> 0" diye kontrol
+    ediliyordu. Sonuç: global tazeleme aralığı (6 saat) bütün kaynaklara
+    dayatılıyordu. Jooble bunu somut bir riske çeviriyor: kayıtta 12 saat
+    yazıyor, anahtarın 500 istek sınırı var ve her çekim ~120 istek harcıyor —
+    6 saatte bir çekim günde 480 istek eder, yani sınıra yapışır.
+
+    Döner: (zamanı gelen source_id kümesi, atlanan kaynak → kalan saat).
+    """
+    simdi = simdi or datetime.now()
+    gelen: set[str] = set()
+    atlanan: dict[str, float] = {}
+    for rec in registry.REGISTRY.values():
+        aralik = rec.min_poll_hours
+        ts = son_cekim.get(rec.source_id)
+        if not ts:
+            gelen.add(rec.source_id)      # hiç çekilmemiş → sırası
+            continue
+        try:
+            gecen = (simdi - datetime.fromisoformat(ts)).total_seconds() / 3600
+        except Exception:
+            gelen.add(rec.source_id)      # bozuk damga → güvenli taraf: çek
+            continue
+        if gecen >= aralik:
+            gelen.add(rec.source_id)
+        else:
+            atlanan[rec.source_id] = round(aralik - gecen, 2)
+    return gelen, atlanan
 
 
 # Okuma/yazma :mod:`cache` modülüne taşındı; oradaki asıl mesele hız değil
@@ -715,21 +768,55 @@ def run_live_ingest(
     # yine de kullanılır — yeniden **çekim** gerekmez, yalnızca yeniden çıkarım.
     reused_extraction = bool(cached and cached["postings"])
 
+    son_cekim: dict[str, str] = {}
+    atlanan: dict[str, float] = {}
     if cached is None:
         if stale_ok:
             # Hızlı mod + cache yok: ağa çıkmayız. Site (varsa fixture'la) açılır,
             # gerçek veri arka plan yenilemesinde gelir.
             raws, fetched_boards, errors = [], [], []
         else:
-            raws, fetched_boards, errors = _fetch_all_boards(registry.BOARDS)
-            api_raws, api_meta, api_errors = _fetch_api_sources()
+            # KISMİ TAZELEME (D-065): önbellek bayat ama içindeki her kaynağın
+            # ham kayıtları bayat değil. Yaş sınırı OLMADAN okuyup, yalnızca
+            # ``min_poll_hours`` süresi geçmiş kaynakları çekeriz; kalanların
+            # kayıtları korunur. Böylece kaynak kaydındaki nezaket aralığı
+            # gerçekten uygulanır ve Jooble'ın istek bütçesi yarıya iner.
+            onceki = _cache.read(path, 1e12, accept_stale_logic=True)
+            eski_raws = onceki["raws"] if onceki else []
+            eski_meta = onceki["meta"] if onceki else {}
+            son_cekim = dict(eski_meta.get("source_fetched_at") or {})
+            gelen, atlanan = _due_sources(son_cekim)
+
+            raws = [r for r in eski_raws
+                    if r.source_id in atlanan]          # sırası gelmeyenler korunur
+            # Meta/hata kayıtları da korunur. NOT: `source_id` alanı D-065 ile
+            # eklendi; ondan ÖNCE yazılmış bir önbellekte bu alan yok ve o
+            # kayıtlar bir kez düşer (ilanlar düşmez — RawPosting.source_id
+            # gerçek bir alan). Kaynak bir sonraki çekiminde meta'sı geri gelir.
+            fetched_boards = [b for b in (eski_meta.get("boards") or [])
+                              if _board_source(b) in atlanan]
+            errors = [e for e in (eski_meta.get("errors") or [])
+                      if _board_source(e) in atlanan]
+
+            due_boards = [b for b in registry.BOARDS if b[0] in gelen]
+            if due_boards:
+                b_raws, b_meta, b_err = _fetch_all_boards(due_boards)
+                raws.extend(b_raws)
+                fetched_boards.extend(b_meta)
+                errors.extend(b_err)
+            api_raws, api_meta, api_errors = _fetch_api_sources(only=gelen)
             raws.extend(api_raws)
             fetched_boards.extend(api_meta)
             errors.extend(api_errors)
+
+            simdi = datetime.now().isoformat(timespec="seconds")
+            for sid in gelen:
+                son_cekim[sid] = simdi
     else:
         raws = cached["raws"]
         fetched_boards = cached["meta"].get("boards", [])
         errors = cached["meta"].get("errors", [])
+        son_cekim = dict(cached["meta"].get("source_fetched_at") or {})
 
     if reused_extraction:
         normalized = cached["postings"]
@@ -737,7 +824,11 @@ def run_live_ingest(
         normalized = [normalize(r, adapter_version=LIVE_ADAPTER_VERSION) for r in raws]
         if raws:
             _cache.write(path, raws=raws, postings=normalized,
-                         meta={"boards": fetched_boards, "errors": errors})
+                         meta={"boards": fetched_boards, "errors": errors,
+                               # Kaynak başına son çekim damgası (D-065) —
+                               # kısmi tazelemenin belleği. Yazılmazsa her
+                               # koşuda her şey "sırası gelmiş" sayılır.
+                               "source_fetched_at": son_cekim})
 
     fetched_total = len(normalized)
 
@@ -758,6 +849,10 @@ def run_live_ingest(
         "errors": errors,
         "from_cache": from_cache,
         "reused_extraction": reused_extraction,
+        # Nezaket aralığı yüzünden bu koşuda atlanan kaynaklar (D-065).
+        # **Sessiz değil**: /api/health ve Kaynaklar sayfası bunu gösterebilir;
+        # "kaynak neden güncellenmedi" sorusunun cevabı burada.
+        "skipped_sources": atlanan,
         # Açılışta eski mantıkla işlenmiş önbellek kullanıldı mı (D-055).
         # Sessiz kalmaz: arayüz/health bunu gösterir, arka plan tazelemesi
         # bitince kendiliğinden False'a döner.
