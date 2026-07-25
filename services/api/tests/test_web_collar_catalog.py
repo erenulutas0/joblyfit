@@ -30,10 +30,14 @@ from isuygun_ingest.lexicon import EDUCATION, LANGUAGE, SHIFT, TERMS
 #: Kişiye ait çapraz nitelikler — mesleğe göre kısıtlanamaz.
 CAPRAZ_KATEGORILER = {EDUCATION, LANGUAGE, SHIFT}
 
-#: Lexicon'da henüz token'ı olmayan ama bilinçli tutulan gruplar. "İnşaat"
-#: Türkiye'de büyük bir sektör (sıvacı/kalıpçı/demirci) ve token'lar
-#: eklendiğinde kendiliğinden mavi yakaya düşsün diye listede duruyor.
-TOKENSIZ_IZINLI = {"İnşaat"}
+#: Lexicon'da henüz token'ı olmayan ama bilinçli tutulan gruplar.
+#:
+#: ARTIK BOŞ. "İnşaat" burada duruyordu (D-067: "token'lar eklendiğinde
+#: kendiliğinden mavi yakaya düşsün"); D-076'da sıvacı/kalıpçı/demirci/boyacı/
+#: marangoz/tesisatçı token'ları eklendi ve aşağıdaki test bunu **kendisi
+#: yakaladı** — izin satırı bayatlamıştı. Küme kalırsa gelecekteki bir yazım
+#: hatasını maskeler, o yüzden çıkarıldı.
+TOKENSIZ_IZINLI: set[str] = set()
 
 
 def _app_html() -> str:

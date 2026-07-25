@@ -609,8 +609,12 @@ const CLUSTERS_SHARED=["Eğitim düzeyi","Çalışma düzeni","Dil"];
    "İnşaat" lexicon'da HENÜZ token'ı olmayan bir küme (sıvacı/kalıpçı/demirci
    yok); burada duruyor ki token'lar eklendiğinde kendiliğinden mavi yakaya
    düşsün. */
+/* "Ev hizmetleri ve bakım" D-076'da eklendi: ölçümde en büyük okunamayan
+   bloktu ("Ev Yardımcısı Arıyoruz" hiçbir token tutmuyordu) ve Türkiye'de
+   büyük bir istihdam kalemi. "Mühendislik" bilinçli olarak BURADA DEĞİL —
+   beyaz yaka tarafına düşer. */
 const CLUSTERS_BLUE=["Lojistik ve taşımacılık","Üretim ve teknik","Perakende ve hizmet",
-  "Yiyecek ve turizm","Sağlık","Güvenlik","İnşaat"];
+  "Yiyecek ve turizm","Sağlık","Güvenlik","İnşaat","Ev hizmetleri ve bakım"];
 /* Bölge kodları bilinçli olarak mono metin — bayrak emojisi Windows'ta harf
    olarak düşüyor; kod zaten konsol diline daha uygun. */
 const RCODE={"Türkiye":"TR","Avrupa":"EU","ABD":"US","Uzaktan":"RMT","Diğer":"INT","Asya":"AS"};

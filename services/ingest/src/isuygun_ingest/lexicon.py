@@ -238,7 +238,8 @@ TERMS: tuple[Term, ...] = (
     T("mechanic", "Makine bakım / mekanik", EXPERIENCE,
       ["bakim onarim", "mekanik bakim", "makine bakim", "maintenance technician"], "Üretim ve teknik", True),
     T("production", "Üretim bandı / imalat", EXPERIENCE,
-      ["uretim bandi", "imalat", "montaj hatti", "production line", "operator",
+      ["uretim bandi", "uretim eleman", "uretim personel", "montaj eleman",
+       "imalat", "montaj hatti", "production line", "operator",
        "produktionshelfer", "produktionsmitarbeiter", "fertigung", "montage"], "Üretim ve teknik", True),
     T("quality", "Kalite kontrol", EXPERIENCE,
       ["kalite kontrol", "quality control", "iso 9001", "kalite guvence"], "Üretim ve teknik", True),
@@ -288,7 +289,7 @@ TERMS: tuple[Term, ...] = (
     T("nursing", "Hemşirelik deneyimi", EXPERIENCE, ["hemsire", "hemsirelik", "nurse"], "Sağlık", True),
     T("icu", "Yoğun bakım", EXPERIENCE, ["yogun bakim", "reanimasyon", "intensive care"], "Sağlık", True),
     T("caregiver", "Hasta / yaşlı bakımı", EXPERIENCE,
-      ["hasta bakici", "yasli bakim", "refakatci", "caregiver",
+      ["hasta bakici", "yasli bakim", "yasli bakici", "refakatci", "caregiver",
        "pflegehelfer", "pflegekraft", "altenpflege", "pflegefachkraft"], "Sağlık", True),
     T("pharmacy", "Eczane / kalfa", EXPERIENCE, ["eczane", "eczaci kalfasi", "pharmacy"], "Sağlık", True),
 
@@ -304,11 +305,112 @@ TERMS: tuple[Term, ...] = (
       # "gorevlisi" ve "gorevlileri"nin ikisini de yakalar. Tam çekimli
       # ("gorevlisi") yazılırsa yalnızca o tek çekim tutar — ölçümde
       # "Temizlik Görevlileri" ilanları bu yüzden okunamıyordu.
-      ["kat hizmetleri", "temizlik gorevli", "temizlik personel", "housekeeping",
+      ["kat hizmetleri", "temizlik gorevli", "temizlik personel", "temizlikci",
+       "ofis temizligi", "temizlik is", "housekeeping",
        "reinigungskraft", "gebäudereiniger", "gebaeudereiniger"], "Yiyecek ve turizm", True),
     T("front_desk", "Ön büro / resepsiyon", EXPERIENCE,
       ["on buro", "resepsiyon", "front desk", "receptionist"], "Yiyecek ve turizm", True),
     T("food_safety", "Hijyen belgesi", CERT, ["hijyen belgesi", "haccp", "food safety"], "Yiyecek ve turizm"),
+    T("bartender", "Barmenlik", EXPERIENCE,
+      ["barmen", "bartender", "kokteyl"], "Yiyecek ve turizm", True),
+    T("pastry", "Pastacılık / fırın", EXPERIENCE,
+      ["pastaci", "firinci", "hamur isi", "pasta sef", "baker"], "Yiyecek ve turizm", True),
+    T("dishwasher", "Bulaşık / mutfak yardımcılığı", EXPERIENCE,
+      ["bulasikci", "bulasik gorevli", "mutfak yardimci"], "Yiyecek ve turizm"),
+
+    # ---- EV HİZMETLERİ VE BAKIM ----
+    # Ölçümde en büyük okunamayan blok. "Ev Yardımcısı Arıyoruz" başlıklı ilan
+    # HİÇBİR token tutmuyordu; okunamayan TR ilanlarında "yardimcisi" 195 kez
+    # geçiyor. Bu küme Türkiye'de büyük bir istihdam kalemi ve tam olarak
+    # ürünün "yalnız beyaz yaka için değil" iddiasının test edildiği yer.
+    T("home_help", "Ev yardımcılığı", EXPERIENCE,
+      ["ev yardimci", "ev isleri", "ev temizligi", "gundelikci",
+       "camasir yikama", "utu yapabilen"], "Ev hizmetleri ve bakım", True),
+    T("child_care", "Çocuk bakıcılığı", EXPERIENCE,
+      # "cocuk gelisimi" YOK: akademik bir bölüm adı ve ölçümde "Anaokulu
+      # Öğretmeni" ilanlarını bakıcılık sandı — öğretmenlik başka bir iştir.
+      ["cocuk bakici", "bebek bakici", "cocuk bakimi", "dadi"],
+      "Ev hizmetleri ve bakım", True),
+
+    # ---- SAĞLIK MESLEKLERİ ----
+    # "Fizyoterapist", "Diyetisyen", "Psikolog", "Veteriner" hiç tanınmıyordu.
+    # "doktor" KASITLI olarak yok: ek toleransıyla "doktora" (lisansüstü
+    # derece) eşleşir ve hekim ilanı sanılırdı.
+    T("physio", "Fizyoterapi", EXPERIENCE,
+      ["fizyoterapist", "fizyoterapi", "physiotherapist"], "Sağlık", True),
+    T("dietitian", "Diyetisyenlik", EXPERIENCE,
+      ["diyetisyen", "beslenme uzman"], "Sağlık", True),
+    T("psychologist", "Psikoloji / danışmanlık", EXPERIENCE,
+      ["psikolog", "psikolojik danisman", "rehber ogretmen"], "Sağlık", True),
+    # "hekim" ÇIPLAK HALDE YOK: ilan metninde meslektaş olarak anılıyor ve
+    # ölçümde "Diş Hekimi Asistanı" ile "Acil Servis Hemşiresi" ilanları
+    # hekimlik şartı sanıldı. İşe alınan ROLÜ belirten ifadeler tutulur.
+    T("physician", "Hekimlik", LICENSE,
+      ["tabip", "pratisyen hekim", "uzman hekim", "aile hekim"], "Sağlık", True),
+    # Çıplak "veteriner" şirketin SEKTÖRÜNÜ de tutuyordu (veteriner ürünü
+    # satan firmanın satış temsilcisi ilanı hekimlik şartı sanılmıştı).
+    T("vet", "Veterinerlik", LICENSE,
+      ["veteriner hekim"], "Sağlık", True),
+
+    # ---- MÜHENDİSLİK ----
+    # Okunamayan ilanlarda "muhendisi" 178 kez geçiyordu ve yalnızca *yazılım*
+    # mühendisliği tanınıyordu. Disiplinler AYRI tutulur: "mühendis" tek token
+    # olsaydı her mühendislik ilanı her mühendise eşleşir, ayırt ediciliği
+    # sıfırlanırdı.
+    T("mech_eng", "Makine mühendisliği", EXPERIENCE,
+      ["makine muhendis", "mechanical engineer"], "Mühendislik", True),
+    T("civil_eng", "İnşaat mühendisliği / mimarlık", EXPERIENCE,
+      ["insaat muhendis", "ic mimar", "mimarlik", "statik proje",
+       # "mimar" ÇIPLAK HALDE YOK: yazılımda "architect" kıdem basamağı ve
+       # ölçümde `civil_eng` bir JAVA DEVELOPER ilanına eşleşti.
+       "civil engineer"], "Mühendislik", True),
+    T("elec_eng", "Elektrik-elektronik mühendisliği", EXPERIENCE,
+      ["elektrik muhendis", "elektronik muhendis", "enerji muhendis"], "Mühendislik", True),
+    T("industrial_eng", "Endüstri mühendisliği", EXPERIENCE,
+      ["endustri muhendis", "industrial engineer"], "Mühendislik", True),
+
+    # ---- İNŞAAT VE ZANAAT ----
+    # Bu küme D-067'de arayüzde tanımlıydı ama lexicon'da TEK TOKEN'I YOKTU;
+    # yorumda "token'lar eklendiğinde kendiliğinden mavi yakaya düşsün" diye
+    # bırakılmıştı. Şimdi dolduruluyor.
+    T("construction", "İnşaat işçiliği / şantiye", EXPERIENCE,
+      ["insaat isci", "insaat eleman", "santiye", "insaat ustasi"], "İnşaat", True),
+    T("plaster", "Sıvacılık / alçı", EXPERIENCE,
+      ["sivaci", "alci ustasi", "siva ustasi", "alcipan"], "İnşaat", True),
+    T("formwork", "Kalıpçılık", EXPERIENCE, ["kalipci"], "İnşaat", True),
+    T("rebar", "Demircilik / demir bağlama", EXPERIENCE,
+      ["demirci", "demir bagla"], "İnşaat", True),
+    T("painter", "Boyacılık", EXPERIENCE, ["boyaci", "bina boya"], "İnşaat", True),
+    T("carpenter", "Marangozluk / mobilya", EXPERIENCE,
+      ["marangoz", "mobilya imalat", "mobilya montaj"], "İnşaat", True),
+    T("plumber", "Tesisatçılık", EXPERIENCE,
+      ["tesisatci", "sihhi tesisat", "su tesisat"], "İnşaat", True),
+    T("hvac", "Klima / soğutma tekniği", EXPERIENCE,
+      ["klima teknik", "sogutma teknik", "iklimlendirme"], "İnşaat", True),
+
+    # ---- OTO VE HİZMET ZANAATLARI ----
+    T("auto_repair", "Oto tamir / kaporta", EXPERIENCE,
+      ["oto tamir", "kaportaci", "kaporta", "oto boya", "oto elektrik"],
+      "Üretim ve teknik", True),
+    T("hairdresser", "Kuaförlük / berberlik", EXPERIENCE,
+      ["kuafor", "berber", "sac tasarim"], "Perakende ve hizmet", True),
+    T("tailor", "Terzilik / dikiş", EXPERIENCE,
+      ["terzi", "dikis atolye", "konfeksiyon"], "Perakende ve hizmet", True),
+    T("gardener", "Bahçıvanlık / peyzaj", EXPERIENCE,
+      ["bahcivan", "peyzaj"], "Perakende ve hizmet", True),
+    T("valet", "Vale / otopark", EXPERIENCE,
+      ["vale gorevli", "otopark gorevli"], "Perakende ve hizmet", True),
+
+    # ---- ŞOFÖRLÜK (genel) ----
+    # "Kamyon Şoförü" ağır vasıta token'ıyla tutuyordu ama düz "Şoför" hiçbir
+    # şeye bağlanmıyordu — servis/hafif araç şoförlüğü ayrı bir iştir.
+    T("driver", "Şoförlük", EXPERIENCE,
+      ["sofor", "servis surucu"], "Lojistik ve taşımacılık", True),
+
+    # ---- PAZARLAMA (genel) ----
+    T("marketing", "Pazarlama", EXPERIENCE,
+      ["pazarlama uzman", "pazarlama sorumlu", "pazarlama eleman",
+       "marka yonetim", "brand manager"], "Pazarlama ve satış", True),
 
     # ---- eğitim ----
     T("teaching", "Öğretmenlik / eğitmenlik", EXPERIENCE,

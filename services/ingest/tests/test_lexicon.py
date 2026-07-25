@@ -284,3 +284,86 @@ def test_universite_mezuniyeti_yaygin_ifadeyle_de_bulunur():
                   "İlgili bölümünden mezun olmak",
                   "Fakülte mezunu adaylar"):
         assert "bachelor" in {h.term.key for h in L.scan(metin)}, metin
+
+
+# ---------------------------------------------------------------------------
+# D-076 — eksik meslek aileleri
+# ---------------------------------------------------------------------------
+# Olcum: test edilen 41 meslekten 38'inde HIC token yoktu. Tam aileler
+# eksikti — ev hizmetleri, muhendislik, saglik meslekleri, insaat zanaatlari,
+# kuaforluk. "Insaat" kumesi arayuzde tanimliydi ama lexicon'da tek token'i
+# yoktu. Okunamayan TR ilani: %24,5 -> %18,2.
+
+YENI_MESLEKLER = [
+    ("Ev Yardımcısı Arıyoruz", "home_help"),
+    ("Ev temizliği yapabilecek yardımcı", "home_help"),
+    ("Çocuk bakıcısı aranıyor", "child_care"),
+    ("Yaşlı bakıcısı aranıyor", "caregiver"),
+    ("Üretim Elemanı alınacaktır", "production"),
+    ("Üretim Montaj Elemanı", "production"),
+    ("Makine Mühendisi", "mech_eng"),
+    ("İnşaat Mühendisi", "civil_eng"),
+    ("İç Mimar aranıyor", "civil_eng"),
+    ("Elektrik Mühendisi", "elec_eng"),
+    ("Endüstri Mühendisi", "industrial_eng"),
+    ("Şoför aranıyor", "driver"),
+    ("Fizyoterapist", "physio"),
+    ("Diyetisyen", "dietitian"),
+    ("Psikolog", "psychologist"),
+    ("Aile Hekimi", "physician"),
+    ("Veteriner Hekim", "vet"),
+    ("Pazarlama Uzmanı", "marketing"),
+    ("Ofis temizliği yapacak personel", "housekeeping"),
+    ("Şantiye elemanı", "construction"),
+    ("Sıvacı aranıyor", "plaster"),
+    ("Kalıpçı", "formwork"),
+    ("Demirci", "rebar"),
+    ("Boyacı", "painter"),
+    ("Marangoz", "carpenter"),
+    ("Tesisatçı", "plumber"),
+    ("İklimlendirme teknikeri", "hvac"),
+    ("Oto Kaporta Ustası", "auto_repair"),
+    ("Kuaför aranıyor", "hairdresser"),
+    ("Terzi", "tailor"),
+    ("Bahçıvan", "gardener"),
+    ("Otopark Görevlisi", "valet"),
+    ("Barmen", "bartender"),
+    ("Pastacı", "pastry"),
+    ("Bulaşıkçı", "dishwasher"),
+]
+
+
+@pytest.mark.parametrize("metin,anahtar", YENI_MESLEKLER)
+def test_eksik_meslek_aileleri_artik_taniniyor(metin, anahtar):
+    assert anahtar in {h.term.key for h in L.scan(metin)}, \
+        f"meslek tanınmadı: {metin!r} → {anahtar}"
+
+
+#: Kapsami genisletirken OLCUMDE yakalanan yanlis eslesmeler. Her biri gercek
+#: bir ilanda gorulmustur; daraltma bu yuzden yapildi.
+YENI_TOKEN_TEHLIKELERI = [
+    # "mimar" ciplak halde yazilimdaki "architect" ile cakisiyordu.
+    ("JAVA DEVELOPER — software architect pozisyonu", "civil_eng"),
+    # "hekim" ciplak halde meslektas olarak anilmayi da tutuyordu.
+    ("Diş Hekimi Asistanı aranıyor", "physician"),
+    ("Acil Servis Hemşiresi — hekim ile çalışacak", "physician"),
+    # "cocuk gelisimi" akademik bir bolum adi, bakicilik degil.
+    ("Anaokulu Öğretmeni — çocuk gelişimi mezunu", "child_care"),
+    # Ciplak "veteriner" sirketin SEKTORUNU tutuyordu.
+    ("Veteriner ürünleri saha satış temsilcisi", "vet"),
+]
+
+
+@pytest.mark.parametrize("metin,olmamali", YENI_TOKEN_TEHLIKELERI)
+def test_yeni_tokenlar_olcumdeki_yanlis_eslesmeleri_tekrarlamaz(metin, olmamali):
+    assert olmamali not in {h.term.key for h in L.scan(metin)}, \
+        f"daraltma geri alınmış — yanlış eşleşme geri geldi: {metin!r}"
+
+
+def test_insaat_kumesi_artik_bos_degil():
+    """Arayüz bu kümeyi mavi yakada listeliyordu ama lexicon'da tek token yoktu.
+
+    Boş bir küme, kullanıcıya var olmayan bir kapsama sözü verir.
+    """
+    insaat = [t.key for t in L.TERMS if t.cluster == "İnşaat"]
+    assert len(insaat) >= 6, f"inşaat kümesi hâlâ zayıf: {insaat}"
