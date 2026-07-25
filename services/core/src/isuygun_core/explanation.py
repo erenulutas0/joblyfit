@@ -68,6 +68,10 @@ class MatchExplanation:
     #: Kıdem tavanı bandı düşürdüyse gerekçesi (D-063). Sessiz tavan, açıklaması
     #: olmayan bir cezadır; kullanıcı bandın neden yükselmediğini görmeli.
     seniority_note: str | None = None
+    #: Zorunlu şart bilinmediği için tavan uygulandıysa gerekçesi (D-064).
+    requirement_gap_note: str | None = None
+    #: Kanıt oranı tavanının gerekçesi (D-064) — kaç şartı okuyabildik.
+    coverage_note: str | None = None
 
 
 CONF_LABEL = {"high": "Yüksek", "medium": "Orta", "low": "Düşük"}
@@ -194,4 +198,6 @@ def build_explanation(result: MatchResult) -> MatchExplanation:
         worth_applying_rule=rule,
         insufficient_data_note=INSUFFICIENT_DATA_NOTE if result.insufficient_data else None,
         seniority_note=result.seniority_note,
+        requirement_gap_note=result.requirement_gap_note,
+        coverage_note=result.coverage_note,
     )

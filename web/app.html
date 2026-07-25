@@ -1479,9 +1479,14 @@ function viewPaste(){
    sessiz bir cezadır; kullanıcı gerekçeyi görmeli. Sunucu `**vurgu**` yollar,
    `rich()` yalnızca onu kalınlaştırır. */
 function senNote(j){
-  if(!j.seniority_note) return '';
-  return `<div class="notice" style="margin-top:14px; border-left-color:var(--warn)">
-    <b>Kıdem notu:</b> ${rich(j.seniority_note)}</div>`;
+  const p=[];
+  if(j.seniority_note)
+    p.push(`<b>Kıdem notu:</b> ${rich(j.seniority_note)}`);
+  if(j.requirement_gap_note)
+    p.push(`<b>Zorunlu şart:</b> ${rich(j.requirement_gap_note)}`);
+  if(j.coverage_note)
+    p.push(`<b>Kanıt oranı:</b> ${rich(j.coverage_note)}`);
+  return p.map(t=>`<div class="notice" style="margin-top:14px; border-left-color:var(--warn)">${t}</div>`).join('');
 }
 
 function pasteVerdict(j){

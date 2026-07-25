@@ -47,6 +47,11 @@ class MatchResult:
     #: Kıdem tavanı uygulandıysa gerekçesi (D-063). Kullanıcıya gösterilir:
     #: bandın neden yükselmediğini söylemeyen bir tavan, sessiz bir cezadır.
     seniority_note: str | None = None
+    #: Zorunlu şart bilinmediği için tavan uygulandıysa gerekçesi (D-064).
+    requirement_gap_note: str | None = None
+    #: Kanıt oranı tavanı uygulandıysa gerekçesi (D-064). Tavanların yükünü
+    #: bu taşıyor; açıklaması olmadan sessiz bir ceza olurdu.
+    coverage_note: str | None = None
 
     @property
     def met(self) -> list[RequirementOutcome]:
@@ -143,6 +148,79 @@ _SENIORITY_MIN_YEARS: dict[str, float] = {
 _SENIORITY_CAP = MatchBand.CONDITIONAL
 
 
+# D-064 — iki tavan daha; ikisi de aynı ilkenin başka yüzü:
+# "iddianın gücü, elimizdeki kanıtı aşamaz."
+#
+# (1) ZORUNLU ŞART BİLİNMİYORSA "güçlü" denmez. D-012 bunu yalnızca *belge*
+#     alanları için yapıyordu (doğrulanmamış gate → şartlı). Ölçümde aynı
+#     boşluğun başka türü çıktı: "Yüksek lisans **zorunlu**" ve "Almanca
+#     **zorunlu**" şartları profilde hiç karşılığı yokken ilan "güçlü eşleşme"
+#     görünüyordu — `unknown` skoru düşürmediği için (D-011, doğru kural) skor
+#     1.0 çıkıyordu.
+#
+#     **Sebep ayrımı kritik:** yalnızca bilinmeyenin kaynağı PROFİL olduğunda
+#     tavan uygulanır. `low_confidence_extraction` (ilanı biz güvenle
+#     okuyamadık) tavana girmez — kendi çıkarım zaafımız için kullanıcının
+#     bandını düşürmek, olmayan bir şartı ona yüklemek olurdu (FS-4).
+_PROFILE_GAP_REASONS = frozenset({"missing_profile_data", "missing_duration"})
+_HARD_UNKNOWN_CAP = MatchBand.CONDITIONAL
+
+# (2) KANIT ORANI tavanı. D-022 değerlendirilen şartın **sayısına** bakar;
+#     bu, ilanın söylediklerinin ne kadarını okuyabildiğimize (**orana**)
+#     bakar. 12 şartlı bir ilanda 4'ünü değerlendirip "güçlü" demek, ilanın
+#     üçte ikisi hakkında hiçbir şey bilmeden tam uyum iddia etmektir.
+#     Eşikler ölçümle seçildi (bkz. golden/README).
+_COVERAGE_CAP: tuple[tuple[float, MatchBand], ...] = (
+    (0.35, MatchBand.CONDITIONAL),   # şartların <%35'i değerlendirildi
+    (0.60, MatchBand.GOOD),          # <%60 → en fazla "iyi"
+)
+
+
+def _hard_unknown_cap(outcomes: tuple[RequirementOutcome, ...]
+                      ) -> tuple[MatchBand | None, str | None]:
+    """Profil eksikliği yüzünden değerlendirilemeyen **zorunlu** şart var mı?"""
+    eksik = [
+        o for o in outcomes
+        if o.state == "unknown"
+        and o.requirement.kind == "hard"
+        and not o.requirement.is_legal_eligibility     # D-013: skora girmez
+        and o.unknown_reason in _PROFILE_GAP_REASONS
+    ]
+    if not eksik:
+        return None, None
+    adlar = ", ".join(o.requirement.label for o in eksik[:3])
+    return _HARD_UNKNOWN_CAP, (
+        f"İlan şu şartı **zorunlu** tutuyor ve profilinde karşılığı yok: "
+        f"{adlar}. Bu seni **eler demiyoruz** — ama zorunlu bir şart "
+        f"doğrulanmadan güçlü eşleşme diyemeyiz."
+    )
+
+
+def _coverage_cap(coverage: float) -> MatchBand | None:
+    for esik, cap in _COVERAGE_CAP:
+        if coverage < esik:
+            return cap
+    return None
+
+
+def _coverage_note(outcomes: tuple[RequirementOutcome, ...]) -> str:
+    """Kanıt oranı tavanının gerekçesi — **sayıyla**.
+
+    Ölçüm bu notu zorunlu kıldı: tavanların yükünü kanıt oranı taşıyor (bir
+    profilde 976 bantlı ilanın 852'si) ve açıklaması olmadığında kullanıcı
+    bandın neden yükselmediğini hiçbir yerden öğrenemiyordu — tam olarak
+    kaçınmak istediğimiz sessiz tavan.
+    """
+    toplam = len(outcomes)
+    okunan = sum(1 for o in outcomes if o.state != "unknown")
+    return (
+        f"İlanın **{toplam} şartından {okunan} tanesini** profilinle "
+        f"karşılaştırabildik; kalanı hakkında bilgimiz yok. Bu yüzden güçlü "
+        f"eşleşme demiyoruz — **uymadığın anlamına gelmez**, profiline alan "
+        f"ekledikçe bu oran yükselir."
+    )
+
+
 def _evidenced_years(profile: CareerProfile) -> float | None:
     """Profilin beyan ettiği **en yüksek** deneyim yılı.
 
@@ -191,6 +269,7 @@ def _band(
     has_pending_verification: bool,
     discriminative_assessed: int,
     seniority_cap: MatchBand | None = None,
+    extra_caps: tuple[MatchBand | None, ...] = (),
 ) -> MatchBand:
     if has_blocking_unmet:
         # Hard şart karşılanmıyorsa hiçbir koşulda "güçlü" denmez (FR-402).
@@ -208,9 +287,10 @@ def _band(
     else:
         band = MatchBand.WEAK
 
-    # Tavanların **en düşüğü** uygulanır: kanıt miktarı (D-022) ve kıdem
-    # (D-063) bağımsız kısıtlardır, biri diğerini gevşetemez.
-    for cap in (_cap_for(discriminative_assessed), seniority_cap):
+    # Tavanların **en düşüğü** uygulanır: kanıt miktarı (D-022), kıdem (D-063),
+    # zorunlu-şart ve kanıt oranı (D-064) bağımsız kısıtlardır; biri diğerini
+    # gevşetemez.
+    for cap in (_cap_for(discriminative_assessed), seniority_cap, *extra_caps):
         if cap is not None and _BAND_RANK[band] > _BAND_RANK[cap]:
             band = cap
     return band
@@ -308,15 +388,23 @@ def match(
     )
 
     sen_cap, sen_note = _seniority_cap(job.experience_level, profile)
+    hard_cap, hard_note = _hard_unknown_cap(outcomes)
+    cov_cap = _coverage_cap(coverage)
     band = _band(score, has_blocking, pending_verify, discriminative_assessed,
-                 seniority_cap=sen_cap)
+                 seniority_cap=sen_cap, extra_caps=(hard_cap, cov_cap))
+
+    # Notlar yalnızca tavan GERÇEKTEN bandı düşürdüyse anlamlıdır: skor zaten
+    # "şartlı" veriyorsa tavandan söz etmek yanıltıcı olurdu.
+    def _if_bit(cap, note):
+        return note if (cap is not None and band == cap) else None
+
     return MatchResult(
         job=job,
         outcomes=outcomes,
         band=band,
         confidence=_confidence(coverage, unknown_count, calibrated_occupation),
         semantic_contribution=sem,
-        # Not yalnızca tavan GERÇEKTEN bandı düşürdüyse anlamlıdır: skor zaten
-        # "şartlı" veriyorsa kıdemden söz etmek yanıltıcı olurdu.
-        seniority_note=sen_note if (sen_cap is not None and band == sen_cap) else None,
+        seniority_note=_if_bit(sen_cap, sen_note),
+        requirement_gap_note=_if_bit(hard_cap, hard_note),
+        coverage_note=_if_bit(cov_cap, _coverage_note(outcomes)),
     )

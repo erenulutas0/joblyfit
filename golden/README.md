@@ -74,13 +74,17 @@ Uygulanan yargılar:
 
 ## Ölçülen zemin (2026-07-25, 37 vaka)
 
-| Ölçü | D-062 (kıdem körü) | D-063 (kıdem tavanı) |
-|---|---|---|
-| **AŞIRI İDDİA** | 18 — **%48,6** | 8 — **%21,6** |
-| alakasıza bant | 0 | 0 |
-| eksik iddia | 0 | 1 |
-| tam isabet | %51,3 | **%75,7** |
-| komşu isabet (±1) | %78,4 | **%94,6** |
+| Ölçü | D-062 (kıdem körü) | D-063 (kıdem tavanı) | D-064 (+2 tavan) |
+|---|---|---|---|
+| **AŞIRI İDDİA** | 18 — **%48,6** | 8 — %21,6 | 1 — **%2,7** |
+| alakasıza bant | 0 | 0 | 0 |
+| eksik iddia | 0 | 1 | 4 |
+| tam isabet | %51,3 | %75,7 | **%86,5** |
+| komşu isabet (±1) | %78,4 | %94,6 | **%100** |
+
+**Eksik iddia 0 → 4 arttı** ve bu bilinçli bir takas: tavanlar temkinli. Bu
+üründe eksik iddia (fırsatı düşük göstermek), aşırı iddiadan (yanlış umut)
+belirgin biçimde daha az zararlı. Yine de körlük göstergesi olarak izlenir.
 
 **Kök neden — kıdem körlüğü.** `match()` yalnızca `requirements` ve
 `is_public_sector` okuyordu; ilanın `experience_level`'ı eşleşmeye **hiç
@@ -101,14 +105,50 @@ sıfır olmalıydı. Aradaki fark yalnızca beceri sayısından geliyordu.
 | Yeni mezun (yıl yok) | `cond: 40` — hiç `strong`/`good` yok, gerekçe notu var |
 | 9 yıllık kıdemli | `strong: 23`, `good: 17` |
 
-### Kalan 8 aşırı iddia (kıdemden değil)
+### D-064 — iki tavan daha (eşikler ölçümle seçildi)
 
-* 4 vaka — çekirdek beceri **doğrulanmamış** (ML rolünde ML bilinmiyor)
-* 2 vaka — **zorunlu** şart bilinmiyor (yüksek lisans, Almanca)
-* 2 vaka — **meslek kayması** (satış/partner ve program yöneticiliği rolleri
-  devops profiline "güçlü" görünüyor)
+Kalan 8 aşırı iddianın 7'si iki boşluktan geliyordu:
 
-Sıradaki iyileştirmeler bunları hedefler; eşik yine aşağı çekilir.
+1. **Zorunlu şart bilinmiyor** → en fazla "şartlı". D-012 bunu yalnızca *belge*
+   alanları için yapıyordu; "Yüksek lisans zorunlu" / "Almanca zorunlu" gibi
+   şartlar profilde karşılığı yokken ilan "güçlü" görünüyordu. Bilinmeyenin
+   sebebi **profil** olmalı: `low_confidence_extraction` (ilanı biz güvenle
+   okuyamadık) tavana girmez — kendi zaafımız için kullanıcıyı cezalandırmak
+   olurdu (FS-4).
+2. **Kanıt oranı** → 12 şartlı ilanda 3'ünü değerlendirip "güçlü" demek,
+   ilanın çoğu hakkında hiçbir şey bilmeden tam uyum iddia etmektir.
+
+Eşikler tahminle değil **taranarak** seçildi (devops profili, 14.504 ilan):
+
+| Varyant | Golden aşırı iddia | strong | good | cond |
+|---|---|---|---|---|
+| kanıt oranı tavanı yok | 6 (%16,2) | 176 | 159 | 641 |
+| **<%35 şartlı, <%60 iyi** | **1 (%2,7)** | 41 | 177 | 758 |
+| <%50 şartlı, <%75 iyi | 0 (%0) | 18 | 123 | 835 |
+
+Son satır seçilmedi: 976 bantlı ilanda yalnız 18 "güçlü" kalıyor — üst bant
+pratikte yok oluyor. Ayrıca 37 vakada %0 ile %2,7 arasını ayırt etmek
+istatistiksel olarak anlamsız; daha az agresif seçenek bant bilgisini korur.
+
+**Hangi tavan gerçekten çalışıyor** (ölçüldü — `hard` şartlar korpusun yalnızca
+%2,2'si, ilanların %3,9'unda var):
+
+| Tavan | devops (976 bantlı) | yeni mezun (1474 bantlı) |
+|---|---|---|
+| kanıt oranı | **852** | **1266** |
+| kıdem | 26 | 1186 |
+| zorunlu şart | 63 | 36 |
+
+Yükü kanıt oranı taşıyor. Bu ölçüm bir eksiği de ortaya çıkardı: kanıt oranı
+tavanının **açıklaması yoktu** — 852 ilanda kullanıcı bandın neden yükselmediğini
+öğrenemiyordu. Sayılı bir not eklendi ("İlanın 7 şartından 1 tanesini
+karşılaştırabildik…"). Kural: **her tavan gerekçesini söyler**, yoksa sessiz
+cezadır.
+
+### Kalan 1 aşırı iddia
+
+**Meslek kayması**: "Partner Solutions Architect" (satış/partner rolü) devops
+profiline "iyi" görünüyor. Occupation eşleşmesi ayrı bir iş — henüz kapsam dışı.
 
 ## Sınırlar — dürüstçe
 

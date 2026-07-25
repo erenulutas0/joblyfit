@@ -17,13 +17,13 @@ import pytest
 
 _EVAL = Path(__file__).resolve().parents[3] / "golden" / "eval.py"
 
-#: Ölçülen zemin (2026-07-25, 37 vaka).
-#:   D-062 (kıdem körlüğü varken) : 18/37 = %48,6
-#:   D-063 (kıdem tavanı sonrası) :  8/37 = %21,6  <-- şimdiki
-#: Kalan 8 vaka kıdemden değil: zorunlu şartın bilinmemesi (2), meslek kayması
-#: (2) ve çekirdek becerinin doğrulanmamış olması (4). Sıradaki iyileştirmeler
-#: bunları hedefler ve eşik yine aşağı çekilir.
-ASIRI_IDDIA_ESIGI = 0.22
+#: Ölçülen zemin (2026-07-25, 37 vaka). Her düzeltmede AŞAĞI çekildi:
+#:   D-062 (kıdem körlüğü varken)        : 18/37 = %48,6
+#:   D-063 (kıdem tavanı)                :  8/37 = %21,6
+#:   D-064 (zorunlu şart + kanıt oranı)  :  1/37 = %2,7   <-- şimdiki
+#: Kalan 1 vaka: meslek kayması (satış/partner rolü devops profiline "iyi"
+#: görünüyor). Occupation eşleşmesi ayrı bir iş — henüz kapsam dışı.
+ASIRI_IDDIA_ESIGI = 0.03
 
 
 @pytest.fixture(scope="module")

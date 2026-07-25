@@ -269,6 +269,10 @@ class JobDetail(JobSummary):
     insufficient_data_note: str | None = None
     #: Kıdem tavanı bandı düşürdüyse gerekçesi (D-063).
     seniority_note: str | None = None
+    #: Zorunlu şart bilinmediği için tavan uygulandıysa gerekçesi (D-064).
+    requirement_gap_note: str | None = None
+    #: Kanıt oranı tavanının gerekçesi (D-064).
+    coverage_note: str | None = None
     disclaimer: str
 
 
@@ -1099,6 +1103,8 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
         listing_only_note=exp.listing_only_note,
         insufficient_data_note=exp.insufficient_data_note,
         seniority_note=exp.seniority_note,
+        requirement_gap_note=exp.requirement_gap_note,
+        coverage_note=exp.coverage_note,
         disclaimer=exp.disclaimer,
     )
 
@@ -1541,6 +1547,8 @@ def _detail_for(job_id: str, profile: CareerProfile) -> JobDetail:
         listing_only_note=exp.listing_only_note,
         insufficient_data_note=exp.insufficient_data_note,
         seniority_note=exp.seniority_note,
+        requirement_gap_note=exp.requirement_gap_note,
+        coverage_note=exp.coverage_note,
         disclaimer=exp.disclaimer,
     )
 

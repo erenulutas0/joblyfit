@@ -138,3 +138,118 @@ def test_seniority_note_absent_when_cap_did_not_bite():
     r = match(_skill_job("senior"), CareerProfile(profile_id="bos"),
               calibrated_occupation=True)
     assert r.seniority_note is None
+
+
+# ---------------------------------------------------------------------------
+# D-064 — zorunlu şart bilinmiyor + kanıt oranı tavanları
+# ---------------------------------------------------------------------------
+
+
+def _job_with(reqs, level=None):
+    from isuygun_core.domain import JobPosting
+
+    return JobPosting(
+        job_id="j", title="Rol", employer="X", city="İstanbul",
+        occupation_id="Yazılım ve veri", source="t", experience_level=level,
+        requirements=tuple(reqs),
+    )
+
+
+def _req(key, kind="required", category="skill", **kw):
+    from isuygun_core.domain import Requirement
+
+    return Requirement(key=key, label=key, kind=kind, category=category, **kw)
+
+
+def test_unknown_hard_requirement_blocks_strong():
+    """Profilde karşılığı olmayan **zorunlu** şart varsa "güçlü" denmez.
+
+    Ölçülen hata (D-063 sonrası kalan): "Yüksek lisans zorunlu" / "Almanca
+    zorunlu" şartları profilde hiç yokken ilan "güçlü eşleşme" görünüyordu —
+    `unknown` skoru düşürmediği için (D-011, doğru kural) skor 1.0 çıkıyordu.
+    """
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    job = _job_with([_req("python"), _req("sql"), _req("german", kind="hard")])
+    r = match(job, _profile(years=5, n=2), calibrated_occupation=True)
+    assert r.band == MatchBand.CONDITIONAL, f"{r.band} geldi"
+    assert r.requirement_gap_note and "german" in r.requirement_gap_note
+    assert "eler demiyoruz" in r.requirement_gap_note
+
+
+def test_low_confidence_extraction_does_not_cap():
+    """Bilinmeyenin sebebi BİZİM çıkarımımızsa tavan uygulanmaz (FS-4).
+
+    Ayrım kritik: ilanı güvenle okuyamadığımız için kullanıcının bandını
+    düşürmek, olmayan bir şartı ona yüklemek olurdu. Tavan yalnızca eksiklik
+    PROFİLDEN kaynaklandığında iner.
+    """
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    # Kapsama YÜKSEK tutulur (5 karşılanan şart) ki bu test yalnızca
+    # zorunlu-şart tavanını sınasın — kanıt oranı tavanı (D-064) karışmasın.
+    job = _job_with([_req(k) for k in ("python", "sql", "docker_k8s", "cicd", "cloud")]
+                    + [_req("german", kind="hard", extraction_confidence=0.2)])
+    r = match(job, _profile(years=5, n=5), calibrated_occupation=True)
+    assert r.requirement_gap_note is None
+    assert r.band == MatchBand.STRONG, f"{r.band} geldi"
+
+
+def test_legal_eligibility_hard_gap_does_not_cap():
+    """Yasal uygunluk şartı skora girmez (D-013), tavana da girmez."""
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    job = _job_with([_req(k) for k in ("python", "sql", "docker_k8s", "cicd", "cloud")]
+                    + [_req("legal_military", kind="hard", category="military",
+                            is_legal_eligibility=True)])
+    r = match(job, _profile(years=5, n=5), calibrated_occupation=True)
+    assert r.requirement_gap_note is None
+    assert r.band == MatchBand.STRONG
+
+
+def test_coverage_cap_limits_claim_when_most_requirements_unassessed():
+    """İlanın söylediklerinin çoğunu okuyamadıysak "güçlü" diyemeyiz.
+
+    12 şartlı ilanda 3'ünü değerlendirip tam uyum iddia etmek, ilanın üçte
+    ikisi hakkında hiçbir şey bilmeden konuşmaktır. Eşikler ölçümle seçildi:
+    <%35 → şartlı, <%60 → iyi (bkz. golden/README).
+    """
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    # 3 karşılanan + 9 profilde olmayan = kapsama 3/12 = %25
+    reqs = [_req(k) for k in ("python", "sql", "docker_k8s")]
+    reqs += [_req(f"yok{i}") for i in range(9)]
+    r = match(_job_with(reqs), _profile(years=5, n=3), calibrated_occupation=True)
+    assert r.band == MatchBand.CONDITIONAL, f"{r.band} geldi"
+
+
+def test_high_coverage_still_allows_strong():
+    """Kapsama yüksekse tavan uygulanmaz — tavan ceza değil."""
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    reqs = [_req(k) for k in ("python", "sql", "docker_k8s", "cicd")]
+    r = match(_job_with(reqs), _profile(years=5, n=4), calibrated_occupation=True)
+    assert r.band == MatchBand.STRONG
+
+
+def test_caps_never_produce_weak():
+    """Hiçbir tavan "zayıf" üretmez: eleme iddiası D-019'a aykırıdır.
+
+    Zayıf yalnızca gerçekten karşılanmayan şarttan (unmet) gelir.
+    """
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    senaryolar = [
+        _job_with([_req("python"), _req("sql"), _req("german", kind="hard")],
+                  level="executive"),
+        _job_with([_req("python")] + [_req(f"yok{i}") for i in range(11)]),
+    ]
+    for job in senaryolar:
+        r = match(job, _profile(years=None, n=2), calibrated_occupation=True)
+        assert r.band != MatchBand.WEAK, f"tavan zayıf üretti: {job.title}"
