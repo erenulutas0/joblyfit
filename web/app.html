@@ -268,6 +268,11 @@ a{color:var(--ph); text-decoration:none}
 .fsearch:focus{outline:none; border-color:var(--ph-line)}
 .fnote{font-family:var(--mono); font-size:10px; letter-spacing:.08em;
   color:var(--ink-4); margin-top:7px}
+/* Filtrenin GİZLİ MALİYETİ — sessiz kalırsa kullanıcı "filtre çalışmıyor"
+   sanıyor. Uyarı rengi, ama alarm değil: bilgi. */
+.fnote.warn-note{color:var(--warn); line-height:1.7; letter-spacing:.04em;
+  font-size:10.5px; max-width:70ch}
+.fnote.warn-note b{color:var(--warn)}
 /* kıdem rozeti — kartta */
 .pill.lvl{background:rgba(89,200,255,.10); color:var(--mid);
   border:1px solid rgba(89,200,255,.25)}
@@ -1074,10 +1079,28 @@ function fopts(list,counts,sel,attr){
 function viewFilters(){
   const fx=S.feed?.facets; if(!fx) return "";
   const n=activeFilterCount();
+  /* BU EKSENLERİN GİZLİ MALİYETİ VAR ve söylenmezse tuzak olur: Türkiye
+     ilanlarının çoğu kıdem/çalışma biçimi/istihdam türü YAZMIYOR (İstanbul'da
+     2301 ilanın 2101'i kıdem belirtmemiş — %91). Kullanıcı "JUNIOR" seçtiğinde
+     o 2101 ilanı da eliyor; içlerinde ona uygun junior ilanlar olabilir,
+     yalnızca "junior" yazmamışlardır. Ölçülen sonuç: İstanbul+JUNIOR 12 ilan
+     veriyor ve hiçbiri yazılım değil — kullanıcı "filtreler çalışmıyor"
+     sanıyor, oysa filtre çalışıyor, havuz o kadar. */
+  const eksenNotu=(sel,counts)=>{
+    if(!sel || sel==="unspecified") return "";
+    const bos=(counts||{}).unspecified||0;
+    if(!bos) return "";
+    return `<div class="fnote warn-note">Bu filtre, bu alanı <b>yazmayan
+      ${bos} ilanı</b> da dışarıda bırakıyor. Çoğu işveren bunu belirtmiyor —
+      aradığın iş onların arasında olabilir.</div>`;
+  };
   const rows=[
-    ["kıdem seviyesi", fopts(LEVELS,fx.experience_levels,S.f.level,"lvl")],
-    ["çalışma biçimi", fopts(ARRS,fx.arrangements,S.f.arr,"arr")],
-    ["istihdam türü",  fopts(EMPS,fx.employment_types,S.f.emp,"emp")],
+    ["kıdem seviyesi", fopts(LEVELS,fx.experience_levels,S.f.level,"lvl"),
+      eksenNotu(S.f.level,fx.experience_levels)],
+    ["çalışma biçimi", fopts(ARRS,fx.arrangements,S.f.arr,"arr"),
+      eksenNotu(S.f.arr,fx.arrangements)],
+    ["istihdam türü",  fopts(EMPS,fx.employment_types,S.f.emp,"emp"),
+      eksenNotu(S.f.emp,fx.employment_types)],
   ].filter(([,html])=>html);
 
   const q=S.citySearch.trim().toLocaleLowerCase("tr");
@@ -1114,8 +1137,8 @@ function viewFilters(){
     </div>
     <div class="fpanel ${S.fopen?'open':''}">
       ${ct.toplam?cityRow:''}
-      ${rows.map(([t,html])=>`<div class="frow"><span class="tag-l">${t}</span>
-        <div class="fopts">${html}</div></div>`).join('')}
+      ${rows.map(([t,html,not])=>`<div class="frow"><span class="tag-l">${t}</span>
+        <div class="fopts">${html}</div>${not||''}</div>`).join('')}
       ${(fx.long_open_count||S.f.longOpen)?`<div class="frow"><span class="tag-l">ilan yaşı</span>
         <div class="fopts"><button class="fo ${S.f.longOpen?'on':''}" data-lo="1">
           UZUN SÜREDİR AÇIK<b>${fx.long_open_count||0}</b></button></div>
@@ -1276,7 +1299,10 @@ function wireTopbar(){
     await loadFeed(); render();
   });
   $("[data-new]")&&($("[data-new]").onclick=startOnboarding);
-  $("#cvBtn")&&($("#cvBtn").onclick=openProfilePanel);
+  /* Ok fonksiyonu ZORUNLU: `onclick=openProfilePanel` biçiminde bağlamak
+     tıklama olayını 1. argüman olarak geçirir (bkz. openProfilePanel'deki tip
+     koruması). */
+  $("#cvBtn")&&($("#cvBtn").onclick=()=>openProfilePanel());
   $("#appsBtn")&&($("#appsBtn").onclick=()=>{
     S.view=(S.view==="apps")?"feed":"apps"; render();});
   $("#pasteBtn")&&($("#pasteBtn").onclick=()=>{
@@ -1299,7 +1325,7 @@ function wireFeed(){
   /* "Daha fazla" bir sonraki dilimi SUNUCUDAN ister (D-060). */
   $("[data-more]")&&($("[data-more]").onclick=()=>fetchMore("evaluated"));
   $("[data-more-un]")&&($("[data-more-un]").onclick=()=>fetchMore("unevaluated"));
-  $("#addSkillCta")&&($("#addSkillCta").onclick=openProfilePanel);
+  $("#addSkillCta")&&($("#addSkillCta").onclick=()=>openProfilePanel());
   document.querySelectorAll("[data-job]").forEach(el=>el.onclick=()=>openDetail(el.dataset.job));
 
   /* --- filtreler: her değişim sunucudan taze sayfa + taze rozetler --- */
@@ -1334,8 +1360,14 @@ async function openProfilePanel(wantField){
   const sc=$("#scrim"), p=$("#pnl");
   sc.classList.add("on"); p.classList.add("on"); sc.onclick=closePanel;
   /* Bir ilan belirli bir alanı istediği için gelindiyse o alan panelin EN
-     ÜSTÜNDE tek tıkla eklenebilir olarak durur. */
-  S.wantField=wantField||null;
+     ÜSTÜNDE tek tıkla eklenebilir olarak durur.
+
+     TİP KORUMASI ŞART: bu fonksiyon iki yerde `onclick=openProfilePanel`
+     olarak bağlıydı ve parametre eklendiğinde tıklama olayı sessizce
+     `wantField`a düştü — panelde "[object PointerEvent] beceri matrisinde
+     karşılığı olmayan bir şart" yazdı. Bağlamalar düzeltildi ama koruma
+     kalıyor: aynı hata bir daha eklenirse metne sızmaz. */
+  S.wantField=(typeof wantField==="string" && wantField) ? wantField : null;
   /* Profil YEREL (D-059): ağ beklemeden anında çizilir. */
   S.profile=profileVM(); S.unlock=null; paintPanel(); loadUnlock();
 }
