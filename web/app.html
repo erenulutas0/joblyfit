@@ -545,6 +545,8 @@ const jpost=(p,body)=>api(p,{method:"POST",headers:{"Content-Type":"application/
 const PAGE=40;
 const S={profiles:[], catalog:[], feed:null, view:"load",
   q:"", region:"", ob:null,
+  /* Bir ilanın "şunu ekle" düğmesinden gelindiyse istenen alanın etiketi. */
+  wantField:null,
   /* filtreler. Hepsi "" = kısıt yok. `fopen` panelin açık/kapalı hâli. */
   f:{level:"", arr:"", emp:"", city:"", longOpen:false}, fopen:false, citySearch:"",
   /* profil paneli: null | "profile". `cv` son yükleme raporu; `unlock`
@@ -565,8 +567,21 @@ const ARRS=[["remote","UZAKTAN"],["hybrid","HİBRİT"],["onsite","OFİSTEN"],
 const EMPS=[["internship","STAJ"],["part_time","YARI ZAMANLI"],
   ["contract","SÖZLEŞMELİ"],["unspecified","BELİRTİLMEMİŞ"]];
 
+/* Yaka ayrımı MESLEK kümeleri içindir. Aşağıdakiler mesleğe değil KİŞİYE ait
+   çapraz niteliklerdir; iki yakada da sorulur. Mavi yakada kapalı olmaları
+   ölçülebilir zarar veriyordu: canlı testte kaynakçı ilanı "Tercihen Meslek
+   Lisesi mezunu" istiyordu ama kullanıcının bunu beyan edecek yeri yoktu →
+   şart kalıcı "bilinmeyen" kalıyor, kanıt oranı tavanı (D-064) devreye giriyor
+   ve 24 sonucun 24'ü "şartlı eşleşme"de sıkışıyordu. Vardiya ve dil için
+   durum daha da ters: mavi yakada beyaz yakadan DAHA çok isteniyorlar. */
+const CLUSTERS_SHARED=["Eğitim düzeyi","Çalışma düzeni","Dil"];
+/* "Güvenlik" (özel güvenlik görevlisi) buraya eklendi — Türkiye'de büyük bir
+   mavi yaka istihdam kalemi, oysa yalnızca beyaz yaka listesinde görünüyordu.
+   "İnşaat" lexicon'da HENÜZ token'ı olmayan bir küme (sıvacı/kalıpçı/demirci
+   yok); burada duruyor ki token'lar eklendiğinde kendiliğinden mavi yakaya
+   düşsün. */
 const CLUSTERS_BLUE=["Lojistik ve taşımacılık","Üretim ve teknik","Perakende ve hizmet",
-  "Yiyecek ve turizm","Sağlık","İnşaat"];
+  "Yiyecek ve turizm","Sağlık","Güvenlik","İnşaat"];
 /* Bölge kodları bilinçli olarak mono metin — bayrak emojisi Windows'ta harf
    olarak düşüyor; kod zaten konsol diline daha uygun. */
 const RCODE={"Türkiye":"TR","Avrupa":"EU","ABD":"US","Uzaktan":"RMT","Diğer":"INT","Asya":"AS"};
@@ -851,10 +866,14 @@ function obStep(step){
 }
 
 function selectableCatalog(collar){
-  let items=S.catalog;
-  if(collar==="blue") items=items.filter(i=>CLUSTERS_BLUE.includes(i.occupation_id));
-  else if(collar==="white") items=items.filter(i=>!CLUSTERS_BLUE.includes(i.occupation_id));
-  return items;
+  const ortak=i=>CLUSTERS_SHARED.includes(i.occupation_id);
+  const mavi=i=>CLUSTERS_BLUE.includes(i.occupation_id);
+  /* `ortak(i)||` beyaz yakada bugün gereksiz (paylaşılan gruplar CLUSTERS_BLUE
+     içinde değil) ama niyeti açık tutuyor: bir gün bir grup hem mavi hem ortak
+     sayılırsa beyaz yaka onu kaybetmesin. */
+  if(collar==="blue")  return S.catalog.filter(i=>ortak(i)||mavi(i));
+  if(collar==="white") return S.catalog.filter(i=>ortak(i)||!mavi(i));
+  return S.catalog;
 }
 function obSuggestName(){
   const o=S.ob, parts=[];
@@ -1200,9 +1219,12 @@ function repaint(){ $(".feed").innerHTML=viewFeed(); wireFeed(); }
    yalnızca ÖNERİ üretir; her satırı kullanıcı tek tek onaylar. Sunucu da öyle
    davranır (`written_to_profile:false`), arayüz bunu gizlemez — "CV'den 12
    beceri eklendi" demek, kullanıcının profilini onun adına doldurmaktı. */
-async function openProfilePanel(){
+async function openProfilePanel(wantField){
   const sc=$("#scrim"), p=$("#pnl");
   sc.classList.add("on"); p.classList.add("on"); sc.onclick=closePanel;
+  /* Bir ilan belirli bir alanı istediği için gelindiyse o alan panelin EN
+     ÜSTÜNDE tek tıkla eklenebilir olarak durur. */
+  S.wantField=wantField||null;
   /* Profil YEREL (D-059): ağ beklemeden anında çizilir. */
   S.profile=profileVM(); S.unlock=null; paintPanel(); loadUnlock();
 }
@@ -1216,6 +1238,7 @@ async function loadUnlock(){
 }
 function closePanel(){
   $("#scrim").classList.remove("on"); $("#pnl").classList.remove("on");
+  S.wantField=null;   // bir sonraki açılışta eski istek yapışıp kalmasın
 }
 function paintPanel(){ $("#pnl").innerHTML=panelBody(); wirePanel(); }
 
@@ -1231,6 +1254,43 @@ function panelBody(){
     <p class="lead">CV'ni yükle — <b>hiçbir şey otomatik eklenmez</b>. Sistem
       yalnızca alan <b>önerir</b>, her birini sen onaylarsın. Onayladığın her
       beceri eşleştirmede <b>kanıt</b> olur ve daha çok ilan değerlendirilebilir hâle gelir.</p>
+
+    ${(()=>{
+      /* Bir ilanın "şunu ekle" düğmesinden gelindiyse istenen alan EN ÜSTTE,
+         tek tıkla eklenebilir durur. Önceden buraya genel panel açılıyordu ve
+         istenen alan (ör. "Lise mezuniyeti") listede bile olmuyordu. */
+      if(!S.wantField) return "";
+      const istek=S.wantField, bas=dh(`ilanın istediği alan`);
+      const kat=(S.catalog||[]).find(c=>c.label===istek);
+      if(kat&&facts.some(f=>f.key===kat.key)) return bas+`<div class="notice">
+        <b>${esc(istek)}</b> profilinde <b>zaten kayıtlı</b>. İlan bunu yine
+        "bilinmeyen" gösteriyorsa sebep doğrulamadır — aşağıdaki beceri
+        listesinde yanındaki <b>doğrula</b>ya bak.</div>`;
+      if(kat&&sug.some(s=>s.key===kat.key)) return bas+`<div class="notice">
+        <b>${esc(istek)}</b> CV'nden <b>öneri</b> olarak geldi ve aşağıda
+        onayını bekliyor.</div>`;
+      if(!kat) return bas+`<div class="notice">
+        <b>${esc(istek)}</b> beceri matrisinde karşılığı olmayan bir şart, o yüzden
+        tek tıkla eklenemiyor. CV yüklersen metinde geçiyorsa öneri olarak çıkar.
+        Kendiliğinden <b>eklemiyoruz</b>: beyan etmediğin bir şeyi profiline
+        yazmak, eşleştirmenin kanıta dayandığı iddiasını çürütürdü.</div>`;
+      return bas+`<div class="notice" style="margin-bottom:11px">Bu ilan
+        <b>${esc(istek)}</b> istiyor, profilinde kayıt yok. <b>Sende varsa</b> ekle —
+        beyan senden gelir, biz varsaymayız.</div>
+        <div class="sug">
+          <div class="nm">${esc(kat.label)}${
+            /* Grup adı bazı token'larda etiketin aynısı ("İnsan kaynakları");
+               ikisini birden yazmak kelimeyi tekrar ettiriyordu. */
+            kat.occupation_label && kat.occupation_label !== kat.label
+              ? `<i>${esc(kat.occupation_label)}</i>` : ''}</div>
+          ${kat.asks_years?`<input class="yr" type="number" min="0" max="50" step="0.5"
+            placeholder="yıl" data-sy="${esc(kat.key)}">`:''}
+          <button class="ok" data-ok="${esc(kat.key)}">EKLE</button>
+        </div>
+        ${kat.needs_verification?`<div class="notice" style="margin-top:9px">
+          Bu alan belge istiyor: eklesen bile <b>doğrulanmadan</b> "karşılanıyor"
+          sayılmaz (D-012) — ilan onu bilinmeyen görmeye devam eder.</div>`:''}`;
+    })()}
 
     <div class="drop" id="drop">
       <span class="ic">↑</span>
@@ -1486,6 +1546,11 @@ function senNote(j){
     p.push(`<b>Zorunlu şart:</b> ${rich(j.requirement_gap_note)}`);
   if(j.coverage_note)
     p.push(`<b>Kanıt oranı:</b> ${rich(j.coverage_note)}`);
+  /* Kanıt miktarı (D-022) — en sık bağlayan tavan ama notu yoktu: kullanıcı
+     ilanın iki şartını da karşılayıp "şartlı · güven düşük" görüyor ve ekranda
+     hiçbir gerekçe bulamıyordu. */
+  if(j.evidence_note)
+    p.push(`<b>Kanıt miktarı:</b> ${rich(j.evidence_note)}`);
   return p.map(t=>`<div class="notice" style="margin-top:14px; border-left-color:var(--warn)">${t}</div>`).join('');
 }
 
@@ -1620,6 +1685,7 @@ function detailBody(j){
   const line=(x,cls,ic)=>`<div class="lrow ${cls}"><span class="ic">${ic}</span>
     <div><div>${esc(x.text)}</div>${x.evidence?`<div class="ev">${esc(x.evidence)}</div>`:''}
     ${x.action_label?`<button class="btn-2" data-openpanel="1"
+      data-field="${esc(x.action_field||'')}"
       style="margin-top:7px; padding:5px 11px; font-size:10px">${esc(x.action_label)} →</button>`:''}</div></div>`;
   const fair=(j.fairness_flags||[]);
   const dh=t=>`<div class="dhead"><span class="t">// ${t}</span><span class="ln"></span></div>`;
@@ -1672,7 +1738,10 @@ function wireDetail(j){
   /* "Belgeyi doğrula" eylem etiketi profil paneline götürür — doğrulama orada,
      bağlamıyla (D-012 notu) birlikte yapılır. */
   document.querySelectorAll("#detail [data-openpanel]").forEach(b=>b.onclick=()=>{
-    closeDetail(); openProfilePanel();});
+    /* İSTENEN ALAN panele taşınır. Taşımadığımız sürece kullanıcı "Lise
+       mezuniyeti ekle" diye yönlendirilip, o alanın bulunmadığı genel panele
+       düşüyordu — istediğimiz şeyi vermenin yolunu kapatmak güven kırıyor. */
+    closeDetail(); openProfilePanel(b.dataset.field||null);});
   /* Başvuru takibi: anlık kopya yerel kayda girer, anonim olay sunucuya. */
   const ap=$("#detail [data-applied]");
   if(ap) ap.onclick=()=>{ apAdd(j); $("#detail").innerHTML=detailBody(j); wireDetail(j); };

@@ -72,6 +72,8 @@ class MatchExplanation:
     requirement_gap_note: str | None = None
     #: Kanıt oranı tavanının gerekçesi (D-064) — kaç şartı okuyabildik.
     coverage_note: str | None = None
+    #: Kanıt MİKTARI tavanının gerekçesi (D-022) — ilan kaç şart yazmış.
+    evidence_note: str | None = None
 
 
 CONF_LABEL = {"high": "Yüksek", "medium": "Orta", "low": "Düşük"}
@@ -147,6 +149,18 @@ def _worth_applying(result: MatchResult) -> tuple[str, str]:
         )
     if result.band == MatchBand.STRONG:
         return ("Aradıkları şartların tamamını karşılıyor görünüyorsun.", "strong")
+    if not result.unmet:
+        # Eksik HİÇBİR ŞEY yokken "aşağıdaki noktalar eksik görünüyor" demek
+        # düpedüz yanlıştı ve canlı testte görüldü: kaynakçı ilanın iki şartını
+        # da karşılıyor, bilinmeyen yok, defterde tek bir eksik satır yok —
+        # ama cümle eksik olduğunu söylüyordu. Band'ın yükselmemesinin sebebi
+        # kullanıcının eksiği değil, ilanın kısa yazılmış olması (D-022 kanıt
+        # tavanı). Gerekçenin tamamı `evidence_note`'ta.
+        return (
+            "Okuyabildiğimiz şartların tamamını karşılıyorsun. İlan metni "
+            "bundan fazla nitelik yazmadığı için daha güçlü bir eşleşme demiyoruz.",
+            "met_all_thin_posting",
+        )
     return ("Başvurulabilir; aşağıdaki noktalar eksik görünüyor.", "partial")
 
 
@@ -200,4 +214,5 @@ def build_explanation(result: MatchResult) -> MatchExplanation:
         seniority_note=result.seniority_note,
         requirement_gap_note=result.requirement_gap_note,
         coverage_note=result.coverage_note,
+        evidence_note=result.evidence_note,
     )

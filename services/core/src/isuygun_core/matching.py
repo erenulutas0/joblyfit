@@ -52,6 +52,13 @@ class MatchResult:
     #: Kanıt oranı tavanı uygulandıysa gerekçesi (D-064). Tavanların yükünü
     #: bu taşıyor; açıklaması olmadan sessiz bir ceza olurdu.
     coverage_note: str | None = None
+    #: Kanıt MİKTARI tavanı (D-022) uygulandıysa gerekçesi.
+    #:
+    #: Canlı persona testinde açığa çıktı: kaynakçı profili ilanın iki şartını
+    #: da karşılıyor, bilinmeyen hiç yok, yine de "şartlı eşleşme · güven
+    #: düşük" yazıyordu ve ekranda TEK BİR açıklama satırı bile bulunmuyordu.
+    #: Diğer üç tavanın notu vardı, en sık bağlayan bu tavanın yoktu.
+    evidence_note: str | None = None
 
     @property
     def met(self) -> list[RequirementOutcome]:
@@ -218,6 +225,22 @@ def _coverage_note(outcomes: tuple[RequirementOutcome, ...]) -> str:
         f"karşılaştırabildik; kalanı hakkında bilgimiz yok. Bu yüzden güçlü "
         f"eşleşme demiyoruz — **uymadığın anlamına gelmez**, profiline alan "
         f"ekledikçe bu oran yükselir."
+    )
+
+
+def _evidence_note(discriminative_assessed: int) -> str:
+    """Kanıt miktarı tavanının (D-022) gerekçesi.
+
+    Kritik nokta cümlenin kime yük yüklediğidir: burada eksik olan KULLANICI
+    değil, **ilan metnidir**. "Gaz Altı Kaynakçı" ilanı yalnızca iki nitelik
+    yazıyor; kullanıcı ikisini de karşılıyor. Bunu "sende eksik var" gibi
+    sunmak, karşıladığı şartı görmezden gelmek olurdu.
+    """
+    return (
+        f"Bu ilan metninden mesleğe özgü **yalnızca {discriminative_assessed} şart** "
+        f"okunabildi. Karşıladın; ama tek bu kadar veriye dayanarak daha güçlü "
+        f"bir eşleşme demiyoruz — **eksik olan sen değil, ilanın kendisi**: "
+        f"nitelikleri kısa yazmış."
     )
 
 
@@ -407,4 +430,6 @@ def match(
         seniority_note=_if_bit(sen_cap, sen_note),
         requirement_gap_note=_if_bit(hard_cap, hard_note),
         coverage_note=_if_bit(cov_cap, _coverage_note(outcomes)),
+        evidence_note=_if_bit(_cap_for(discriminative_assessed),
+                              _evidence_note(discriminative_assessed)),
     )

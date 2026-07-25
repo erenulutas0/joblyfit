@@ -125,6 +125,16 @@ def test_unverified_gate_forces_conditional_band(client):
     d = client.get(f"/api/jobs/{job['job_id']}").json()
     assert d["verification_notice"] is not None
     assert any(l["action_label"] == "Belgeyi doğrula" for l in d["unknown"])
+    # Eylem düğmesi HANGİ alan için basıldığını taşımalı. Çekirdek bunu
+    # `missing_field_hint` olarak üretiyordu ama API sınırında düşüyordu;
+    # arayüz de kullanıcıyı "şunu ekle" deyip o alanın bulunmadığı genel
+    # panele bırakıyordu. Etiketsiz bir eylem, kullanıcıyı çıkmaza sokar.
+    eylemli = [l for l in d["unknown"] if l["action_label"]]
+    assert eylemli, "unknown satırlarının en az birinde eylem olmalı"
+    assert all(l["action_field"] for l in eylemli), \
+        f"action_field boş kalmış: {[(l['text'], l['action_field']) for l in eylemli]}"
+    # Alan, satırın kendi şart etiketidir — arayüz bununla katalogda arama yapar.
+    assert all(l["action_field"] == l["text"] for l in eylemli)
 
 
 def test_verifying_everything_reaches_strong(client):

@@ -183,6 +183,11 @@ class ExplanationLineOut(BaseModel):
     text: str
     evidence: str
     action_label: str | None = None
+    #: Eylemin HANGİ alanı istediği (şartın etiketi, ör. "Lise mezuniyeti").
+    #: Çekirdek bunu ``missing_field_hint`` olarak üretiyordu ama burada
+    #: düşürülüyordu; "Profilime ekle" düğmesi bu yüzden hangi alan için
+    #: basıldığını bilemiyor ve kullanıcıyı genel panele bırakıyordu.
+    action_field: str | None = None
 
 
 class FairnessFlagOut(BaseModel):
@@ -273,6 +278,8 @@ class JobDetail(JobSummary):
     requirement_gap_note: str | None = None
     #: Kanıt oranı tavanının gerekçesi (D-064).
     coverage_note: str | None = None
+    #: Kanıt miktarı tavanının gerekçesi (D-022) — ilan kaç şart yazmış.
+    evidence_note: str | None = None
     disclaimer: str
 
 
@@ -572,7 +579,8 @@ def _salary_text(posting) -> str | None:
 
 def _lines(items) -> list[ExplanationLineOut]:
     return [
-        ExplanationLineOut(text=l.text, evidence=l.evidence, action_label=l.action_label)
+        ExplanationLineOut(text=l.text, evidence=l.evidence,
+                           action_label=l.action_label, action_field=l.action_field)
         for l in items
     ]
 
@@ -1105,6 +1113,7 @@ def evaluate_pasted(body: PastedJobIn) -> JobDetail:
         seniority_note=exp.seniority_note,
         requirement_gap_note=exp.requirement_gap_note,
         coverage_note=exp.coverage_note,
+        evidence_note=exp.evidence_note,
         disclaimer=exp.disclaimer,
     )
 
@@ -1549,6 +1558,7 @@ def _detail_for(job_id: str, profile: CareerProfile) -> JobDetail:
         seniority_note=exp.seniority_note,
         requirement_gap_note=exp.requirement_gap_note,
         coverage_note=exp.coverage_note,
+        evidence_note=exp.evidence_note,
         disclaimer=exp.disclaimer,
     )
 

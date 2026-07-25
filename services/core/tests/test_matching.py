@@ -253,3 +253,83 @@ def test_caps_never_produce_weak():
     for job in senaryolar:
         r = match(job, _profile(years=None, n=2), calibrated_occupation=True)
         assert r.band != MatchBand.WEAK, f"tavan zayıf üretti: {job.title}"
+
+
+# ---------------------------------------------------------------------------
+# D-022 — kanıt MİKTARI tavanının gerekçesi (canlı persona testinden)
+# ---------------------------------------------------------------------------
+# Canlı testte kaynakçı profili "Gaz Altı Kaynakçı" ilanının İKİ şartını da
+# karşılıyordu, bilinmeyen tek satır yoktu — yine de "şartlı eşleşme · güven
+# düşük" yazıyordu ve ekranda gerekçe YOKTU. Diğer üç tavanın notu vardı; en sık
+# bağlayan bu tavanın notu hiç yazılmamıştı. Sessiz tavan, açıklaması olmayan
+# bir cezadır.
+
+
+def _thin_job(n_disc=1):
+    """`n_disc` adet AYIRT EDİCİ şart içeren "ince" ilan.
+
+    Gerçek karşılığı: nitelikleri iki satırla yazan mavi yaka ilanları.
+    """
+    from isuygun_core.domain import JobPosting, Requirement
+
+    keys = ["python", "sql", "docker_k8s"][:n_disc]
+    return JobPosting(
+        job_id="j", title="Kaynakçı", employer="X", city="İstanbul",
+        occupation_id="Üretim ve teknik", source="t",
+        requirements=tuple(
+            Requirement(key=k, label=k, kind="required", category="skill")
+            for k in keys
+        ),
+    )
+
+
+def test_evidence_cap_explains_itself():
+    """Tek ayırt edici şart okunabildiyse tavan uygulanır VE gerekçesi yazılır."""
+    from isuygun_core import match
+    from isuygun_core.domain import MatchBand
+
+    r = match(_thin_job(1), _profile(years=8), calibrated_occupation=True)
+    assert r.band == MatchBand.CONDITIONAL, f"kanıt tavanı uygulanmadı: {r.band}"
+    assert not r.unmet and not r.unknown, "kurgu bozuk: eksik/bilinmeyen olmamalı"
+    assert r.evidence_note, "en sık bağlayan tavanın gerekçesi ekranda olmalı"
+    assert "1 şart" in r.evidence_note
+
+
+def test_evidence_note_blames_the_posting_not_the_user():
+    """Cümle yükü doğru tarafa koymalı: eksik olan ilan metni, kullanıcı değil.
+
+    Kullanıcı okunabilen her şartı karşılıyor. Bunu "sende eksik var" diye
+    sunmak, karşıladığı şartı görmezden gelmek olur.
+    """
+    from isuygun_core import match
+
+    r = match(_thin_job(1), _profile(years=8), calibrated_occupation=True)
+    assert "eksik olan sen değil" in r.evidence_note
+
+
+def test_evidence_note_absent_when_cap_did_not_bite():
+    """Yeterli kanıt varken tavandan söz etmek yanıltıcı olur."""
+    from isuygun_core import match
+
+    r = match(_skill_job("mid", n=4), _profile(years=8), calibrated_occupation=True)
+    assert r.evidence_note is None, \
+        f"tavan bağlamadığı hâlde not üretildi: {r.evidence_note}"
+
+
+def test_worth_applying_does_not_claim_missing_points_when_nothing_is_missing():
+    """"aşağıdaki noktalar eksik görünüyor" — eksik hiçbir şey yokken YANLIŞTI.
+
+    Defterde tek bir eksik/bilinmeyen satır yokken bu cümle yazılıyordu;
+    kullanıcı ekranda göremediği bir eksiği arıyordu.
+    """
+    from isuygun_core import match
+    from isuygun_core.explanation import build_explanation
+
+    r = match(_thin_job(1), _profile(years=8), calibrated_occupation=True)
+    exp = build_explanation(r)
+    assert not r.unmet and not r.unknown
+    assert "eksik görünüyor" not in exp.worth_applying, \
+        f"eksik yokken eksiklik iddia ediliyor: {exp.worth_applying!r}"
+    assert exp.worth_applying_rule == "met_all_thin_posting"
+    # Gerekçe kaybolmasın: not açıklamada da taşınmalı.
+    assert exp.evidence_note and "1 şart" in exp.evidence_note
