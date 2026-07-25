@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""web/index.html içindeki inline script'i Node ile sözdizimi kontrolünden geçirir.
+"""web/ altındaki TÜM sayfaların inline script'lerini Node ile parse eder.
 
 **Neden ayrı bir kontrol:** Bu projede iki kez, bütün testler geçerken arayüz
 tamamen bozuldu. Sebep her seferinde inline script'te bir sözdizimi hatasıydı.
@@ -10,6 +10,12 @@ Bu hatanın belirtisi yanıltıcıdır:
 * API çağrıları 200 döner,
 
 yani sorun backend'de sanılır. Node'un parser'ı bunu bir saniyede yakalar.
+
+**Neden tek sayfa değil:** İlk sürüm yalnızca ``web/index.html``e bakıyordu. Ama
+index.html artık ESKİ yüzey (``/classic``); kullanıcının gördüğü sayfa
+``web/app.html`` ve o hiç denetlenmiyordu — yani kontrol, korumasız bıraktığı
+dosya için "temiz" diyordu. Sayfalar artık taranarak bulunur; yeni bir sayfa
+eklendiğinde kapsam kendiliğinden büyür.
 
 Kullanım:  python scripts/check_web_syntax.py
 Çıkış kodu: 0 temiz, 1 sözdizimi hatası, 2 çalıştırılamadı.
@@ -25,13 +31,42 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = ROOT / "web" / "index.html"
+WEB = ROOT / "web"
 SCRIPT_RE = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+
+#: Bu sayfalarda inline script BULUNMASI zorunlu. Regex bir gün sessizce
+#: eşleşmeyi bırakırsa kontrol "0 blok denetledim, temiz" demesin.
+SCRIPT_BEKLENEN = ("app.html", "index.html")
+
+
+def _sayfalar() -> list[Path]:
+    """web/ altındaki html dosyaları; nokta ile başlayan dizinler atlanır."""
+    return sorted(
+        p for p in WEB.rglob("*.html")
+        if not any(part.startswith(".") for part in p.relative_to(ROOT).parts)
+    )
+
+
+def _parse_hatasi(node: str, kod: str, etiket: str) -> str | None:
+    """Tek script bloğunu Node'a verir; hata varsa metnini döndürür."""
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".js", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(kod)
+        yol = f.name
+    try:
+        r = subprocess.run([node, "--check", yol], capture_output=True, text=True)
+    finally:
+        Path(yol).unlink(missing_ok=True)
+    if r.returncode == 0:
+        return None
+    # Node geçici dosya adını basar; okunabilirlik için kaynağa çeviririz.
+    return r.stderr.replace(yol, etiket)
 
 
 def main() -> int:
-    if not PAGE.is_file():
-        print(f"HATA: {PAGE} bulunamadı", file=sys.stderr)
+    if not WEB.is_dir():
+        print(f"HATA: {WEB} bulunamadı", file=sys.stderr)
         return 2
 
     node = shutil.which("node")
@@ -39,35 +74,40 @@ def main() -> int:
         print("ATLANDI: node bulunamadı; sözdizimi kontrolü yapılamadı", file=sys.stderr)
         return 2
 
-    blocks = SCRIPT_RE.findall(PAGE.read_text(encoding="utf-8"))
-    if not blocks:
-        print("HATA: index.html içinde inline script yok — beklenmeyen durum",
-              file=sys.stderr)
+    sayfalar = _sayfalar()
+    if not sayfalar:
+        print(f"HATA: {WEB} altında html yok — beklenmeyen durum", file=sys.stderr)
         return 1
 
-    failed = 0
-    for i, code in enumerate(blocks, 1):
-        with tempfile.NamedTemporaryFile(
-            "w", suffix=".js", delete=False, encoding="utf-8"
-        ) as f:
-            f.write(code)
-            path = f.name
-        try:
-            r = subprocess.run([node, "--check", path], capture_output=True, text=True)
-        finally:
-            Path(path).unlink(missing_ok=True)
+    hata = 0
+    ozet: list[str] = []
+    blok_sayisi: dict[str, int] = {}
+    for sayfa in sayfalar:
+        etiket = sayfa.relative_to(ROOT).as_posix()
+        bloklar = SCRIPT_RE.findall(sayfa.read_text(encoding="utf-8"))
+        blok_sayisi[sayfa.name] = len(bloklar)
+        for i, kod in enumerate(bloklar, 1):
+            mesaj = _parse_hatasi(node, kod, etiket)
+            if mesaj:
+                hata += 1
+                print(f"--- {etiket} script #{i} sözdizimi hatası ---", file=sys.stderr)
+                print(mesaj, file=sys.stderr)
+        ozet.append(f"  {etiket}: {len(bloklar)} blok")
 
-        if r.returncode != 0:
-            failed += 1
-            print(f"--- script #{i} sözdizimi hatası ---", file=sys.stderr)
-            # Node geçici dosya adını basar; okunabilirlik için kaynağa çeviririz.
-            print(r.stderr.replace(path, "web/index.html"), file=sys.stderr)
+    # Kapsam kaybını yakala: beklenen sayfada hiç script bulunamadıysa regex
+    # bozulmuş ya da sayfa taşınmış olabilir.
+    for ad in SCRIPT_BEKLENEN:
+        if blok_sayisi.get(ad, 0) == 0:
+            print(f"HATA: {ad} içinde inline script bulunamadı — regex mi bozuldu, "
+                  f"sayfa mı taşındı?", file=sys.stderr)
+            hata += 1
 
-    if failed:
-        print(f"\n{failed} script bloğu parse edilemedi.", file=sys.stderr)
+    if hata:
+        print(f"\n{hata} sorun bulundu.", file=sys.stderr)
         return 1
 
-    print(f"web/index.html: {len(blocks)} script bloğu temiz")
+    print("web inline script'leri temiz:")
+    print("\n".join(ozet))
     return 0
 
 
