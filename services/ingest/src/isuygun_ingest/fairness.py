@@ -49,12 +49,57 @@ _AGE = re.compile(
 
 #: Cinsiyet dışlaması. Kapsayıcı ifadeler (DEI, "kadın mühendisler",
 #: EEO beyanları) DEĞİL — yalnızca **dışlayıcı** şart.
+#: Cinsiyet kelimesinin niteleyebileceği KİŞİ adları. İlk sürüm yalnızca
+#: {eleman, personel, aday, çalışan} tanıyordu ve cinsiyet kelimesinin hemen
+#: ardından gelmesini istiyordu. Türkçe iş başlıkları araya rolü sokar, bu
+#: yüzden en açık vakalar kaçıyordu — canlı korpusta ölçüldü:
+#:   "Kadın satış personeli"              → bayrak YOK
+#:   "Almanca konuşan kadın satış elemanı" → bayrak YOK
+#:   "Kadın kasiyer"                       → bayrak YOK
+_KISI = (
+    r"(?:eleman|personel|aday|adaylar|çalışan|işçi|kasiyer|garson|şoför|sürücü"
+    r"|görevli|sorumlu|danışman|temsilci|operatör|usta|kalfa|çırak|teknisyen"
+    r"|tekniker|sekreter|asistan|hemşire|öğretmen|satıcı|tezgahtar|kurye"
+    r"|bakıcı|aşçı|komi|resepsiyonist|müdür|uzman|stajyer)"
+)
 _GENDER = re.compile(
     r"(?:sadece|yalnızca|tercihen)\s*(?:erkek|kadın|bay|bayan)\b|"
-    r"\b(?:erkek|kadın|bay|bayan)\s*(?:eleman|personel|aday|çalışan|adaylar?)\b|"
+    # Cinsiyet + en fazla 2 araya giren kelime + kişi adı:
+    # "kadın satış personeli", "erkek depo görevlisi", "bayan ön muhasebe elemanı".
+    # Sınır 2 kelime KASITLI: "kadın giyim mağazası için satış personeli"
+    # ifadesinde "personel" 5. kelimededir ve eşleşmez — orada "kadın" ürünü
+    # niteliyor, adayı değil.
+    r"\b(?:erkek|kadın|bay|bayan)\s+(?:\w+\s+){0,2}" + _KISI + r"\w*\b|"
     r"\b(?:male|female)\s*(?:candidates?\s*)?only\b|"
     r"\b(?:men|women)\s*only\b|"
     r"\bmust\s*be\s*(?:male|female)\b",
+    re.I,
+)
+
+#: ÜÇÜNCÜ KİŞİ adları: cinsiyet kelimesi bunlardan birini niteliyorsa adayı
+#: değil HİZMET VERİLEN kişiyi tanımlıyordur. Ölçümde yakalandı: "Yatağa Bağımlı
+#: Yaşlı **Erkek Hastamıza** Hemşire Arıyoruz" ayrımcı olarak işaretlenmişti —
+#: oysa cümle adayın cinsiyetini kısıtlamıyor, hastanın cinsiyetini söylüyor.
+#: Bakım işlerinde bu kalıp yaygındır ve yanlış suçlama, uyarının kendisini
+#: değersizleştirir.
+_UCUNCU_KISI = re.compile(
+    r"\b(?:erkek|kadın|bay|bayan)\s+"
+    r"(?:hasta|hastamız|hastaya|hastamıza|müşteri|müşterimiz|müşterilerimiz"
+    r"|misafir|konuk|çocuk|bebek|öğrenci|kursiyer|yolcu|danışan|sakin|üye"
+    r"|kullanıcı|yaşlı|bireyler?|katılımcı)\w*",
+    re.I,
+)
+
+#: KAPSAYICI ifadeler — bunlar ayrımcılık DEĞİL, tersi. "kadın ve erkek
+#: adaylar" genişletilmiş desene takılırdı ("ve"+"erkek" iki araya giren
+#: kelime) ve kapsayıcı bir işvereni ayrımcılıkla işaretlemek, aracın
+#: güvenilirliğini bitirir.
+_KAPSAYICI = re.compile(
+    r"\b(?:kadın|bayan)\s*(?:[-/]|ve|veya|,|ya\s*da)\s*(?:erkek|bay)\b|"
+    r"\b(?:erkek|bay)\s*(?:[-/]|ve|veya|,|ya\s*da)\s*(?:kadın|bayan)\b|"
+    r"fark\s*gözet(?:meksizin|meden)|ayrım\s*yap(?:ılmaksızın|maksızın|madan)|"
+    r"cinsiyet\s*(?:ayrımı|farkı|ayrımcılığı)|"
+    r"\ball\s*genders?\b|\bregardless\s*of\s*gender\b",
     re.I,
 )
 
@@ -150,6 +195,17 @@ def scan(title: str, description: str) -> list[FairnessFlag]:
         # Betimleyici bağlam (kültür/DEI) yakınındaysa şart değildir → atla.
         window = text[max(0, m.start() - _WINDOW): m.end() + _WINDOW]
         if severity == "hard" and _DESCRIPTIVE.search(window):
+            continue
+        # Cinsiyet için ayrıca KAPSAYICI ifade kontrolü: "kadın ve erkek
+        # adaylar" ayrımcılık değil, tersidir. Kapsayıcı bir işvereni
+        # ayrımcılıkla işaretlemek, uyarının kendisini değersizleştirir.
+        if category == "gender" and _KAPSAYICI.search(window):
+            continue
+        # Cinsiyet kelimesi ADAYI değil hizmet verilen kişiyi niteliyorsa
+        # (erkek hasta, kadın müşteri) bu bir kısıtlama beyanı değildir.
+        # Eşleşmenin BAŞINDAN bakılır: pencere geniş tutulursa aynı ilandaki
+        # gerçek bir kısıtlama da yanlışlıkla affedilirdi.
+        if category == "gender" and _UCUNCU_KISI.match(text, m.start()):
             continue
         flags.append(FairnessFlag(
             category=category,

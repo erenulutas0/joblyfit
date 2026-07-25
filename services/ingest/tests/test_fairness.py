@@ -125,3 +125,71 @@ def test_fairness_in_cache_fingerprint():
     from isuygun_ingest import cache
 
     assert "fairness.py" in cache._LOGIC_FILES
+
+
+# ---------------------------------------------------------------------------
+# Cinsiyet deseni: Türkçe başlıklarda araya rol girer
+# ---------------------------------------------------------------------------
+# Canlı korpusta ölçüldü: desen cinsiyet kelimesinin HEMEN ardından
+# {eleman, personel, aday, çalışan} gelmesini istiyordu ve en açık vakalar
+# kaçıyordu — "Kadın satış personeli", "Kadın kasiyer", "Bay güvenlik
+# görevlisi". Düzeltme sonrası TR'de cinsiyet işareti 76 → 132 ilan.
+#
+# Bu iki liste birlikte durmalı: uyarıyı genişletmenin bedeli yanlış suçlamadır
+# ve yanlış suçlama, uyarının kendisini değersizleştirir.
+
+CINSIYET_ISARETLENMELI = [
+    "Ayakkabı mağazası için Kadın satış personeli",
+    "Almanca konuşan kadın satış elemanı",
+    "Kadın kasiyer",
+    "Erkek depo görevlisi aranıyor",
+    "Bayan ön muhasebe elemanı",
+    "Bay güvenlik görevlisi",
+    "Bayan garson aranıyor",
+    "Erkek kurye alınacak",
+    "Tercihen bayan aday",
+    "Sadece erkek çalışan alınacaktır",
+    "Female candidates only",
+]
+
+CINSIYET_ISARETLENMEMELI = [
+    # KAPSAYICI ifade — ayrımcılığın tersi.
+    "Kadın ve erkek tüm adaylar başvurabilir",
+    "Kadın-erkek fark gözetmeksizin personel alınacaktır",
+    "Cinsiyet ayrımı yapmaksızın değerlendirme yapılır",
+    "All genders welcome to apply as sales personnel",
+    # Cinsiyet ÜRÜNÜ/alanı niteliyor, adayı değil.
+    "Kadın giyim mağazası için satış personeli aranıyor",
+    "Kadın kuaförü salonumuza yardımcı eleman",
+    "Bebek ve kadın sağlığı ürünleri satışı yapılacaktır",
+    # Cinsiyet HİZMET VERİLEN kişiyi niteliyor.
+    "Yatağa Bağımlı Yaşlı Erkek Hastamıza Hemşire Arıyoruz",
+    "Kadın müşterilerimize hizmet verecek danışman",
+    "Erkek çocuk bakıcısı deneyimi olan aday",
+    # Hiçbir cinsiyet ifadesi yok.
+    "Satış Danışmanı",
+]
+
+
+@pytest.mark.parametrize("metin", CINSIYET_ISARETLENMELI)
+def test_cinsiyet_kisitlamasi_isaretlenir(metin):
+    assert "gender" in {f.category for f in fairness.scan(metin, "")}, \
+        f"açık cinsiyet kısıtlaması kaçtı: {metin!r}"
+
+
+@pytest.mark.parametrize("metin", CINSIYET_ISARETLENMEMELI)
+def test_cinsiyet_yanlis_suclama_yapilmaz(metin):
+    assert "gender" not in {f.category for f in fairness.scan(metin, "")}, \
+        f"YANLIŞ SUÇLAMA — burada aday kısıtlaması yok: {metin!r}"
+
+
+def test_ucuncu_kisi_muafiyeti_gercek_kisitlamayi_affetmez():
+    """"Erkek hastamıza" muafiyeti, aynı ilandaki GERÇEK kısıtlamayı gizlememeli.
+
+    Muafiyet eşleşmenin BAŞINDAN bakar; pencereye bakılsaydı bir cümlede
+    hastanın cinsiyetini söyleyen ilan, başka cümlede aday kısıtlaması koysa
+    bile temiz görünürdü.
+    """
+    metin = ("Yaşlı erkek hastamıza refakat edecek. Sadece bayan aday "
+             "başvurabilir.")
+    assert "gender" in {f.category for f in fairness.scan(metin, "")}
