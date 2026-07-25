@@ -1261,8 +1261,14 @@ class FeedPageOut(BaseModel):
     unevaluated_breakdown: dict
 
 
-def _qids(q: str) -> set[str] | None:
+def _qids(q: str) -> tuple[set[str], set[str]] | None:
     """Arama sorgusunun eşlediği ilan kimlikleri (katlamalı, tam metin).
+
+    ``(hepsi, başlıkta_geçenler)`` döner. İkincisi SIRALAMA içindir: ölçümde
+    "yazılım" 129 ilan getiriyor ama yalnızca 11'inin BAŞLIĞINDA geçiyor; kalanı
+    açıklama metninden eşleşiyor ve sıralama olmadığı için ilk sayfayı onlar
+    dolduruyordu. Açıklamadan eşleşenleri atmıyoruz (gerçek ilanlar var),
+    başlıkta geçenleri öne alıyoruz.
 
     Küçük LRU: aynı sorgu her filtre tıklamasında yeniden taranmasın diye.
     ``None`` = sorgu yok (her şey geçer).
@@ -1276,16 +1282,22 @@ def _qids(q: str) -> set[str] | None:
         _QIDS_CACHE.move_to_end(key)
         return hit
     parsed = search.parse(q)
-    ids = ({job_id for job_id, hay in STORE.search_index.items()
-            if search.matches(hay, parsed)}
-           if not parsed.is_empty else set())
-    _QIDS_CACHE[key] = ids
+    ids: set[str] = set()
+    tids: set[str] = set()
+    if not parsed.is_empty:
+        for job_id, doc in STORE.search_index.items():
+            if not search.matches(doc, parsed):
+                continue
+            ids.add(job_id)
+            if search.title_matches(doc, parsed):
+                tids.add(job_id)
+    _QIDS_CACHE[key] = (ids, tids)
     while len(_QIDS_CACHE) > 16:
         _QIDS_CACHE.popitem(last=False)
-    return ids
+    return ids, tids
 
 
-_QIDS_CACHE: "OrderedDict[tuple, set]" = OrderedDict()
+_QIDS_CACHE: "OrderedDict[tuple, tuple[set, set]]" = OrderedDict()
 
 
 def _axis_val(j: JobSummary, field_name: str) -> str:
@@ -1322,7 +1334,8 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
             profile_is_empty=full.profile_is_empty, ingest=full.ingest,
             facets=facets, unevaluated_breakdown=breakdown,
         )
-    qids = _qids(f.q)
+    hit = _qids(f.q)
+    qids, title_ids = hit if hit is not None else (None, None)
 
     def base_ok(j: JobSummary) -> bool:
         """Eksen dışı filtreler: arama + bölge her sayımda uygulanır."""
@@ -1344,6 +1357,15 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
 
     ev = [j for j in full.evaluated if full_ok(j)]
     un = [j for j in full.unevaluated if full_ok(j)]
+
+    # Arama varken BAŞLIKTA geçenler öne alınır. Sıralama **kararlı**: içindeki
+    # bant + alfabetik düzen (bkz. `_full_feed`) her grupta korunur. Kullanıcı
+    # arama kutusuna bir şey yazdıysa o andaki niyeti bant sırasından önce
+    # gelir — "kaynakçı" arayan kişi listenin başında kaynak ilanı görmeli,
+    # metninde "iş sağlığı ve güvenliği" geçen bir garson ilanı değil.
+    if title_ids:
+        ev.sort(key=lambda j: j.job_id not in title_ids)
+        un.sort(key=lambda j: j.job_id not in title_ids)
 
     # --- facet sayaçları: D-057 kuralı — kendi ekseni hariç her şey uygulanır.
     level_c: dict[str, int] = {}
@@ -1508,8 +1530,8 @@ def search_jobs(q: str = "") -> SearchOut:
     if parsed.is_empty:
         return SearchOut(job_ids=[])
     ids = [
-        job_id for job_id, hay in STORE.search_index.items()
-        if search.matches(hay, parsed)
+        job_id for job_id, doc in STORE.search_index.items()
+        if search.matches(doc, parsed)
     ]
     return SearchOut(
         job_ids=ids, terms=list(parsed.terms),

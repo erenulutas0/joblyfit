@@ -49,8 +49,9 @@ def _db_path() -> Path | None:
 class Store:
     postings: dict[str, NormalizedPosting] = field(default_factory=dict)
     catalog: list[CatalogItem] = field(default_factory=list)
-    #: job_id -> aranabilir metin torbası (bkz. search.haystack)
-    search_index: dict[str, str] = field(default_factory=dict)
+    #: job_id -> aranabilir ilan (bkz. search.haystack). Başlık ayrı alanda
+    #: tutulur; arama sonuçlarında başlıkta geçenler öne alınır.
+    search_index: dict[str, search.Doc] = field(default_factory=dict)
     profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id=PROFILE_ID))
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
