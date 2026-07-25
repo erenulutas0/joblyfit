@@ -39,6 +39,9 @@ services:
     env_file: [.env.prod]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Tanıtım sayfası (D-066). YALNIZCA web/site — `web/` kökünü mount etmek
+      # app.html'i de joblyfit.com'dan erişilebilir kılardı.
+      - ./web/site:/srv/site:ro
       - caddy_data:/data        # sertifikalar — silinirse LE limitine takılırsın
       - caddy_config:/config
 

@@ -1,8 +1,42 @@
 # Caddy — reverse proxy + otomatik HTTPS (D-049).
-# {$DOMAIN} docker-compose'daki .env.prod'dan gelir (ör. app.joblyfit.com).
+# {$DOMAIN} ve {$SITE_DOMAIN} docker-compose'daki .env.prod'dan gelir.
 # Caddy, Let's Encrypt sertifikasını kendi alır ve yeniler — elle iş yok.
 
+# --- Uygulama: app.joblyfit.com ---
 {$DOMAIN} {
 	encode zstd gzip
 	reverse_proxy app:8137
+}
+
+# --- Tanıtım sayfası: joblyfit.com (+ www) --- D-066
+#
+# Kök domain bugüne kadar HİÇ yapılandırılmamıştı: joblyfit.com'a giren
+# kullanıcı ürünü tanımadan bir hataya düşüyordu.
+#
+# Statik dosya Caddy'den servis edilir; pazarlama trafiği Python'a hiç uğramaz.
+# Yalnızca `web/site/` mount edilir — `web/` kökünü açmak app.html ve
+# index.html'i de kök domainden erişilebilir kılardı.
+#
+# `/api/health` ve `/api/feed` proxy'lenir: sayfa canlı sayaçlarını AYNI
+# origin'den okur, böylece CORS gerekmez. Elle yazılmış bir sayı kaçınılmaz
+# olarak bayatlar ve ürünün "yalnızca ölçtüğümüzü söyleriz" iddiasıyla
+# çelişirdi.
+{$SITE_DOMAIN:joblyfit.com}, www.{$SITE_DOMAIN:joblyfit.com} {
+	encode zstd gzip
+
+	# www → apex: tek kanonik adres kalsın (SEO'da içerik ikizi olmasın).
+	@www host www.{$SITE_DOMAIN:joblyfit.com}
+	redir @www https://{$SITE_DOMAIN:joblyfit.com}{uri} permanent
+
+	handle /api/health {
+		reverse_proxy app:8137
+	}
+	handle /api/feed {
+		reverse_proxy app:8137
+	}
+	handle {
+		root * /srv/site
+		try_files {path} /index.html
+		file_server
+	}
 }
