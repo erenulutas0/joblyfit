@@ -180,13 +180,15 @@ TERMS: tuple[Term, ...] = (
     # "temsilcisi", "elemanları" çekimlerini yakalar.
     T("sales", "Satış / mağaza danışmanlığı", EXPERIENCE,
       ["satis danisman", "satis temsilcisi", "satis temsilci", "satis eleman",
-       "satis personel", "satis sorumlu", "satis uzman", "sales representative",
+       "satis personel", "satis sorumlu", "satis uzman", "satis mudur", "satis muhendis",
+       "egitim danisman", "sales representative",
        "sales consultant", "musteri danisman"], "Pazarlama ve satış", True),
     T("retail", "Perakende / mağaza", EXPERIENCE,
       ["magaza", "perakende", "kasiyer", "retail", "reyon",
        "verkaufer", "verkäufer", "einzelhandel", "kassierer"], "Perakende ve hizmet", True),
     T("call_center", "Çağrı merkezi / müşteri hizmetleri", EXPERIENCE,
-      ["cagri merkezi", "call center", "musteri hizmetleri", "customer support",
+      ["cagri merkezi", "call center", "musteri hizmetleri", "musteri temsilci",
+       "cagri karsilama", "customer support",
        "customer service"], "Perakende ve hizmet", True),
 
     # ---- muhasebe / finans / idari ----
@@ -233,7 +235,8 @@ TERMS: tuple[Term, ...] = (
     T("welding", "Kaynakçılık", EXPERIENCE, ["kaynakci", "kaynak operator", "argon kaynak",
       "gazalti", "schweisser", "schweißer", "welder", "mig mag"], "Üretim ve teknik", True),
     T("electrician", "Elektrik / elektrikçi", EXPERIENCE,
-      ["elektrikci", "elektrik teknisyeni", "pano montaj", "electrician",
+      ["elektrikci", "elektrik teknisyeni", "elektronik teknisyen",
+       "elektrik eleman", "elektrik bakim", "pano montaj", "electrician",
        "elektroniker", "elektriker", "elektrofachkraft"], "Üretim ve teknik", True),
     T("mechanic", "Makine bakım / mekanik", EXPERIENCE,
       ["bakim onarim", "mekanik bakim", "makine bakim", "maintenance technician"], "Üretim ve teknik", True),
@@ -291,7 +294,7 @@ TERMS: tuple[Term, ...] = (
     T("caregiver", "Hasta / yaşlı bakımı", EXPERIENCE,
       ["hasta bakici", "yasli bakim", "yasli bakici", "refakatci", "caregiver",
        "pflegehelfer", "pflegekraft", "altenpflege", "pflegefachkraft"], "Sağlık", True),
-    T("pharmacy", "Eczane / kalfa", EXPERIENCE, ["eczane", "eczaci kalfasi", "pharmacy"], "Sağlık", True),
+    T("pharmacy", "Eczane / kalfa", EXPERIENCE, ["eczane", "eczaci", "eczaci kalfasi", "pharmacy"], "Sağlık", True),
 
     # ---- yiyecek / turizm / hizmet ----
     T("cook", "Aşçılık / mutfak", EXPERIENCE,
@@ -305,11 +308,13 @@ TERMS: tuple[Term, ...] = (
       # "gorevlisi" ve "gorevlileri"nin ikisini de yakalar. Tam çekimli
       # ("gorevlisi") yazılırsa yalnızca o tek çekim tutar — ölçümde
       # "Temizlik Görevlileri" ilanları bu yüzden okunamıyordu.
-      ["kat hizmetleri", "temizlik gorevli", "temizlik personel", "temizlikci",
+      ["kat hizmetleri", "temizlik gorevli", "temizlik personel", "temizlikci", "temizlik eleman",
+       "otel temizlig", "temizlik hizmet",
        "ofis temizligi", "temizlik is", "housekeeping",
        "reinigungskraft", "gebäudereiniger", "gebaeudereiniger"], "Yiyecek ve turizm", True),
     T("front_desk", "Ön büro / resepsiyon", EXPERIENCE,
-      ["on buro", "resepsiyon", "front desk", "receptionist"], "Yiyecek ve turizm", True),
+      ["on buro", "resepsiyon", "resepsiyonist", "danisma gorevli",
+       "front desk", "receptionist"], "Yiyecek ve turizm", True),
     T("food_safety", "Hijyen belgesi", CERT, ["hijyen belgesi", "haccp", "food safety"], "Yiyecek ve turizm"),
     T("bartender", "Barmenlik", EXPERIENCE,
       ["barmen", "bartender", "kokteyl"], "Yiyecek ve turizm", True),
@@ -411,6 +416,30 @@ TERMS: tuple[Term, ...] = (
     T("marketing", "Pazarlama", EXPERIENCE,
       ["pazarlama uzman", "pazarlama sorumlu", "pazarlama eleman",
        "marka yonetim", "brand manager"], "Pazarlama ve satış", True),
+
+    # ---- D-077: kalan okunamayanlarda ölçülen boşluklar ----
+    # Başlıklardaki sıklık: gayrimenkul 58, e-ticaret/sigorta/halkla ilişkiler
+    # birkaç düzine. "müdür"/"danışman" gibi TEK BAŞINA genel kelimeler
+    # KASITLI olarak token yapılmadı: her ilana eşleşir, ayırt ediciliği
+    # sıfırlar ve kanıt tavanının anlamını yok eder.
+    T("real_estate", "Gayrimenkul / emlak danışmanlığı", EXPERIENCE,
+      ["gayrimenkul", "emlak danisman", "emlak ofis"], "Pazarlama ve satış", True),
+    T("ecommerce", "E-ticaret / pazaryeri", EXPERIENCE,
+      ["e-ticaret", "eticaret", "pazaryeri", "trendyol yonetim",
+       "marketplace"], "Pazarlama ve satış", True),
+    T("insurance", "Sigortacılık", EXPERIENCE,
+      ["sigorta acente", "sigorta satis", "sigortaci", "hasar dosya"],
+      "Pazarlama ve satış", True),
+    T("public_relations", "Halkla ilişkiler / kurumsal iletişim", EXPERIENCE,
+      ["halkla iliskiler", "kurumsal iletisim", "basin iliskiler"],
+      "Pazarlama ve satış", True),
+    T("interpreter", "Tercümanlık / çeviri", EXPERIENCE,
+      ["tercuman", "cevirmen", "mutercim", "ardil ceviri"],
+      "Perakende ve hizmet", True),
+    T("medical_secretary", "Hasta kayıt / tıbbi sekreterlik", EXPERIENCE,
+      ["hasta kayit", "tibbi sekreter", "hasta kabul"], "Sağlık", True),
+    T("food_eng", "Gıda mühendisliği", EXPERIENCE,
+      ["gida muhendis", "food engineer"], "Mühendislik", True),
 
     # ---- eğitim ----
     T("teaching", "Öğretmenlik / eğitmenlik", EXPERIENCE,

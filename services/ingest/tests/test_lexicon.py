@@ -367,3 +367,56 @@ def test_insaat_kumesi_artik_bos_degil():
     """
     insaat = [t.key for t in L.TERMS if t.cluster == "İnşaat"]
     assert len(insaat) >= 6, f"inşaat kümesi hâlâ zayıf: {insaat}"
+
+
+# ---------------------------------------------------------------------------
+# D-077 — kalan okunamayanlarda olculen bosluklar
+# ---------------------------------------------------------------------------
+# Cogu MEVCUT token'a bicim eklemekle cozuldu: token vardi ama Turkce unvan
+# kalibi tutmuyordu. Ornek: `front_desk`te "resepsiyon" vardi ama
+# "Resepsiyonist" tutmuyordu -- "-ist" Turkce eki degil, ayri bir bicim.
+# Okunamayan TR ilani: %18,2 -> %14,2.
+
+KALAN_BOSLUKLAR = [
+    ("Temizlik Elemanı", "housekeeping"),
+    ("Otel temizliği yapılacak", "housekeeping"),
+    ("Resepsiyonist aranıyor", "front_desk"),
+    ("Danışma Görevlisi", "front_desk"),
+    ("Müşteri Temsilcisi", "call_center"),
+    ("Çağrı Merkezi Müşteri Temsilcisi", "call_center"),
+    ("Eczacı aranıyor", "pharmacy"),
+    ("Elektrik Elektronik Teknisyeni", "electrician"),
+    ("Elektrik Bakım Teknisyeni", "electrician"),
+    ("Satış Müdürü", "sales"),
+    ("Eğitim Danışmanı", "sales"),
+    ("Gayrimenkul Danışmanı", "real_estate"),
+    ("Emlak Danışmanı", "real_estate"),
+    ("E-Ticaret Uzmanı", "ecommerce"),
+    ("Sigorta Acentesi Satış Personeli", "insurance"),
+    ("Halkla İlişkiler Elemanı", "public_relations"),
+    ("Romence Tercüman", "interpreter"),
+    ("Hasta Kayıt Kabul Görevlisi", "medical_secretary"),
+    ("Gıda Mühendisi", "food_eng"),
+]
+
+
+@pytest.mark.parametrize("metin,anahtar", KALAN_BOSLUKLAR)
+def test_kalan_bosluklar_kapatildi(metin, anahtar):
+    assert anahtar in {h.term.key for h in L.scan(metin)}, \
+        f"unvan kalıbı hâlâ okunamıyor: {metin!r} → {anahtar}"
+
+
+def test_tek_basina_genel_kelimeler_token_yapilmadi():
+    """"müdür", "danışman", "uzman", "sorumlu" TEK BAŞINA token OLMAMALI.
+
+    Bunlar okunamayan başlıklarda en sık geçen kelimelerdi (danismani 125,
+    muduru 57, uzmani 51) ve token yapmak kolay bir kapsam kazancı olurdu.
+    Ama her ilana eşleşirler: ayırt ediciliği sıfırlar, kanıt tavanının
+    (D-022) anlamını yok eder ve kullanıcıya "bu iş sana uyuyor" demenin
+    dayanağını çürütür. Kapsam, ayırt edicilik pahasına büyütülmez.
+    """
+    tehlikeli = {"mudur", "danisman", "uzman", "sorumlu", "eleman", "personel",
+                 "gorevli", "yonetici", "muhendis", "teknisyen", "asistan"}
+    bulunan = {L.fold(f) for t in L.TERMS for f in t.forms} & tehlikeli
+    assert bulunan == set(), \
+        f"tek başına genel kelime token olmuş: {sorted(bulunan)}"
