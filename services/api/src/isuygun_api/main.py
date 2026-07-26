@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException, Response, UploadFile
+from fastapi import FastAPI, Header, HTTPException, Response, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -1599,6 +1600,105 @@ def _detail_for(job_id: str, profile: CareerProfile) -> JobDetail:
         evidence_note=exp.evidence_note,
         disclaimer=exp.disclaimer,
     )
+
+
+# --------------------------------------------------------------------------
+# İşveren doğrudan ilan girişi (D-078)
+# --------------------------------------------------------------------------
+# Gönderim HERKESE AÇIK, moderasyon TOKEN'LA kapalı. Hesap/oturum yok: e-posta
+# altyapısı olmadığı için işverenin kimliği doğrulanamıyor ve doğrulanamayan bir
+# kimlik için parola/oturum sistemi kurmak, kazancından büyük bir güvenlik
+# yüzeyi açardı (bkz. employer.py).
+
+
+def _admin_token() -> str:
+    """Moderasyon uçlarının paylaşılan sırrı. Boşsa uçlar 404'tür.
+
+    Kullanıcı hesabı DEĞİL: tek operatörlü bir moderasyon kuyruğu için
+    orantılı olan budur. Ayarlanmamış bir dağıtımda uçlar hiç yok sayılır —
+    varsayılan bir sır bırakmak, herkesin moderatör olması demekti.
+    """
+    return os.environ.get("ISUYGUN_ADMIN_TOKEN", "")
+
+
+def _require_admin(token: str | None) -> None:
+    beklenen = _admin_token()
+    if not beklenen:
+        raise HTTPException(status_code=404, detail="Moderasyon kapalı.")
+    # `compare_digest`: eşitlik karşılaştırmasının süresi sızmasın.
+    if not token or not secrets.compare_digest(token, beklenen):
+        raise HTTPException(status_code=403, detail="Geçersiz moderasyon anahtarı.")
+
+
+class EmployerReqIn(BaseModel):
+    key: str = Field(..., max_length=60)
+    kind: str = Field("required", max_length=20)
+
+
+class EmployerPostIn(BaseModel):
+    employer: str = Field(..., max_length=120)
+    contact: str = Field(..., max_length=160)
+    title: str = Field(..., max_length=160)
+    city: str = Field(..., max_length=80)
+    description: str = Field(..., max_length=6000)
+    requirements: list[EmployerReqIn] = []
+    apply_url: str | None = Field(None, max_length=500)
+    salary_text: str | None = Field(None, max_length=120)
+    deadline: str | None = Field(None, max_length=10)
+    work_arrangement: str | None = Field(None, max_length=20)
+    employment_type: str | None = Field(None, max_length=20)
+    experience_level: str | None = Field(None, max_length=20)
+
+
+@app.post("/api/employer/postings")
+def employer_submit(body: EmployerPostIn) -> dict:
+    """İlanı moderasyon kuyruğuna alır. Onaylanmadan hiçbir yerde görünmez."""
+    from . import employer as emp
+    try:
+        pid, uyarilar = emp.submit(
+            employer=body.employer, contact=body.contact, title=body.title,
+            city=body.city, description=body.description,
+            requirements=[r.model_dump() for r in body.requirements],
+            apply_url=body.apply_url, salary_text=body.salary_text,
+            deadline=body.deadline, work_arrangement=body.work_arrangement,
+            employment_type=body.employment_type,
+            experience_level=body.experience_level)
+    except emp.Reddedildi as e:
+        # 422: gövde geçerli JSON ama İÇERİK kabul edilemez. Sebep kullanıcıya
+        # aynen gösterilir — "gönderilemedi" demek, neyi düzelteceğini
+        # bilmeyen bir işveren bırakır.
+        raise HTTPException(status_code=422,
+                            detail={"reason": e.sebep, "evidence": e.kanit})
+    return {"id": pid, "status": "pending", "warnings": uyarilar,
+            "note": ("İlan moderasyon kuyruğuna alındı. Onaylandığında "
+                     "listelerde görünür; onaylanmazsa hiçbir yerde yayımlanmaz.")}
+
+
+@app.get("/api/employer/queue")
+def employer_queue(status: str = "pending",
+                   x_admin_token: str | None = Header(None)) -> dict:
+    _require_admin(x_admin_token)
+    from . import employer as emp
+    if status not in ("pending", "approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Bilinmeyen durum.")
+    return {"status": status, "items": emp.liste(status)}
+
+
+@app.post("/api/employer/queue/{pid}/{action}")
+def employer_moderate(pid: str, action: str, note: str = "",
+                      x_admin_token: str | None = Header(None)) -> dict:
+    _require_admin(x_admin_token)
+    from . import employer as emp
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Bilinmeyen eylem.")
+    if not emp.moderate(pid, action, note):
+        raise HTTPException(status_code=404, detail="Bekleyen ilan bulunamadı.")
+    # ONAY/RED KORPUSU DEĞİŞTİRİR: tazelemezsek ilan onaylanmış görünür ama
+    # listelerde çıkmaz (ya da reddedilen ilan listede kalır) — sessiz bir
+    # tutarsızlık. YALNIZCA doğrudan ilanlar tazelenir: tam `load()` tek satır
+    # için 14.400 ilanlık korpusu yeniden kuruyordu (ölçüm: ~30 sn).
+    STORE.reload_direct_employer()
+    return {"id": pid, "status": "approved" if action == "approve" else "rejected"}
 
 
 # --------------------------------------------------------------------------

@@ -20,7 +20,10 @@ from enum import Enum
 from typing import Literal
 
 ScrapingPermission = Literal["allowed", "conditional", "rejected", "unknown"]
-AccessMethod = Literal["api", "feed", "structured_data", "html", "fixture", "unknown"]
+#: "submission" = içerik bize GÖNDERİLİR, biz çekmeyiz (D-078 işveren panosu).
+#: Diğer yöntemlerden kategorik olarak farklı: çekim izni sorusu hiç doğmaz.
+AccessMethod = Literal["api", "feed", "structured_data", "html", "fixture",
+                       "submission", "unknown"]
 SourceStatus = Literal[
     "candidate", "under_review", "rejected",
     "active_limited", "active", "degraded", "suspended",
@@ -60,7 +63,16 @@ class SourceRecord:
 
     @property
     def may_fetch_network(self) -> bool:
-        """Ağ erişimi yalnızca açıkça izinli VE aktif kayıtlarda mümkündür."""
+        """Ağ erişimi yalnızca açıkça izinli VE aktif kayıtlarda mümkündür.
+
+        ``submission`` kaynakları HER ZAMAN ``False`` döner: içerik bize
+        gönderiliyor, biz ondan çekmiyoruz (D-078, işveren panosu). "İzin yok"
+        demek yanlış olurdu — çekilecek bir şey yok. Bu ayrım kaynak politikası
+        denetiminde de karşılığını bulur: çekim izni kuralı, çekim yapmayan bir
+        kaynağa uygulanmaz.
+        """
+        if self.access_method == "submission":
+            return False
         return (
             self.scraping_permission == "allowed"
             and self.status in ("active", "active_limited")
@@ -250,6 +262,35 @@ REGISTRY: dict[str, SourceRecord] = {
             ),
             attribution_required=True, min_poll_hours=12.0,
             redistribution_policy="link-back-required",
+        ),
+        SourceRecord(
+            source_id="src-direct-employer",
+            name="İşveren doğrudan girişi (JoblyFit panosu)",
+            source_type="direct", base_url="https://app.joblyfit.com",
+            access_method="submission",
+            # Burada "izin" bir robots.txt yorumu DEĞİL: içeriği işverenin
+            # kendisi bize gönderiyor ve gönderim eylemi yayımlama iznidir.
+            # Kayıttaki diğer kaynaklardan kategorik olarak farklı; bu yüzden
+            # ayrı bir access_method ile duruyor.
+            scraping_permission="allowed", policy_risk="low", status="active",
+            permission_evidence=(
+                "D-078: içerik kazınmıyor, işveren gönderim formuyla KENDİSİ "
+                "gönderiyor; gönderim yayımlama iznidir. Hesap/oturum YOK — "
+                "e-posta altyapısı olmadığı için işverenin kimliği "
+                "doğrulanamıyor, dolayısıyla self-servis yayın da yok: her "
+                "gönderim MODERASYON kuyruğuna düşer ve onaylanmadan korpusa "
+                "girmez. Ayrımcı ifade (hard) burada BLOKLANIR, yalnızca "
+                "işaretlenmez — üçüncü taraf akışlarında yayımcı biz değiliz, "
+                "burada biziz. Şart sayısı ölçülen asıl kazançtır: aggregator "
+                "ilan başına ~1,3 şart veriyor, yapılandırılmış giriş 5-6 "
+                "veriyor ve bantlar ancak o zaman ayrışıyor. Ücret alınmıyor ve "
+                "SIRALAMA SATILMIYOR: doğrudan ilanlar diğerleriyle aynı "
+                "sıralama kurallarına tabidir, yalnızca kaynağı rozetle "
+                "görünür. Süresi geçen ilan (son başvuru tarihi) korpustan "
+                "otomatik düşer."
+            ),
+            attribution_required=False, min_poll_hours=0.0,
+            redistribution_policy="own-content",
         ),
     ]
 }

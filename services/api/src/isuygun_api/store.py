@@ -171,6 +171,36 @@ class Store:
 
     # -- ilanlar -----------------------------------------------------------
 
+    def reload_direct_employer(self) -> int:
+        """Yalnızca işveren doğrudan ilanlarını yeniden yükler (D-078).
+
+        **Neden tam `load()` değil:** ilk sürümde onay ucu `load()` çağırıyordu
+        ve tek ilan onaylamak 14.400 ilanlık korpusu yeniden kuruyordu —
+        testlerde 30 saniye, üretimde API'yi o süre boyunca donduran bir işlem.
+        Onaylanan şey tek bir satır; maliyeti korpus boyutuyla ölçeklenmemeli.
+
+        Önce ESKİ doğrudan ilanlar düşürülür: onay geri alınan ya da süresi
+        geçen bir ilan aksi halde bellekte kalır ve listede görünmeye devam
+        ederdi. Korpus sürümü artırılır, böylece bütün önbellekler geçersizleşir.
+        """
+        from . import employer
+
+        eski = [jid for jid, p in self.postings.items()
+                if (p.provenance or {}).get("source_id") == "src-direct-employer"]
+        for jid in eski:
+            self.postings.pop(jid, None)
+            self.search_index.pop(jid, None)
+
+        n = 0
+        for p in employer.to_postings():
+            self.postings[p.job.job_id] = p
+            self.search_index[p.job.job_id] = search.haystack(p)
+            n += 1
+        if isinstance(self.ingest_summary, dict):
+            self.ingest_summary["direct_employer"] = n
+        self.corpus_version += 1
+        return n
+
     def load(self, *, live: bool = True, include_fixtures: bool = True,
              stale_ok: bool = False) -> None:
         """İlanları ingest edip belleğe alır.
@@ -205,6 +235,23 @@ class Store:
         self.postings = {
             p.job.job_id: p for p in result["canonical_postings"].values()
         }
+        # İŞVEREN DOĞRUDAN İLANLARI (D-078). Ingest'ten SONRA katılır çünkü
+        # kaynağı ağ değil kendi veritabanımız: `run_live_ingest` ona hiç
+        # dokunmaz ve dokunmaması doğru (registry'de access_method="submission",
+        # `may_fetch_network` False). Onaylanmamış ve süresi geçmiş ilanlar
+        # `to_postings` içinde ayıklanır.
+        dogrudan = 0
+        try:
+            from . import employer
+            for p in employer.to_postings():
+                self.postings[p.job.job_id] = p
+                dogrudan += 1
+        except Exception as e:
+            # Kendi panomuzun okunamaması TÜM korpusu düşürmemeli; ama sessiz
+            # de kalmamalı — ingest özetinde hata olarak görünür.
+            result = {**result,
+                      "errors": list(result.get("errors") or [])
+                                + [{"board": "işveren panosu", "error": str(e)}]}
         # Arama torbaları bir kez kurulur. Her istekte 30 MB metni yeniden
         # katlamak, arama kutusuna her harf yazıldığında bunu tekrarlamak
         # demekti.
@@ -218,6 +265,9 @@ class Store:
             "fetched": result["fetched"],
             "canonical": result["canonical"],
             "duplicates_merged": result["duplicates_merged"],
+            #: Kaç ilan işverenin kendi girişinden geldi — arayüz bunu
+            #: "Kaynaklar" sayfasında ayrı satır olarak gösterir.
+            "direct_employer": dogrudan,
             "stale_dropped": result.get("stale_dropped", 0),
             "max_age_days": result.get("max_age_days", 45),
             "truncated": result.get("truncated", 0),
