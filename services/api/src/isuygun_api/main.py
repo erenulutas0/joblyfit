@@ -1723,3 +1723,13 @@ if _WEB.is_dir():
     @app.get("/classic")
     def classic() -> FileResponse:
         return FileResponse(str(_WEB / "index.html"))
+
+    @app.get("/isveren")
+    def isveren() -> FileResponse:
+        """İşveren ilan gönderim formu (D-078).
+
+        Uygulama alan adında duruyor çünkü API ile AYNI origin olması gerekiyor;
+        tanıtım domaininden servis edilseydi CORS açmak gerekirdi ve bir formun
+        uğruna çapraz-origin izni açmak gereksiz bir yüzey olurdu.
+        """
+        return FileResponse(str(_WEB / "employer.html"))

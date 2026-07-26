@@ -246,3 +246,30 @@ def test_tazeleme_diger_ilanlara_dokunmaz(client, monkeypatch):
              if (p.provenance or {}).get("source_id") != "src-direct-employer"}
     assert kalan == disardan, "doğrudan olmayan ilanlar değişti — korpus yeniden kurulmuş"
     assert STORE.corpus_version == surum_once + 1, "korpus sürümü tam bir artmalı"
+
+
+# --------------------------------------------------------------------------
+# Form sayfası
+# --------------------------------------------------------------------------
+
+
+def test_isveren_formu_servis_edilir(client):
+    """`/isveren` UYGULAMA alan adında durur.
+
+    Tanıtım domaininden servis edilseydi form, API ile çapraz-origin olurdu ve
+    tek bir form için CORS açmak gereksiz bir yüzey açardı.
+    """
+    r = client.get("/isveren")
+    assert r.status_code == 200
+    html = r.text
+    # Yol JS'de `API + "/employer/postings"` olarak birleşiyor; tam dize
+    # HTML'de yok. İkisini ayrı ayrı ararız.
+    assert 'const API = "/api"' in html
+    assert '"/employer/postings"' in html, "form gönderim ucuna bağlı değil"
+    # Sayfa SEO yüzeyi değil; kök domain o işi yapıyor.
+    assert 'content="noindex' in html
+    # İşverene baştan söylenen kurallar sayfada YAZILI olmalı — sözlü vaat
+    # değil, sayfanın kendisi taahhüt.
+    for soz in ("Ücret almıyoruz", "sıralama satmıyoruz",
+                "Ayrımcı ifade yayımlamıyoruz", "moderasyon"):
+        assert soz.lower() in html.lower(), f"taahhüt sayfada yok: {soz!r}"
