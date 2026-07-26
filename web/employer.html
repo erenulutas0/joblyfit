@@ -230,6 +230,10 @@ async function boot(){
     });
     sel.appendChild(og);
   });
+  /* Seçim değişince durum satırı ve gönder düğmesi tazelenir; kullanıcı
+     "ekle"ye basmadan da hazır olduğunu görür. */
+  sel.onchange = cizReq;
+  cizReq();
 }
 
 function cizReq(){
@@ -245,9 +249,15 @@ function cizReq(){
       <span class="x" data-rm="${i}" title="Çıkar">×</span>
     </div>`;
   }).join("");
+  /* Hazır olup olmadığı GÖNDERMEDEN ÖNCE görünmeli. Sunucudan 422 almak,
+     düzeltilebilir bir eksiği hatayla öğrenmektir. */
+  const hazir = SECILI.length > 0 || !!$("#pick").value;
+  $("#send").disabled = !hazir;
   $("#reqHint").textContent = SECILI.length
     ? `${SECILI.length} şart seçildi — aday her birini tek tek karşılaştırılmış görecek`
-    : "en az bir şart gerekiyor";
+    : ($("#pick").value
+        ? "seçtiğin şart gönderirken eklenecek — istersen «ekle»ye basıp devam et"
+        : "en az bir şart gerekiyor: listeden seç, sonra «ekle»ye bas");
   $("#reqs").querySelectorAll("[data-rm]").forEach(el => el.onclick = () => {
     SECILI.splice(+el.dataset.rm, 1); cizReq();
   });
@@ -256,17 +266,25 @@ function cizReq(){
   });
 }
 
-$("#addReq").onclick = () => {
+function ekleSecili(){
   const k = $("#pick").value;
-  if(!k) return;
-  if(SECILI.some(r => r.key === k)) return;   // aynı şart iki kez eklenmez
+  if(!k) return false;
+  if(SECILI.some(r => r.key === k)){ $("#pick").value = ""; return false; }
   SECILI.push({key:k, kind:"required"});
   $("#pick").value = "";
   cizReq();
-};
+  return true;
+}
+$("#addReq").onclick = ekleSecili;
 
 $("#f").onsubmit = async (ev) => {
   ev.preventDefault();
+  /* AÇILIR LİSTEDE BEKLEYEN SEÇİM YUTULMAZ. Canlıda yaşandı: işveren listeden
+     "İngilizce"yi seçti, "ekle"ye basmadı, gönderdi ve sunucudan "en az bir
+     şart seçmelisin" yanıtı aldı — oysa seçmişti. Seçimi göndermeden önce
+     absorbe ediyoruz; onboarding'deki anahtar kelime kutusunda da aynı düzeltme
+     yapılmıştı (D-070). */
+  ekleSecili();
   const btn = $("#send");
   const govde = {
     employer:$("#employer").value, contact:$("#contact").value,

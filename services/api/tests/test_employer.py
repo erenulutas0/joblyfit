@@ -273,3 +273,22 @@ def test_isveren_formu_servis_edilir(client):
     for soz in ("Ücret almıyoruz", "sıralama satmıyoruz",
                 "Ayrımcı ifade yayımlamıyoruz", "moderasyon"):
         assert soz.lower() in html.lower(), f"taahhüt sayfada yok: {soz!r}"
+
+
+def test_formda_bekleyen_secim_gonderirken_absorbe_edilir(client):
+    """Açılır listede seçili kalan şart YUTULMAMALI.
+
+    CANLIDA YAŞANDI: işveren listeden şartı seçti, "ekle"ye basmadı, gönderdi
+    ve sunucudan "en az bir şart seçmelisin" (422) aldı — oysa seçmişti. Bu,
+    onboarding'deki anahtar kelime kutusunda düzelttiğim hatanın (D-070)
+    aynısıydı ve formu yazarken tekrarlamışım.
+
+    Burada test edilen sayfanın JS'i: absorbe eden kod formda olduğu için
+    varlığını HTML üzerinde doğruluyoruz. Sunucu tarafı zaten şartsız gönderimi
+    reddediyor (`test_sartsiz_ilan_kabul_edilmez`); iki koruma birlikte durur.
+    """
+    html = client.get("/isveren").text
+    # Gönderim akışı, bekleyen seçimi eklemeyi ÇAĞIRMALI.
+    assert "ekleSecili()" in html, "bekleyen seçim absorbe edilmiyor"
+    # Hazır olmadan gönder düğmesi kapalı kalmalı: 422'yi hiç görmemek en iyisi.
+    assert '$("#send").disabled = !hazir' in html
