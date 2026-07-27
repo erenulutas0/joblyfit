@@ -1222,6 +1222,11 @@ function viewFeed(){
 
     <div class="searchbar"><div class="si"><span class="pfx">&gt;_</span>
       <input id="q" placeholder="pozisyon, şirket, beceri ara…" value="${esc(S.q)}"></div></div>
+    ${(f.ignored_terms&&f.ignored_terms.length)?`<div class="notice" style="margin-top:10px">
+      Aramanda <b>${f.ignored_terms.map(t=>esc(t)).join("</b>, <b>")}</b>
+      ${f.ignored_terms.length>1?'kelimeleri':'kelimesi'} hiçbir ilanda geçmiyor;
+      sonuç boş kalmasın diye <b>yok saydım</b>. Aşağıdaki liste bu
+      ${f.ignored_terms.length>1?'kelimeleri':'kelimeyi'} <b>içermiyor</b>.</div>`:''}
 
     <div class="chips">
       <button class="chip ${S.region===''?'on':''}" data-region=""><span class="cc">ALL</span> TÜM BÖLGELER</button>
@@ -1241,7 +1246,8 @@ function viewFeed(){
         Hiçbirine bant veremedik (bkz. bölüm notu), o yüzden "sana göre" listesi boş;
         bu, ilanların sana <b>uymadığı</b> anlamına gelmez.</div>`
     :`<div class="empty"><h3>Bu filtrelerle eşleşme yok</h3>
-       <p>Filtreyi gevşet ya da profiline beceri ekle — tarama alanı genişler.</p></div>`}
+       <p>Filtreyi gevşet ya da profiline beceri ekle — tarama alanı genişler.</p>
+       ${cikisYolu(f.no_results_help)}</div>`}
 
     ${unT?`
       <div class="sec-h"><span class="t">// değerlendirilemeyenler <b>[${unT}]</b></span><span class="ln"></span></div>
@@ -1259,6 +1265,36 @@ function viewFeed(){
    sayfa var, tam listeyi kendisi sayamaz. Sınıflar: (1) metinden şart
    çıkarılamadı — profilden bağımsız; (2) şart okundu ama profilde veri yok —
    beceri ekleyince düzelir; (3) kamu ilanı yalnızca listelenir. */
+/* BOŞ SONUÇ ÇIKIŞ YOLU (D-087).
+
+   Ölçüm: 7 beyaz yaka personası × 9 şehir = 63 kombinasyonun **%33'ü** sıfır
+   sonuç veriyor (TR ilanlarının %54'ü İstanbul'da). Ekranda yalnızca "eşleşme
+   yok" yazıyordu ve kullanıcı orada çıkıyordu.
+
+   Sayılar UYDURULMUYOR: hepsi sunucuda aynı korpustan gerçekten sayılıyor.
+   "Bursa'da yok" demekle "Bursa'da yok, İzmir'de 4 var" demek arasındaki
+   fark, çıkmaz sokakla sonraki adım arasındaki farktır. */
+const FILTRE_ADI={city:"şehir", level:"kıdem", arrangement:"çalışma düzeni",
+                  employment:"istihdam türü", q:"arama"};
+function cikisYolu(h){
+  if(!h) return "";
+  const parca=[];
+  (h.drop_filter||[]).forEach(d=>{
+    parca.push(`<button class="btn-2" data-clearf="${esc(d.field)}"
+      style="margin:6px 6px 0 0">${esc(FILTRE_ADI[d.field]||d.field)} filtresini
+      kaldır → <b>${d.count}</b> ilan</button>`);
+  });
+  (h.other_cities||[]).forEach(c=>{
+    parca.push(`<button class="btn-2" data-gocity="${esc(c.city)}"
+      style="margin:6px 6px 0 0">${esc(c.city)} <b>${c.count}</b></button>`);
+  });
+  if(!parca.length) return "";
+  return `<div style="margin-top:16px; text-align:left; max-width:520px;
+    margin-left:auto; margin-right:auto">
+    <div class="tag-l" style="color:var(--ink-3); margin-bottom:2px">buradan devam edebilirsin</div>
+    ${parca.join("")}</div>`;
+}
+
 function unBreakdown(bd){
   const p=[];
   if(bd.unreadable) p.push(`<b>${bd.unreadable}</b> ilanın metninden şart okunamadı`);
@@ -1356,6 +1392,16 @@ function wireFeed(){
        ve kullanıcı sebebini göremezdi. */
     S.region=el.dataset.region; S.f.city=""; S.citySearch="";
     refetchAndPaint();});
+  /* Boş sonuç çıkış yolu (D-087): butonların İŞE YARAMASI gerekiyor.
+     Sayıyı gösterip tıklanamaz bırakmak, çıkmaz sokağa süslü bir tabela
+     asmaktan ibaret olurdu. */
+  document.querySelectorAll("[data-clearf]").forEach(el=>el.onclick=()=>{
+    const alan=el.dataset.clearf;
+    if(alan==="q"){ S.q=""; const kutu=$("#q"); if(kutu) kutu.value=""; }
+    else { S.f[alan]=""; if(alan==="city") S.citySearch=""; }
+    refetchAndPaint();});
+  document.querySelectorAll("[data-gocity]").forEach(el=>el.onclick=()=>{
+    S.f.city=el.dataset.gocity; refetchAndPaint();});
   /* "Daha fazla" bir sonraki dilimi SUNUCUDAN ister (D-060). */
   $("[data-more]")&&($("[data-more]").onclick=()=>fetchMore("evaluated"));
   $("[data-more-un]")&&($("[data-more-un]").onclick=()=>fetchMore("unevaluated"));

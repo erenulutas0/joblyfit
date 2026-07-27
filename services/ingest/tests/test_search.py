@@ -118,15 +118,64 @@ def test_query_with_turkish_suffix_finds_the_stem():
         "ek soyulmadı — kullanıcı uygulamanın kendi kelimesiyle 0 sonuç alır"
 
 
-def test_suffix_stripping_does_not_reach_dangerous_stems():
-    """"kaynakçılık" -> "kaynakçı" olur, "kaynak" OLMAZ.
+def test_belirsiz_govde_eslesir_AMA_TAM_SAYILMAZ():
+    """"kaynakçı" -> gövde "kaynak" -> "İnsan Kaynakları"na tutar. BİLEREK.
 
-    Türkçe'de "kaynak" hem *welding* hem *resource*: gövde oraya kadar
-    kısaltılırsa her kaynakçı araması "İnsan Kaynakları" ilanlarını getirir.
+    D-087'ye kadar bu eşleşme ENGELLENIYORDU. Engellemenin bedeli ölçüldü:
+    aynı katılık yüzünden "muhasebeci" 347 yerine 6, "satışçı" 833 yerine 0
+    sonuç veriyordu. Türk kullanıcı mesleğini ekli yazar; ek soymadan arama
+    Türkçe'de çalışmıyor.
+
+    Ama gövdeye inmek bazen anlam değiştirir — Türkçe'de "kaynak" hem
+    *welding* hem *resource*. İki uçtan biri seçilmeliydi:
+
+      (a) hiç gevşetme  → kullanıcı HİÇ sonuç görmez
+      (b) gevşet + işaretle → sıralaması kötü sonuç görür, ama görür
+
+    (b) seçildi. Gevşetilmiş eşleşme `matches` için geçerlidir, ama
+    `exact_matches` için DEĞİLDİR; API sıralamada tam eşleşmeleri öne alır,
+    böylece kaynakçı arayan önce kaynak ilanlarını görür.
+
+    Bu testin işi o ayrımı korumak: `exact_matches` de True dönerse ayrım
+    çöker ve "İnsan Kaynakları" ilanları kaynakçı aramasının BAŞINA çıkar.
     """
     ik = _doc(search.fold("İnsan Kaynakları Yöneticisi"))
-    assert not search.matches(ik, search.parse("kaynakçılık"))
-    assert not search.matches(ik, search.parse("kaynakçı"))
+    q = search.parse("kaynakçı")
+    assert search.matches(ik, q), "gevşetilmiş eşleşme çalışmıyor"
+    assert not search.exact_matches(ik, q),         "belirsiz gövde TAM eşleşme sayılıyor — sıralamada öne çıkar"
+
+    # Gerçek kaynakçı ilanı HER İKİ ölçütte de eşleşmeli: sıralamada önde olur.
+    kaynakci = _doc(search.fold("Gazaltı Kaynakçı aranıyor"))
+    assert search.matches(kaynakci, q)
+    assert search.exact_matches(kaynakci, q),         "aradığı işin kendisi tam eşleşme sayılmıyor — listede geriye düşer"
+
+
+def test_turkce_ek_arama_kutusunda_cozulur():
+    """Kullanici meslegini EKLI yazar; arama bunu cozmeli (D-087).
+
+    Canli olcum (4.089 TR ilani):
+        "muhasebe" 347 sonuc   |  "muhasebeci"  6
+        "satis"    833 sonuc   |  "satisci"     0
+        "muhendis" 162 sonuc   |  "muhendisler" 4
+    """
+    for metin, sorgu in (
+        ("Muhasebe Elemanı aranıyor", "muhasebeci"),
+        ("Muhasebe Personeli", "muhasebeye"),
+        ("Satış Danışmanı", "satışçı"),
+        ("Makine Mühendisi", "mühendisler"),
+        ("Veri Analisti", "analisti"),
+    ):
+        assert search.matches(_doc(search.fold(metin)), search.parse(sorgu)),             f"{sorgu!r} → {metin!r} bulunamadı"
+
+
+def test_bitisik_ve_ayri_yazim_ayni_sonucu_verir():
+    """"satın alma" ile "satınalma" AYRIK iki kume olmamali (D-087).
+
+    Olcum: "satin alma" 29 ilan, "satinalma" 11 ilan -- ayni isi arayan iki
+    kullanici yalnizca BOSLUK yuzunden birbirinin ilanlarini gormuyordu.
+    """
+    bitisik = _doc(search.fold("Satınalma Sorumlusu"))
+    assert search.matches(bitisik, search.parse("satın alma")),         "ayrı yazan kullanıcı bitişik yazılmış ilanı bulamıyor"
 
 
 def test_terms_match_at_word_start_only():

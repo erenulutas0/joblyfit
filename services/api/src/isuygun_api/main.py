@@ -1348,12 +1348,45 @@ class FeedPageOut(BaseModel):
     unevaluated_breakdown: dict
     #: Doğrulanmamış belge yüzünden kapalı kalan satırlar (D-080).
     verify_unlocks: list[VerifyUnlockOut] = Field(default_factory=list)
+    #: Sorguda YOK SAYILAN kelimeler (D-087). Hiçbir ilanda geçmeyen kelime
+    #: sonucu sıfırladığı için düşürülür — ama SESSİZCE değil. "Berlin
+    #: muhasebe" arayan kişiye 347 Türkiye ilanı gösterip sebebini
+    #: söylememek, olmayan bir sonucu varmış gibi sunmak olurdu.
+    ignored_terms: list[str] = Field(default_factory=list)
+    #: Sonuç sıfırsa çıkış yolu (D-087). Ölçüm: 7 persona × 9 şehirde
+    #: kombinasyonların **%33'ü sıfır** veriyor ve ekranda yalnızca boş liste
+    #: vardı — kullanıcı burada siteyi kapatıyor.
+    no_results_help: dict | None = None
 
 
-def _qids(q: str) -> tuple[set[str], set[str]] | None:
+def _tara(parsed) -> tuple[set[str], set[str], set[str]]:
+    """Korpusu bir kez dolaşır: (eşleşen, başlıkta geçen, TAM eşleşen).
+
+    Üçüncü küme D-087 ile geldi: gövdeye inilerek bulunan eşleşmeler (ör.
+    "kaynakçı" → "kaynak" → "İnsan Kaynakları") listeden atılmaz ama sona
+    alınır. Ayrımı burada üretmek, sıralama anında ikinci kez taramaktan ucuz.
+    """
+    ids: set[str] = set()
+    tids: set[str] = set()
+    xids: set[str] = set()
+    if parsed.is_empty:
+        return ids, tids, xids
+    for job_id, doc in STORE.search_index.items():
+        if not search.matches(doc, parsed):
+            continue
+        ids.add(job_id)
+        if search.title_matches(doc, parsed):
+            tids.add(job_id)
+        if search.exact_matches(doc, parsed):
+            xids.add(job_id)
+    return ids, tids, xids
+
+
+def _qids(q: str) -> tuple[set[str], set[str], set[str], tuple[str, ...]] | None:
     """Arama sorgusunun eşlediği ilan kimlikleri (katlamalı, tam metin).
 
-    ``(hepsi, başlıkta_geçenler)`` döner. İkincisi SIRALAMA içindir: ölçümde
+    ``(hepsi, başlıkta_geçenler, tam_eşleşenler, yok_sayılan_kelimeler)``
+    döner. İkinci ve üçüncüsü SIRALAMA içindir: ölçümde
     "yazılım" 129 ilan getiriyor ama yalnızca 11'inin BAŞLIĞINDA geçiyor; kalanı
     açıklama metninden eşleşiyor ve sıralama olmadığı için ilk sayfayı onlar
     dolduruyordu. Açıklamadan eşleşenleri atmıyoruz (gerçek ilanlar var),
@@ -1371,19 +1404,45 @@ def _qids(q: str) -> tuple[set[str], set[str]] | None:
         _QIDS_CACHE.move_to_end(key)
         return hit
     parsed = search.parse(q)
-    ids: set[str] = set()
-    tids: set[str] = set()
-    if not parsed.is_empty:
-        for job_id, doc in STORE.search_index.items():
-            if not search.matches(doc, parsed):
-                continue
-            ids.add(job_id)
-            if search.title_matches(doc, parsed):
-                tids.add(job_id)
-    _QIDS_CACHE[key] = (ids, tids)
+    ids, tids, xids = _tara(parsed)
+    yok_sayilan: tuple[str, ...] = ()
+
+    # HİÇBİR İLANDA GEÇMEYEN KELİME SORGUYU SIFIRLAMAZ (D-087).
+    #
+    # Terimler VE'leniyor, dolayısıyla korpusta hiç geçmeyen TEK kelime bütün
+    # sonucu siliyordu. Ölçüm:
+    #     "muhasebe elemanı"           106 sonuç
+    #     "muhasebe elemanı arıyorum"    0 sonuç
+    #     "iş arıyorum muhasebe"         0 sonuç
+    # Kullanıcı doğal cümle kurduğunda ürün tamamen sessizleşiyordu.
+    #
+    # Yalnızca SIFIR sonuçta devreye girer: sonuç varsa kullanıcının yazdığı
+    # kısıt aynen uygulanır. Ve yok sayılan kelime YANITTA döner — sessizce
+    # gevşetmek "Berlin muhasebe" arayana 347 Türkiye ilanı gösterip Berlin
+    # ilanı sanmasına yol açardı.
+    if not ids and len(parsed.terms) > 1:
+        # Desen terim başına BİR kez derlenir. İlk yazdığım hâlde
+        # `search.parse(t)` `any(...)` gövdesindeydi ve 14 bin ilanın HER
+        # BİRİ için yeniden derleniyordu.
+        # İlk 6 terimle sınırlı: her terim korpusu bir kez tarar (ölçüm ~450 ms,
+        # yalnızca sıfır sonuçta ve sorgu başına önbellekli). Sınırsız bırakmak,
+        # 20 kelimelik bir yapıştırmada 20 tam tarama demekti.
+        tekil = [(t, search.parse(t)) for t in parsed.terms[:6]]
+        belge = list(STORE.search_index.values())
+        tutan = [t for t, pq in tekil
+                 if any(search.matches(d, pq) for d in belge)]
+        # Sınır yüzünden bakılmayan terimler KORUNUR: bakmadığımız bir kelimeyi
+        # "hiçbir ilanda yok" diye düşürmek, ölçmediğimiz şeyi iddia etmek olurdu.
+        tutan += [t for t in parsed.terms[6:]]
+        if tutan and len(tutan) < len(parsed.terms):
+            yok_sayilan = tuple(t for t in parsed.terms if t not in tutan)
+            parsed = search.Query(tuple(tutan), parsed.phrases, parsed.excluded)
+            ids, tids, xids = _tara(parsed)
+
+    _QIDS_CACHE[key] = (ids, tids, xids, yok_sayilan)
     while len(_QIDS_CACHE) > 16:
         _QIDS_CACHE.popitem(last=False)
-    return ids, tids
+    return ids, tids, xids, yok_sayilan
 
 
 _QIDS_CACHE: "OrderedDict[tuple, tuple[set, set]]" = OrderedDict()
@@ -1413,10 +1472,11 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     cached = _FILTERED_CACHE.get(fkey)
     if cached is not None:
         _FILTERED_CACHE.move_to_end(fkey)
-        ev, un, facets, breakdown = cached
-        return _sayfa(body, full, ev, un, facets, breakdown)
+        ev, un, facets, breakdown, ignored, yardim = cached
+        return _sayfa(body, full, ev, un, facets, breakdown, ignored, yardim)
     hit = _qids(f.q)
-    qids, title_ids = hit if hit is not None else (None, None)
+    qids, title_ids, exact_ids, yok_sayilan = (
+        hit if hit is not None else (None, None, None, ()))
 
     def base_ok(j: JobSummary) -> bool:
         """Eksen dışı filtreler: arama + bölge her sayımda uygulanır."""
@@ -1444,9 +1504,14 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     # arama kutusuna bir şey yazdıysa o andaki niyeti bant sırasından önce
     # gelir — "kaynakçı" arayan kişi listenin başında kaynak ilanı görmeli,
     # metninde "iş sağlığı ve güvenliği" geçen bir garson ilanı değil.
-    if title_ids:
-        ev.sort(key=lambda j: j.job_id not in title_ids)
-        un.sort(key=lambda j: j.job_id not in title_ids)
+    if title_ids is not None:
+        # İki kademe (D-087): önce başlıkta geçenler, sonra TAM eşleşenler.
+        # Gevşetilmiş (gövde) eşleşmeler atılmaz, sona alınır — "kaynakçı"
+        # arayan önce kaynak ilanlarını, en sonda "İnsan Kaynakları"nı görür.
+        def _sira(j: JobSummary) -> tuple[bool, bool]:
+            return (j.job_id not in title_ids, j.job_id not in (exact_ids or ()))
+        ev.sort(key=_sira)
+        un.sort(key=_sira)
 
     # --- facet sayaçları: D-057 kuralı — kendi ekseni hariç her şey uygulanır.
     level_c: dict[str, int] = {}
@@ -1503,15 +1568,76 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     }
     breakdown = {"unreadable": unreadable, "missing_data": missing,
                  "listing_only": kamu}
-    _FILTERED_CACHE[fkey] = (ev, un, facets, breakdown)
+    # BOŞ SONUÇ ÇIKIŞ YOLU (D-087).
+    #
+    # Ölçüm: 7 beyaz yaka personası × 9 şehir = 63 kombinasyonun **21'i (%33)**
+    # sıfır sonuç veriyor. Sebep korpus yoğunlaşması: TR ilanlarının %54'ü
+    # İstanbul'da. Ekranda yalnızca boş liste vardı; kullanıcı burada çıkıyor.
+    #
+    # Yardım UYDURMAZ: hepsi aynı korpustan gerçekten sayılır. Hangi filtreyi
+    # kaldırırsa kaç ilan açılacağını söylemek, "sonuç yok" demekten farklı
+    # bir şey — kullanıcıya bir SONRAKİ ADIM verir.
+    yardim = None
+    if not ev and not un:
+        yardim = {}
+        her = list(full.evaluated) + list(full.unevaluated)
+
+        def say(**hariç) -> int:
+            def uy(j: JobSummary) -> bool:
+                if "q" not in hariç and qids is not None and j.job_id not in qids:
+                    return False
+                if f.region and f.region not in j.regions:
+                    return False
+                if "city" not in hariç and not ok_city(j):
+                    return False
+                if "level" not in hariç and not ok_level(j):
+                    return False
+                if "arrangement" not in hariç and not ok_arr(j):
+                    return False
+                if "employment" not in hariç and not ok_emp(j):
+                    return False
+                return ok_long(j)
+            return sum(1 for j in her if uy(j))
+
+        for alan, deger, anahtar in (("city", f.city, "city"),
+                                     ("level", f.level, "level"),
+                                     ("arrangement", f.arrangement, "arrangement"),
+                                     ("employment", f.employment, "employment"),
+                                     ("q", f.q.strip(), "q")):
+            if not deger:
+                continue
+            n = say(**{anahtar: True})
+            if n:
+                yardim.setdefault("drop_filter", []).append(
+                    {"field": alan, "value": deger, "count": n})
+
+        # Şehir filtresi varken: HANGİ şehirlerde bu iş var? En sık soru bu.
+        if f.city:
+            sehirler: dict[str, int] = {}
+            for j in her:
+                if qids is not None and j.job_id not in qids:
+                    continue
+                if f.region and f.region not in j.regions:
+                    continue
+                if not (ok_level(j) and ok_arr(j) and ok_emp(j) and ok_long(j)):
+                    continue
+                if j.city_group:
+                    sehirler[j.city_group] = sehirler.get(j.city_group, 0) + 1
+            yardim["other_cities"] = [
+                {"city": c, "count": n} for c, n in
+                sorted(sehirler.items(), key=lambda kv: (-kv[1], kv[0]))[:6]]
+        yardim = yardim or None
+
+    _FILTERED_CACHE[fkey] = (ev, un, facets, breakdown, yok_sayilan, yardim)
     while len(_FILTERED_CACHE) > 16:
         _FILTERED_CACHE.popitem(last=False)
 
-    return _sayfa(body, full, ev, un, facets, breakdown)
+    return _sayfa(body, full, ev, un, facets, breakdown, yok_sayilan, yardim)
 
 
 def _sayfa(body: "FeedQueryIn", full: FeedOut, ev: list, un: list,
-           facets: dict, breakdown: dict) -> "FeedPageOut":
+           facets: dict, breakdown: dict, ignored: tuple = (),
+           yardim: dict | None = None) -> "FeedPageOut":
     """Sayfa yanıtını kuran **TEK** yer.
 
     Neden tek yer: önbellek isabet eden ve etmeyen yollar ayrı ayrı
@@ -1542,6 +1668,8 @@ def _sayfa(body: "FeedQueryIn", full: FeedOut, ev: list, un: list,
         unevaluated_breakdown=breakdown,
         # Filtreden BAĞIMSIZ: doğrulama kapısı bütün korpusta aynı işi yapıyor.
         verify_unlocks=full.verify_unlocks,
+        ignored_terms=list(ignored),
+        no_results_help=yardim,
     )
 
 

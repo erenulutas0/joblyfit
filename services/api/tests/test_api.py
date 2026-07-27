@@ -1325,3 +1325,96 @@ def test_siralama_KARARLI(client, sentetik):
     a = client.post("/api/feed", json={**_DENETCI, "limit": 30}).json()
     b = client.post("/api/feed", json={**_DENETCI, "limit": 30}).json()
     assert [j["job_id"] for j in a["evaluated"]] == [j["job_id"] for j in b["evaluated"]]
+
+
+# --------------------------------------------------------------------------
+# D-087 — arama kutusu Turkce konusmali
+# --------------------------------------------------------------------------
+# Canli olcum (4.089 TR ilani, 31 sorgu). Ortanca isabet %100, ortanca recall
+# %100 -- arama duzgun yazilmis sorguda saglamdi. Kirik olan uc sey vardi:
+#
+#   "muhasebe" 347 sonuc  |  "muhasebeci"                 6 sonuc
+#   "satis"    833 sonuc  |  "satisci"                    0 sonuc
+#   "muhasebe elemani" 106|  "muhasebe elemani ariyorum"  0 sonuc
+#   "satin alma" 29       |  "satinalma"                 11  (AYRIK kumeler)
+
+
+def test_ekli_yazilan_meslek_bulunur(client):
+    """Turk kullanici meslegini EKLI yazar."""
+    az = client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": "muhasebeci"}, "limit": 1}).json()
+    cok = client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": "muhasebe"}, "limit": 1}).json()
+    a = az["evaluated_total"] + az["unevaluated_total"]
+    b = cok["evaluated_total"] + cok["unevaluated_total"]
+    if b == 0:
+        pytest.skip("fixture korpusunda muhasebe ilanı yok")
+    assert a >= b * 0.5, (
+        f"'muhasebeci' {a} sonuç verirken 'muhasebe' {b} veriyor — "
+        "ek soyulmuyor, kullanıcı aradığı işi bulamıyor"
+    )
+
+
+def test_hicbir_ilanda_gecmeyen_kelime_sorguyu_sifirlamaz(client):
+    """Dogal cumle kuran kullanici HIC sonuc goremiyordu.
+
+    "muhasebe elemani ariyorum" -> 0 sonuc. Terimler VE'lendigi icin korpusta
+    hic gecmeyen TEK kelime butun listeyi siliyordu.
+    """
+    temiz = client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": "muhasebe"}, "limit": 1}).json()
+    if temiz["evaluated_total"] + temiz["unevaluated_total"] == 0:
+        pytest.skip("fixture korpusunda muhasebe ilanı yok")
+
+    d = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"q": "muhasebe zzzyokboylekelime"}, "limit": 3}).json()
+    assert d["evaluated_total"] + d["unevaluated_total"] > 0, \
+        "hiçbir ilanda geçmeyen kelime bütün sonucu sildi"
+    # SESSIZ GEVSETME YANILTIR: ne yok saydigimizi soylemeliyiz.
+    assert "zzzyokboylekelime" in d["ignored_terms"], \
+        "yok sayılan kelime kullanıcıya bildirilmiyor"
+
+
+def test_yok_sayma_yalnizca_sifir_sonucta_devreye_girer(client):
+    """Sonuc varken kullanicinin kisiti AYNEN uygulanmali.
+
+    Aksi halde "muhasebe istanbul" arayan kisi, Istanbul disi ilanlari da
+    Istanbul saniyordu.
+    """
+    d = client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": "muhasebe"}, "limit": 1}).json()
+    assert d["ignored_terms"] == [], \
+        "sonuç varken de kelime düşürülüyor — kullanıcının kısıtı yok sayılıyor"
+
+
+def test_bos_sonucta_cikis_yolu_gosterilir(client):
+    """Bos liste CIKMAZ SOKAK olmamali (D-087).
+
+    Olcum: 7 persona × 9 sehir = 63 kombinasyonun %33'u sifir sonuc veriyor
+    (TR ilanlarinin %54'u Istanbul'da). Ekranda yalnizca "eslesme yok" vardi.
+    """
+    d = client.post("/api/feed", json={
+        "profile": {"facts": []},
+        "filters": {"q": "", "city": "ZzzOlmayanSehir"}, "limit": 5}).json()
+    assert d["evaluated_total"] + d["unevaluated_total"] == 0, "ön koşul: boş olmalı"
+    yardim = d.get("no_results_help")
+    assert yardim, "boş sonuçta çıkış yolu sunulmuyor"
+    # Sayilar UYDURULMAZ: filtreyi kaldirinca gercekten o kadar ilan olmali.
+    kaldir = {x["field"]: x["count"] for x in (yardim.get("drop_filter") or [])}
+    assert "city" in kaldir and kaldir["city"] > 0
+    filtresiz = client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": ""}, "limit": 1}).json()
+    assert kaldir["city"] == filtresiz["evaluated_total"] + filtresiz["unevaluated_total"], \
+        "vaat edilen sayı, filtre kaldırılınca gerçekten gelen sayıyla tutmuyor"
+
+
+def test_arayuz_cikis_yolunu_ve_yok_sayilani_gosterir(client):
+    """Sunucu uretse de arayuz gostermezse kullanici goremez."""
+    html = client.get("/").text
+    assert "cikisYolu(f.no_results_help)" in html, "çıkış yolu feed'e bağlanmamış"
+    assert "ignored_terms" in html, "yok sayılan kelime ekranda yok"
+    # Butonlar TIKLANABILIR olmali: sayiyi gosterip tiklatmamak, cikmaz
+    # sokaga susulu tabela asmaktan ibaret olurdu.
+    assert "[data-clearf]" in html and "[data-gocity]" in html, \
+        "çıkış yolu butonları bağlanmamış"

@@ -49,8 +49,26 @@ _MAX_SCAN = 8000
 #: koymuştum ve test kırıldı: "kaynakcilik"ten "cilik" soyulunca **"kaynak"**
 #: kalıyor ve "insan kaynaklari"na tutuyor — kaçınmak istediğimiz şeyin ta
 #: kendisi. Yalnızca "lik" soyunca "kaynakci" kalır, istenen budur.
+#:
+#: D-087 — LİSTE GENİŞLETİLDİ. Canlı ölçüm (4.089 TR ilanı, 31 sorgu) bu
+#: kısalığın bedelini gösterdi:
+#:
+#:     "muhasebe"  347 sonuç   |  "muhasebeci"   6 sonuç
+#:     "satis"     833 sonuç   |  "satisci"      0 sonuç
+#:     "muhendis"  162 sonuç   |  "muhendisler"  4 sonuç
+#:
+#: Türk kullanıcı mesleğini "muhasebeci" diye yazar, "muhasebe" diye değil.
+#: Bu, D-074'te SÖZLÜK tarafında çözdüğüm eklemeli-dil probleminin arama
+#: kutusundaki aynasıydı: iki kod yolu Türkçe'yi hâlâ farklı işliyordu.
+#:
+#: Sıra ÖNEMLİ: uzun ekler önce denenir, yoksa "ligi" varken "i" soyulur.
+#: Fold sonrası ç→c, ı→i, ü→u olduğu için "-çı/-ci/-cı/-çi" hepsi "ci"dir.
 _STRIPPABLE: tuple[str, ...] = (
-    "ligi", "lik", "lugu", "luk", "leri", "lari",
+    "ligi", "lugu", "lik", "luk", "leri", "lari", "ler", "lar",
+    "cilik", "ciligi",
+    "den", "dan", "ten", "tan", "nin", "nun",
+    "ci", "cu", "si", "su", "ye", "ya", "de", "da", "te", "ta",
+    "i", "u", "e", "a",
 )
 #: Ek soyulduktan sonra gövde bundan kısa kalırsa soyma yapılmaz.
 _MIN_STEM = 4
@@ -79,9 +97,24 @@ class _Term:
     """
     needle: str
     rx: re.Pattern[str]
+    #: Yalnızca KULLANICININ YAZDIĞI biçim — gövde varyantı olmadan.
+    #:
+    #: Ayrım gerekli çünkü gövdeye inmek bazen anlam değiştirir: "kaynakci"nin
+    #: gövdesi "kaynak" ve Türkçe'de "kaynak" hem *welding* hem *resource*
+    #: demek — "insan kaynaklari" ilanları kaynakçı aramasına karışıyor.
+    #:
+    #: Eşleşmeyi ATMAK yanlış olurdu (kullanıcı hiç sonuç görmemektense
+    #: sıralaması kötü sonuç görsün), ama tam eşleşmelerle aynı yere koymak da
+    #: yanlış. Bu yüzden gevşetilmiş eşleşmeler İŞARETLENİR ve listede sona
+    #: alınır (D-087).
+    rx_exact: re.Pattern[str] | None = None
 
     def hits(self, text: str) -> bool:
         return self.needle in text and self.rx.search(text) is not None
+
+    def hits_exact(self, text: str) -> bool:
+        rx = self.rx_exact if self.rx_exact is not None else self.rx
+        return rx.search(text) is not None
 
 
 def _pattern(term: str) -> _Term:
@@ -96,7 +129,8 @@ def _pattern(term: str) -> _Term:
     govdeler = _stems(term)
     alt = "|".join(re.escape(s) for s in govdeler)
     return _Term(needle=min(govdeler, key=len),
-                 rx=re.compile(r"(?<!\w)(?:" + alt + r")"))
+                 rx=re.compile(r"(?<!\w)(?:" + alt + r")"),
+                 rx_exact=re.compile(r"(?<!\w)" + re.escape(term)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +142,13 @@ class Query:
     #: yeniden derlenmez.
     term_res: tuple["_Term", ...] = ()
     excl_res: tuple["_Term", ...] = ()
+    #: Terimlerin BİTİŞİK yazılmış hâli (D-087).
+    #:
+    #: Ölçüm: "satın alma" 29 ilan, "satınalma" 11 ilan — İKİ AYRIK KÜME.
+    #: Aynı işi arayan iki kullanıcı, yalnızca boşluk yüzünden birbirinin
+    #: ilanlarını hiç görmüyordu. Türkçe'de bu yazım ikiliği çok yaygın
+    #: (satınalma, önmuhasebe, işgücü…).
+    joined_re: "_Term | None" = None
 
     def __post_init__(self) -> None:
         # Elle kurulan Query'ler de desenlerini alsın: aksi halde `terms` dolu
@@ -118,6 +159,10 @@ class Query:
         if self.excluded and not self.excl_res:
             object.__setattr__(self, "excl_res",
                                tuple(_pattern(t) for t in self.excluded))
+        # Bitişik biçim yalnızca 2-3 terimde kurulur: daha uzun sorgularda
+        # birleşim gerçek bir kelime olmaz ve boşuna tarama olurdu.
+        if 2 <= len(self.terms) <= 3 and self.joined_re is None:
+            object.__setattr__(self, "joined_re", _pattern("".join(self.terms)))
 
     @property
     def is_empty(self) -> bool:
@@ -181,12 +226,25 @@ def haystack(posting) -> Doc:
                title=fold(job.title or ""))
 
 
-def _hits(text: str, q: Query, *, check_excluded: bool) -> bool:
+def _hits(text: str, q: Query, *, check_excluded: bool, exact: bool = False) -> bool:
     if check_excluded and any(t.hits(text) for t in q.excl_res):
         return False
     if not all(p in text for p in q.phrases):
         return False
-    return all(t.hits(text) for t in q.term_res)
+    vur = (lambda t: t.hits_exact(text)) if exact else (lambda t: t.hits(text))
+    if all(vur(t) for t in q.term_res):
+        return True
+    # Bitişik yazım: "satın alma" arayan "Satınalma Sorumlusu"nu da görmeli.
+    return q.joined_re is not None and vur(q.joined_re)
+
+
+def exact_matches(doc: Doc, q: Query) -> bool:
+    """Kullanıcının YAZDIĞI biçim geçiyor mu — gövdeye inmeden.
+
+    Sıralama için: gevşetilmiş (gövde) eşleşmeler listenin sonuna alınır.
+    Bkz. :class:`_Term.rx_exact`.
+    """
+    return _hits(doc.blob, q, check_excluded=True, exact=True)
 
 
 def matches(doc: Doc, q: Query) -> bool:
