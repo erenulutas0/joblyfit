@@ -1149,3 +1149,179 @@ def test_dogrulama_uyarisi_arayuzde_gosteriliyor(client):
     # Notun içindeki düğme feed'de de BAĞLANMALI; yalnızca detay panelinde
     # bağlıydı ve tıklanınca hiçbir şey olmuyordu.
     assert '.feed [data-openpanel]' in html
+
+
+# --------------------------------------------------------------------------
+# D-085 — bant içi sıra: nadir kanıt öne
+# --------------------------------------------------------------------------
+# Sonuclarin %93'u "sartli". Bant icindeki sira `(bant, baslik)` idi, yani
+# pratikte ALFABETIK. Canli olcum bedelini gosterdi (15 beyaz yaka personasi):
+#
+#   Ic denetci    ilk 10'un 10'u YALNIZCA "Muhasebe"den eslesti,
+#                 `internal_audit` ilk 10'da HIC yok        (243 rol)
+#   Vergi uzmani  ayni: 10/10 "Muhasebe", 0 "Vergi"         (243 rol)
+#   Bankaci       10/10 "Satis", 0 "Bankacilik"             (421 rol)
+#
+# Bunun KUME sorunu olmadigi ayrica olculdu: internal_audit, tax,
+# cost_accounting, economics ve accounting HEPSI "Muhasebe ve finans"
+# kumesinde -- kumeye bakan bir "meslek kaymasi" filtresi hicbirini ayiramazdi.
+
+
+def _sentetik_korpus():
+    """Iki grup YAPISAL OLARAK AYNI: ayni sart sayisi, kategori, skor.
+
+    Tek fark hangi token'in karsilandigi. Bant esitlenmezse olculen sey
+    tie-break degil bant olur (ilk denememde bu tuzaga dustum: nadir gruba
+    fazladan sart vermistim, daha iyi bant alip zaten basa geciyorlardi).
+    """
+    from isuygun_core.domain import JobPosting, Requirement
+    from isuygun_ingest.pipeline import NormalizedPosting, fold
+
+    def R(key, label, cat):
+        return Requirement(key=key, label=label, kind="required", category=cat,
+                           extraction_confidence=1.0)
+
+    YAYGIN = R("accounting", "Muhasebe", "experience")
+    NADIR = R("internal_audit", "İç denetim", "experience")
+    EGITIM = R("bachelor", "Lisans mezuniyeti", "education")
+
+    def ilan(i, baslik, reqs):
+        job = JobPosting(job_id=f"t{i}", title=baslik, employer=f"Firma {i}",
+                         city="İstanbul", occupation_id="muhasebe",
+                         source="test", requirements=tuple(reqs))
+        return NormalizedPosting(
+            job=job, employer_key=fold(f"Firma {i}"), title_key=fold(baslik),
+            city_key="istanbul", content_fingerprint=f"c{i}", job_text=baslik,
+            url=f"https://e.invalid/{i}", posted_at="2026-07-01",
+            refreshed_at="2026-07-01", fetched_at="2026-07-01",
+            provenance={"source_id": "src-fixture-001", "source": "test",
+                        "url": f"https://e.invalid/{i}"})
+
+    kayit = {}
+    # Baslik ALFABETIK olarak once gelir: eski sirada bunlar listeyi doldurur.
+    for i in range(60):
+        p = ilan(i, f"Accounting Specialist {i:02d}", [YAYGIN, EGITIM])
+        kayit[p.job.job_id] = p
+    for i, ad in enumerate(["İç Denetim Uzmanı", "İç Denetçi",
+                            "İç Kontrol Sorumlusu", "İç Denetim Müdürü"]):
+        p = ilan(100 + i, ad, [NADIR, EGITIM])
+        kayit[p.job.job_id] = p
+    yaygin = {}
+    for p in kayit.values():
+        for r in p.job.requirements:
+            yaygin[r.key] = yaygin.get(r.key, 0) + 1
+    return kayit, yaygin
+
+
+@pytest.fixture()
+def sentetik():
+    """Korpusu gecici olarak degistirir ve MUTLAKA geri koyar.
+
+    Geri koymazsam sonraki testler 64 sentetik ilanla kosar -- siraya bagli
+    kirlilik, bu dosyada bir kez yasandi (bkz. korpus tazeleme testi).
+    """
+    from isuygun_api.store import STORE
+
+    eski_p, eski_y, eski_v = (dict(STORE.postings),
+                              dict(STORE.requirement_prevalence),
+                              STORE.corpus_version)
+    kayit, yaygin = _sentetik_korpus()
+    STORE.postings, STORE.requirement_prevalence = kayit, yaygin
+    STORE.corpus_version += 1
+    try:
+        yield STORE
+    finally:
+        STORE.postings, STORE.requirement_prevalence = eski_p, eski_y
+        STORE.corpus_version = eski_v + 2
+
+
+_DENETCI = {"profile": {"facts": [
+    {"key": "internal_audit", "verified": False},
+    {"key": "accounting", "verified": False},
+    {"key": "bachelor", "verified": False}], "total_years": 7},
+    "filters": {"q": "", "region": ""}, "limit": 10}
+
+
+def test_nadir_kanit_yaygin_kanitin_onune_gecer(client, sentetik):
+    """60 muhasebe ilani 4 ic denetim ilanini GOMMEMELI."""
+    d = client.post("/api/feed", json=_DENETCI).json()
+    basliklar = [j["title"] for j in d["evaluated"]]
+    assert basliklar, "sentetik korpus değerlendirilmedi (ön koşul)"
+    ilk_denetim = next((i for i, t in enumerate(basliklar) if "İç " in t), None)
+    assert ilk_denetim == 0, (
+        f"nadir şartı karşılayan ilan başta değil: ilk 3 = {basliklar[:3]}"
+    )
+
+
+def test_siralama_BANTLARI_DEGISTIRMEZ(client, sentetik):
+    """Bu bir SIRALAMA olcusu, bant degil.
+
+    Ozgullugu bant hesabina karistirmak, kanit gucune dayali bant
+    kurallarini (D-022/D-064) sessizce delerdi: nadir tek bir esleşme
+    "guclu esleşme" uretebilirdi.
+    """
+    d = client.post("/api/feed", json={**_DENETCI, "limit": 100}).json()
+    bantlar = {j["band_label"] for j in d["evaluated"]}
+    assert bantlar == {"Şartlı eşleşme"}, \
+        f"sıralama değişikliği bantlara sızmış: {bantlar}"
+    assert d["evaluated_total"] == 64, "ilan düşmüş — sıralama eleme yapmamalı"
+
+
+def test_ozgulluk_ayirt_edici_olmayanlari_saymaz():
+    """"Lisans" ve "Excel" siralamada kimseyi one cikarmamali (D-081).
+
+    Ikisi de herkeste var; sirayi onlara gore kurmak, alfabetik siradan
+    daha bilgilendirici olmazdi.
+    """
+    from isuygun_api import main as m
+    from isuygun_core.domain import (CareerProfile, JobPosting, ProfileFact,
+                                     Requirement, evaluate_requirement)
+
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="bachelor", category="education", verification="user_asserted"),
+        ProfileFact(key="excel", category="skill", verification="user_asserted"),
+    ))
+    reqs = (Requirement(key="bachelor", label="Lisans", kind="required",
+                        category="education"),
+            Requirement(key="excel", label="Excel", kind="required", category="skill"))
+
+    class _R:
+        outcomes = tuple(evaluate_requirement(r, prof) for r in reqs)
+
+    assert all(o.state == "met" for o in _R.outcomes), "ön koşul: ikisi de karşılanmalı"
+    assert m._ozgulluk(_R()) == 0.0, "ayırt edici olmayan şart sıralamayı etkiliyor"
+
+
+def test_ozgulluk_sonsuza_gitmez():
+    """Sayilmamis bir sart (yaygınlık 0) sonsuz puan almamali.
+
+    Isverenin dogrudan girdigi ilan sayimdan SONRA korpusa katilabilir; o
+    ilan tek basina butun listeyi ele gecirmemeli.
+    """
+    from isuygun_api import main as m
+    from isuygun_core.domain import (CareerProfile, ProfileFact, Requirement,
+                                     evaluate_requirement)
+
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="internal_audit", category="experience",
+                    verification="user_asserted"),))
+    r = Requirement(key="internal_audit", label="İç denetim", kind="required",
+                    category="experience")
+
+    class _R:
+        outcomes = (evaluate_requirement(r, prof),)
+
+    p = m._ozgulluk(_R())
+    assert 0.0 < p <= 8.0, f"özgüllük sınırsız: {p}"
+
+
+def test_siralama_KARARLI(client, sentetik):
+    """Ayni sorgu her istekte AYNI sirayi dondurmeli.
+
+    Baslik ucuncu anahtar olarak duruyor; olmasaydi esit ozgullukteki
+    ilanlar her istekte baska sirada gelirdi ve "daha fazla"ya basan
+    kullanici ayni ilani iki kez ya da hic gormezdi.
+    """
+    a = client.post("/api/feed", json={**_DENETCI, "limit": 30}).json()
+    b = client.post("/api/feed", json={**_DENETCI, "limit": 30}).json()
+    assert [j["job_id"] for j in a["evaluated"]] == [j["job_id"] for j in b["evaluated"]]

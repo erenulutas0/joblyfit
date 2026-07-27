@@ -12,6 +12,7 @@ OpenAPI şeması ``/openapi.json`` adresinden alınır; TypeScript tipleri bunda
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 from collections import OrderedDict
@@ -29,6 +30,7 @@ from isuygun_core import build_explanation, match
 from isuygun_core.domain import (
     GATE_RELEVANT_CATEGORIES,
     NON_DISCRIMINATIVE_CATEGORIES,
+    NON_DISCRIMINATIVE_KEYS,
     CareerProfile,
     JobPosting,
     MatchBand,
@@ -397,6 +399,56 @@ class SourceOut(BaseModel):
 
 _BAND_ORDER = {MatchBand.STRONG: 0, MatchBand.GOOD: 1, MatchBand.CONDITIONAL: 2,
                MatchBand.WEAK: 3}
+
+
+def _ozgulluk(result) -> float:
+    """Bu eşleşmenin kanıtı ne kadar BİLGİLENDİRİCİ (D-085).
+
+    Bant içindeki sıra `(bant, başlık)` idi — yani pratikte alfabetik, çünkü
+    sonuçların %93'ü "şartlı". Ölçüm bunun bedelini gösterdi (canlı, 15
+    beyaz yaka personası):
+
+        İç denetçi    ilk 10'un 10'u YALNIZCA "Muhasebe"den eşleşti,
+                      `internal_audit` ilk 10'da hiç yok  (243 rol)
+        Vergi uzmanı  aynı: 10/10 "Muhasebe", 0 "Vergi"    (243 rol)
+        Bankacı       10/10 "Satış", 0 "Bankacılık"        (421 rol)
+
+    243 muhasebe ilanı 5 iç denetim ilanını gömüyordu. Kullanıcının kendini
+    tanımladığı şart ekranda hiç görünmüyordu.
+
+    Bunun **küme** sorunu olmadığını ayrıca ölçtüm: `internal_audit`, `tax`,
+    `cost_accounting`, `economics` ve `accounting` HEPSİ "Muhasebe ve finans"
+    kümesinde. Kümeye bakan bir "meslek kayması" filtresi bu vakaların
+    hiçbirini ayıramazdı.
+
+    Ölçü: karşılanan her ayırt edici şart için ``-log(yaygınlık)``. Nadir bir
+    şartı karşılamak, yaygın bir şartı karşılamaktan daha çok şey söyler.
+    Toplam alınır (en büyük değil): hem ``internal_audit`` hem ``accounting``
+    karşılayan ilan, yalnız birini karşılayandan öne geçmeli.
+
+    **Bu bir SIRALAMA ölçüsüdür, bant değil.** Hiçbir ilan listeden düşmez,
+    hiçbir bant değişmez — yalnızca aynı bant içindeki sıra değişir. Bant
+    iddiası kanıtın gücüne bağlıdır (D-022/D-064) ve orası dokunulmadı.
+    """
+    toplam = len(STORE.postings) or 1
+    puan = 0.0
+    for o in result.outcomes:
+        if o.state != "met":
+            continue
+        r = o.requirement
+        if (r.category in NON_DISCRIMINATIVE_CATEGORIES
+                or r.key in NON_DISCRIMINATIVE_KEYS
+                or r.is_legal_eligibility):
+            # Ayırt edici olmayan şart sıralamaya da girmez: Excel'i herkes
+            # karşılıyor, sıralamada kimseyi öne çıkarmamalı (D-081).
+            continue
+        n = STORE.requirement_prevalence.get(r.key, 0)
+        # Alt sınır 1: hiç sayılmamış bir şart (ör. işverenin doğrudan girdiği
+        # ilan, sayım sonrası eklenmiş) sonsuz özgüllük almasın.
+        # Üst sınır: tek bir nadir token'ın sıralamayı ele geçirmesini önler —
+        # nadirlik bazen gerçek bilgi değil, çıkarım gürültüsüdür.
+        puan += min(math.log(toplam / max(1, n)), 8.0)
+    return puan
 
 # D-008 — kalibre edilmiş meslek kümeleri. Hiçbiri golden set'le ölçülmedi
 # (T-006b açık), bu yüzden liste bilinçli olarak **boştur**: her ilan düşük
@@ -1526,7 +1578,8 @@ def _build_feed(profile: CareerProfile) -> FeedOut:
                     if o.unknown_reason == "unverified_gate_field":
                         kapida.setdefault(o.requirement.key, set()).add(rol)
         else:
-            evaluated.append((_BAND_ORDER[result.band], s))
+            # Özgüllük NEGATİF yazılır: sıralama küçükten büyüğe.
+            evaluated.append((_BAND_ORDER[result.band], -_ozgulluk(result), s))
 
     verify_unlocks = []
     for key, roller in sorted(kapida.items(), key=lambda kv: -len(kv[1])):
@@ -1536,8 +1589,10 @@ def _build_feed(profile: CareerProfile) -> FeedOut:
         verify_unlocks.append(VerifyUnlockOut(
             key=item.key, label=item.label, unlocks=len(roller)))
 
-    evaluated.sort(key=lambda t: (t[0], t[1].title))
-    shown_evaluated = _group_by_role([s for _, s in evaluated])
+    # Başlık ÜÇÜNCÜ anahtar olarak kalır: eşit bant + eşit özgüllükte sıra
+    # kararlı olmalı, yoksa aynı sorgu her istekte başka sıra döndürür.
+    evaluated.sort(key=lambda t: (t[0], t[1], t[2].title))
+    shown_evaluated = _group_by_role([s for _, _, s in evaluated])
     # Gruplama iki listeye AYRI uygulanırsa aynı rol ikisinde birden çıkabilir
     # (D-055): aynı rolün bir şehirdeki kopyasından şart okunmuş, diğerinden
     # okunamamışsa biri "sana göre"ye biri "veri eksik"e düşer ve kullanıcı

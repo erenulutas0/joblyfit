@@ -52,6 +52,9 @@ class Store:
     #: job_id -> aranabilir ilan (bkz. search.haystack). Başlık ayrı alanda
     #: tutulur; arama sonuçlarında başlıkta geçenler öne alınır.
     search_index: dict[str, search.Doc] = field(default_factory=dict)
+    #: şart anahtarı -> kaç ilanda geçiyor (D-085). Sıralamada "bu eşleşme ne
+    #: kadar bilgilendirici" sorusunun cevabı; `load()` içinde doldurulur.
+    requirement_prevalence: dict[str, int] = field(default_factory=dict)
     profile: CareerProfile = field(default_factory=lambda: CareerProfile(profile_id=PROFILE_ID))
     #: CV'den önerilen ama kullanıcı onayından geçmemiş alanlar (T-016)
     pending_cv_suggestions: list[dict] = field(default_factory=list)
@@ -259,6 +262,22 @@ class Store:
             job_id: search.haystack(p) for job_id, p in self.postings.items()
         }
         self.catalog = build_catalog()
+        # ŞART YAYGINLIĞI (D-085): her şart anahtarı kaç ilanda geçiyor.
+        #
+        # Sıralama için gerekiyor. Ölçüm: "iç denetçi" profilinin ilk 10
+        # sonucunun 10'u da YALNIZCA "Muhasebe" şartından eşleşiyordu;
+        # `internal_audit` ilk 10'da hiç görünmüyordu. Sebep, bant içinde
+        # sıranın alfabetik olması — 243 muhasebe ilanı 5 iç denetim ilanını
+        # gömüyordu. Nadir bir şartı karşılamak, yaygın bir şartı
+        # karşılamaktan daha çok şey söyler; sıralama bunu bilmeli.
+        #
+        # Korpus başına BİR KEZ sayılır: her istekte 14 bin ilanı yeniden
+        # taramak, sıralamayı aramadan pahalı hale getirirdi.
+        yaygin: dict[str, int] = {}
+        for p in self.postings.values():
+            for r in p.job.requirements:
+                yaygin[r.key] = yaygin.get(r.key, 0) + 1
+        self.requirement_prevalence = yaygin
         self.corpus_version += 1
         self.ingest_summary = {
             "source": result["source"],
