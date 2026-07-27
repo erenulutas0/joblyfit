@@ -54,6 +54,21 @@ NON_DISCRIMINATIVE_CATEGORIES: frozenset[str] = frozenset(
     {"language", "education", "shift"}
 )
 
+# Kategori yetmiyor: bazı TEK TOKEN'lar da ayırt edici değil (D-081).
+#
+# Ölçüm (51 + 15 personalık canlı test): "Excel / ofis programları" kategorisi
+# `skill` olduğu için ayırt edici sayılıyordu, ama pratikte "lisans mezuniyeti"
+# gibi davranıyor — herkeste var, her ofis ilanı istiyor. Sonucu şuydu:
+#
+#   İnşaat mühendisi → ilk 10 sonucun **6'sı** yalnızca Excel'den eşleşti
+#                      ("Finans Uzmanı", "Muhasebe Elemanı"), 4'ü mesleğinden
+#   Veri analisti    → ilk 10'un **8'i** Excel; SQL yalnızca 2, Analitik 2
+#
+# Kategoriyi komple ayırt edici olmaktan çıkarmak yanlış olurdu (Python da
+# `skill`). Bu yüzden istisna TOKEN düzeyinde ve açık liste hâlinde: yeni bir
+# "herkeste var" token'ı eklenirse fark edilmeden girmesin.
+NON_DISCRIMINATIVE_KEYS: frozenset[str] = frozenset({"excel"})
+
 
 class MatchBand(str, Enum):
     """Kullanıcıya gösterilen eşleşme bandı.

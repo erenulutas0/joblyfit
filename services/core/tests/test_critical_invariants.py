@@ -372,6 +372,84 @@ def test_one_discriminative_requirement_is_enough():
     assert r.band is not None and not r.insufficient_data
 
 
+def test_excel_alone_produces_no_band():
+    """"Excel biliyorsun" bir inşaat mühendisi ilanı için eşleşme kanıtı DEĞİLDİR.
+
+    D-081. Yukarıdaki ``test_generic_requirements_alone_produce_no_band``
+    ile aynı hata, kategori süzgecinden kaçan hâli: Excel'in kategorisi
+    ``skill`` olduğu için ayırt edici sayılıyordu.
+
+    Canlı ölçüm (14.300 ilanlık korpus, TR süzgeci):
+
+    * "Excel / ofis programları" 16 meslek kümesinin **13'ünde** geçiyor —
+      ``bachelor`` (14/16) ve ``english`` (13/16) ile aynı yaygınlıkta, ama
+      onlar dışlanmışken bu sayılıyordu. 12/16 üstündeki tek istisnaydı.
+    * Sonucu: inşaat mühendisi profiline gelen ilk 10 sonucun **6'sı**
+      yalnızca Excel'den eşleşiyordu ("Finans Uzmanı", "Muhasebe Elemanı").
+      Veri analistinde 10'da **8**.
+
+    İlan kaybolmaz: bant üretilmediği için "değerlendiremedik" bölümüne
+    geçer (D-011/D-019). Ölçümde düşen her ilanın oraya taşındığı doğrulandı.
+    """
+    reqs = (
+        Requirement(key="excel", label="Excel", kind="required", category="skill"),
+        Requirement(key="bachelor", label="Lisans", kind="required", category="education"),
+    )
+    job = JobPosting(job_id="j", title="Finans Uzmanı", employer="E", city="İstanbul",
+                     occupation_id="finans", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="excel", category="skill", verification="user_asserted"),
+        ProfileFact(key="bachelor", category="education", verification="user_asserted"),
+    ))
+
+    r = match(job, prof)
+    assert r.met and not r.unmet, "iki şart da karşılanıyor"
+    assert r.band is None, "Excel + lisans, eşleşme iddiası kuracak kanıt değil"
+    assert r.insufficient_data
+
+
+def test_excel_still_counts_alongside_a_real_skill():
+    """Excel şartı bandı SİLMEZ — yalnızca tek başına bant kuramaz.
+
+    Ayrımı test etmezsem sonraki bir "sadeleştirme" Excel'i şart listesinden
+    komple atabilir. Excel gerçek bir şarttır; sorun onun tek kanıt olmasıydı.
+    """
+    reqs = (
+        Requirement(key="excel", label="Excel", kind="required", category="skill"),
+        Requirement(key="accounting", label="Muhasebe", kind="required",
+                    category="experience"),
+    )
+    job = JobPosting(job_id="j", title="Muhasebe Uzmanı", employer="E", city="İstanbul",
+                     occupation_id="muhasebe", source="test", requirements=reqs)
+    prof = CareerProfile(profile_id="p", facts=(
+        ProfileFact(key="excel", category="skill", verification="user_asserted"),
+        ProfileFact(key="accounting", category="experience", verification="user_asserted"),
+    ))
+    r = match(job, prof)
+    assert r.band is not None and not r.insufficient_data
+    assert any(o.requirement.key == "excel" for o in r.met), \
+        "Excel karşılanan şart olarak görünmeye devam etmeli"
+
+
+def test_universal_tokens_are_not_discriminative():
+    """Katalogdaki "herkeste var" token'ları ya kategoriyle ya listeyle dışlanmalı.
+
+    Bu testin işi, ölçümü kodun içinde tutmak: yeni bir evrensel token
+    eklenirse (ör. "MS Office", "bilgisayar kullanımı") fark edilmeden ayırt
+    edici sayılmaya başlamasın.
+    """
+    from isuygun_core.domain import (
+        NON_DISCRIMINATIVE_CATEGORIES,
+        NON_DISCRIMINATIVE_KEYS,
+    )
+
+    # Kesişim boş olmalı: kategorisi zaten dışlanmış bir token'ı ayrıca
+    # listeye yazmak, iki yerden birinin sessizce ölmesi demektir.
+    assert not (NON_DISCRIMINATIVE_KEYS & {"english", "bachelor", "highschool"}), \
+        "kategoriyle dışlanan token ayrıca listeye yazılmaz"
+    assert "excel" in NON_DISCRIMINATIVE_KEYS
+
+
 def test_single_requirement_cannot_produce_strong_band():
     """Tek bir şarta dayanarak "güçlü eşleşme" denemez (D-022).
 

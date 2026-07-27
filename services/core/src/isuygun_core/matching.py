@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from .domain import (
     NON_DISCRIMINATIVE_CATEGORIES,
+    NON_DISCRIMINATIVE_KEYS,
     CareerProfile,
     Confidence,
     JobPosting,
@@ -373,6 +374,9 @@ def match(
         1 for o in outcomes
         if o.state != "unknown"
         and o.requirement.category not in NON_DISCRIMINATIVE_CATEGORIES
+        # Token düzeyindeki istisnalar (D-081): "Excel" kategorisi `skill` ama
+        # her ofis ilanında geçiyor ve tek başına eşleşme kanıtı değil.
+        and o.requirement.key not in NON_DISCRIMINATIVE_KEYS
         and not o.requirement.is_legal_eligibility
     )
 
