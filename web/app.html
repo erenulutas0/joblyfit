@@ -1231,6 +1231,7 @@ function viewFeed(){
 
     ${viewFilters()}
 
+    ${verifyNote()}
     ${evT?`
       <div class="sec-h"><span class="t">// sana göre <b>[${evT}]</b></span><span class="ln"></span></div>
       ${ev.map(card).join('')}
@@ -1373,6 +1374,11 @@ function wireFeed(){
   /* Aynı seçeneğe tekrar tıklamak filtreyi kaldırır — kullanıcı "geri al"
      için temizle düğmesini aramak zorunda kalmasın. */
   $("[data-retry]")&&($("[data-retry]").onclick=()=>refetchAndPaint());
+  /* Doğrulama notundaki düğme (D-080). `data-openpanel` işleyicisi yalnızca
+     detay panelinde bağlıydı; feed'deki düğme bağlanmazsa tıklanır ve HİÇBİR
+     ŞEY olmaz — sessizce ölü bir düğme. */
+  document.querySelectorAll(".feed [data-openpanel]").forEach(b=>b.onclick=()=>
+    openProfilePanel(b.dataset.field||null));
   const pick=(attr,key)=>document.querySelectorAll(`[data-${attr}]`).forEach(el=>el.onclick=()=>{
     const v=el.dataset[attr]; S.f[key]=(S.f[key]===v?"":v); refetchAndPaint();});
   pick("city","city");
@@ -1733,6 +1739,31 @@ function viewPaste(){
 /* Yapıştırılan ilanın kararı — feed kartıyla AYNI dili kullanır (bant, defter,
    adalet uyarısı). Ayrı bir "yapıştırma dili" uydurmak iki anlatının zamanla
    sapması demekti. */
+/* DOĞRULAMA KAPISI NOTU (D-080).
+
+   Ölçüldü: "Özel güvenlik görevlisi" beyan eden profil 0 ilan görüyor; belge
+   doğrulanmış işaretlenince 27. Kural doğru (D-012: belgesiz "karşılanıyor"
+   denmez) ama sebebi ekranda hiçbir yerde YAZMIYORDU — kullanıcı profilinde
+   belgeyi görüyor, listeyi boş görüyor ve tek tıkla açılacağını bilmiyor.
+
+   Sıfır sonuç en kötü hâli; az sonuçta da aynı bilgi işe yarar, o yüzden
+   sayı ne olursa olsun gösterilir. */
+function verifyNote(){
+  const v=(S.feed?.verify_unlocks||[]).filter(x=>x.unlocks>0);
+  if(!v.length) return "";
+  const satir=v.slice(0,3).map(x=>
+    `<b>${esc(x.label)}</b> → ≈${x.unlocks} ilan`).join(" · ");
+  return `<div class="notice" style="border-left-color:var(--mid)">
+    <b>Belgeni doğrularsan daha çok ilan değerlendirilebilir.</b>
+    Profilinde belge isteyen alan var ama doğrulanmadığı için o ilanlarda
+    "karşılanıyor" sayamıyoruz: ${satir}.
+    <button class="btn-2" data-openpanel="1" data-field=""
+      style="margin-left:8px; padding:5px 11px; font-size:10px">profilde doğrula →</button>
+    <div class="fnote" style="margin-top:7px">Doğrulama şimdilik bir beyandır —
+      belge yükleme akışı henüz yok, bunu açıkça söylüyoruz.</div>
+  </div>`;
+}
+
 /* Kıdem tavanı notu (D-063). Bandın neden yükselmediğini söylemeyen bir tavan
    sessiz bir cezadır; kullanıcı gerekçeyi görmeli. Sunucu `**vurgu**` yollar,
    `rich()` yalnızca onu kalınlaştırır. */

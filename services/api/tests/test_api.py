@@ -1052,3 +1052,49 @@ def test_total_years_is_part_of_the_cache_fingerprint(client):
     assert fp(None) != fp(9), "yıl beyanı parmak izini değiştirmiyor — önbellek bayat kalır"
     assert fp(0) != fp(None), "0 yıl ile beyan yokluğu aynı parmak izini üretiyor"
     assert fp(9) == fp(9), "parmak izi kararlı olmalı"
+
+
+# --------------------------------------------------------------------------
+# D-080 — doğrulama kapısının bedeli görünür olmalı
+# --------------------------------------------------------------------------
+
+
+def test_dogrulanmamis_belge_kac_ilani_kapattigini_soyler(client):
+    """Kapı sessiz kalmamalı.
+
+    CANLI ÖLÇÜM: "Özel güvenlik görevlisi" beyan eden profil **0 ilan**
+    görüyordu; belge doğrulanmış işaretlenince 27. Kural doğru (D-012) ama
+    sebebi ekranda yoktu — kullanıcı profilinde belgeyi görüyor, listeyi boş
+    görüyor ve tek tıkla açılacağını bilmiyordu.
+
+    `unlock-suggestions` bu boşluğu KAPATMAZ: o uç gate alanlarını bilinçli
+    olarak dışlar (eklemek değil, doğrulamak gerekiyor).
+    """
+    _add(client, "license_ce")          # kasten doğrulanmamış gate alanı
+    f = client.get("/api/feed").json()
+    kilitli = f.get("verify_unlocks") or []
+    assert kilitli, "doğrulama kapısı kaç ilanı tuttuğunu söylemiyor"
+    kayit = next(v for v in kilitli if v["key"] == "license_ce")
+    assert kayit["unlocks"] > 0
+    assert kayit["label"]
+
+    # Öneri ADD listesine SIZMAMALI: eklenecek bir şey yok, doğrulanacak var.
+    oneri = client.post("/api/unlock-suggestions", json={}).json()
+    assert all(o["key"] != "license_ce" for o in oneri)
+
+
+def test_belge_dogrulaninca_uyari_kaybolur(client):
+    """Uyarı, sebep ortadan kalkınca DURMAMALI — yoksa gürültüye döner."""
+    _add(client, "license_ce", verified=True)
+    f = client.get("/api/feed").json()
+    assert all(v["key"] != "license_ce" for v in (f.get("verify_unlocks") or []))
+
+
+def test_dogrulama_uyarisi_arayuzde_gosteriliyor(client):
+    """Sunucu sayıyı üretse de arayüz göstermezse kullanıcı yine göremez."""
+    html = client.get("/").text
+    assert "verifyNote()" in html, "uyarı feed'e bağlanmamış"
+    assert "verify_unlocks" in html
+    # Notun içindeki düğme feed'de de BAĞLANMALI; yalnızca detay panelinde
+    # bağlıydı ve tıklanınca hiçbir şey olmuyordu.
+    assert '.feed [data-openpanel]' in html

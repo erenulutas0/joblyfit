@@ -284,6 +284,22 @@ class JobDetail(JobSummary):
     disclaimer: str
 
 
+class VerifyUnlockOut(BaseModel):
+    """Doğrulanmamış bir belge yüzünden değerlendirilemeyen ilan sayısı (D-080).
+
+    `UnlockSuggestionOut`tan farkı: orada alan profilde YOK ve eklenmesi
+    gerekiyor; burada alan profilde VAR ama doğrulanmadığı için sayılmıyor
+    (D-012). Ölçüm: güvenlik görevlisi profili doğrulamasız 0, doğrulamayla
+    27 ilan görüyor. Kullanıcıya söylenmezse liste sebepsiz boş görünür.
+    """
+
+    key: str
+    label: str
+    #: Kaç LİSTE SATIRI açılır (ilan değil rol) — kullanıcının gördüğü sayı,
+    #: tıklayınca aldığı sayı olmalı (D-030).
+    unlocks: int
+
+
 class FeedOut(BaseModel):
     evaluated: list[JobSummary]
     unevaluated: list[JobSummary] = Field(
@@ -293,6 +309,8 @@ class FeedOut(BaseModel):
             "Bunlar 'uymuyor' DEĞİLDİR ve bant üzerinden sıralanamaz — OPEN-22."
         ),
     )
+    #: Doğrulanmamış belgeler yüzünden değerlendirilemeyen satırlar (D-080).
+    verify_unlocks: list[VerifyUnlockOut] = Field(default_factory=list)
     profile_is_empty: bool
     #: Profil kalıcı mı? False ise sunucu kapanınca kaybolur — arayüz uyarır.
     profile_is_persistent: bool = True
@@ -1276,6 +1294,8 @@ class FeedPageOut(BaseModel):
     #: "Değerlendirilemedi"nin dökümü: şart okunamadı / profil verisi yok /
     #: kamu ilanı. Sayfada yalnız 40 satır olduğundan istemci bunu sayamaz.
     unevaluated_breakdown: dict
+    #: Doğrulanmamış belge yüzünden kapalı kalan satırlar (D-080).
+    verify_unlocks: list[VerifyUnlockOut] = Field(default_factory=list)
 
 
 def _qids(q: str) -> tuple[set[str], set[str]] | None:
@@ -1454,6 +1474,8 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
         ingest=full.ingest,
         facets=facets,
         unevaluated_breakdown=breakdown,
+        # Filtreden BAĞIMSIZ: doğrulama kapısı bütün korpusta aynı işi yapıyor.
+        verify_unlocks=full.verify_unlocks,
     )
 
 
@@ -1464,6 +1486,19 @@ def _build_feed(profile: CareerProfile) -> FeedOut:
     evaluated: list[tuple[int, JobSummary]] = []
     unevaluated: list[JobSummary] = []
 
+    # DOĞRULAMA KAPISI (D-012) KAÇ İLANI TUTUYOR — rol bazında sayılır.
+    #
+    # Ölçüldü: "Özel güvenlik görevlisi" beyan eden profil **0 ilan** görüyor;
+    # belge doğrulanmış işaretlenince 27. Kural doğru (belgesiz "karşılanıyor"
+    # denmez) ama kullanıcıya SÖYLENMİYORDU: profilinde belge yazıyor, liste
+    # boş ve tek tıkla açılacağını bilmiyor. `unlock-suggestions` bu boşluğu
+    # kapatmıyor çünkü o, gate alanlarını bilinçli olarak dışlıyor (eklemek
+    # değil DOĞRULAMAK gerekiyor).
+    #
+    # Aynı döngüde sayılır: ayrı bir korpus taraması pahalı olurdu ve bu
+    # fonksiyonun sonucu profil başına önbelleklenir.
+    kapida: dict[str, set[tuple[str, str]]] = {}
+
     for posting in STORE.postings.values():
         result, exp = _evaluate(posting, profile)
         s = _summary(posting, result, exp)
@@ -1471,8 +1506,21 @@ def _build_feed(profile: CareerProfile) -> FeedOut:
             # D-019: bant yok. Bunlar "uymuyor" değil, "bilinmiyor" — ayrı
             # bölümde gösterilir ve bant sırasına sokulmaz (OPEN-22 açık).
             unevaluated.append(s)
+            if not result.listing_only:
+                rol = _role_key(posting.job.employer, posting.job.title)
+                for o in result.outcomes:
+                    if o.unknown_reason == "unverified_gate_field":
+                        kapida.setdefault(o.requirement.key, set()).add(rol)
         else:
             evaluated.append((_BAND_ORDER[result.band], s))
+
+    verify_unlocks = []
+    for key, roller in sorted(kapida.items(), key=lambda kv: -len(kv[1])):
+        item = STORE.catalog_item(key)
+        if item is None:
+            continue
+        verify_unlocks.append(VerifyUnlockOut(
+            key=item.key, label=item.label, unlocks=len(roller)))
 
     evaluated.sort(key=lambda t: (t[0], t[1].title))
     shown_evaluated = _group_by_role([s for _, s in evaluated])
@@ -1492,6 +1540,7 @@ def _build_feed(profile: CareerProfile) -> FeedOut:
     return FeedOut(
         evaluated=shown_evaluated,
         unevaluated=shown_unevaluated,
+        verify_unlocks=verify_unlocks,
         profile_is_empty=not profile.facts,
         profile_is_persistent=STORE.is_persistent,
         profile_backend=STORE.backend,
