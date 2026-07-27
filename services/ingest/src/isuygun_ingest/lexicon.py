@@ -198,6 +198,76 @@ TERMS: tuple[Term, ...] = (
       ["logo", "mikro", "netsis", "luca", "eta", "nebim", "sap"], "Muhasebe ve finans"),
     T("efatura", "E-fatura / e-defter", SKILL, ["e-fatura", "e fatura", "e-defter", "e-arsiv"], "Muhasebe ve finans"),
     T("smmm", "SMMM ruhsatı", LICENSE, ["smmm", "mali musavir", "serbest muhasebeci"], "Muhasebe ve finans"),
+    # D-082 — finans/ekonomi alanının TAMAMI eksikti. Beyaz yaka testinde
+    # aranan 10 finans mesleğinin 10'unda da katalog karşılığı yoktu: ekonomist
+    # de, hazine uzmanı da, aktüer de kendini yalnızca "Muhasebe" olarak
+    # işaretleyebiliyordu. Sonuç ölçüldü — "Finans/ekonomi" personasının ilk 10
+    # sonucu baştan sona muhasebe elemanı ilanıydı.
+    #
+    # Yüzey biçimlerinde ÇIPLAK sektör/kurum adı yok. Ölçümde denenip elenenler:
+    #   "banka"   → "banka hesabına yatırılır" (maaş cümlesi) her ilanda
+    #   "hazine"  → "Hazine ve Maliye Bakanlığı" kamu ilanlarında
+    #   "vergi"   → "vergi levhası" işveren boilerplate'i
+    #   "denetci" → "iş güvenliği denetçisi" (İSG, alakasız alan)
+    T("finance", "Finans / finansal analiz", EXPERIENCE,
+      ["finans uzman", "finansal analiz", "financial analyst", "kurumsal finans",
+       "corporate finance", "finansal raporlama"], "Muhasebe ve finans", True),
+    T("economics", "Ekonomi / iktisat", EXPERIENCE,
+      ["ekonomist", "iktisat", "economist", "makroekonomi", "ekonomik arastirma"],
+      "Muhasebe ve finans", True),
+    T("banking", "Bankacılık", EXPERIENCE,
+      # "banking" ELENDİ: 985 ilanda geçiyordu ve hepsi şirket tanıtımıydı
+      # ("one of Europe's most innovative banking networks"). Meslek değil, sektör.
+      ["bankacilik", "banka sube", "kredi tahsis", "bireysel kredi"],
+      "Muhasebe ve finans", True),
+    T("investment", "Yatırım / portföy yönetimi", EXPERIENCE,
+      # "portfoy yonet" ELENDİ: iki eşleşmenin ikisi de EMLAK danışmanıydı
+      # ("gayrimenkul satış, kiralama ve portföy yönetimi"). Aynı kelime,
+      # başka meslek.
+      ["yatirim uzman", "yatirim analist", "sermaye piyasa",
+       "investment analyst", "spk lisans"], "Muhasebe ve finans", True),
+    T("risk_mgmt", "Risk yönetimi", EXPERIENCE,
+      # "risk management" ELENDİ: 313 ilan, tamamı proje yönetimi cümlesi
+      # ("budget control and risk management"). Finansal risk mesleği değil.
+      ["risk yonetim", "risk analist", "kredi riski", "operasyonel risk"],
+      "Muhasebe ve finans", True),
+    T("treasury", "Hazine / nakit yönetimi", EXPERIENCE,
+      # "treasury" ELENDİ: 138 ilan, hepsi süreç listesi ("order-to-cash,
+      # record-to-report, tax, treasury") — o ilanların mesleği hazine değil.
+      ["hazine uzman", "hazine yonet", "nakit yonetim", "nakit akis yonet"],
+      "Muhasebe ve finans", True),
+    T("internal_audit", "İç denetim / iç kontrol", EXPERIENCE,
+      # "denetim uzman" ve "ic denetci" ELENDİ: korpusta 0 eşleşme verdiler,
+      # yani ölçülmemiş risk. "denetim uzman" ayrıca İSG ve kalite denetçisini
+      # de tutardı — bambaşka alanlar.
+      ["ic denetim", "ic kontrol", "internal audit", "bagimsiz denetim"],
+      "Muhasebe ve finans", True),
+    T("budget_report", "Bütçe ve raporlama", EXPERIENCE,
+      # Çıplak "butce" ELENDİ: otel müdürü/genel müdür ilanlarına tutuyordu —
+      # bütçe sorumluluğu her yöneticide var, meslek değil. "fp&a" (175) ve
+      # "financial reporting" (121) KALDI: ikisi de mesleğin kendi adı.
+      ["butceleme", "butce ve raporlama", "mali raporlama", "yonetim raporlama",
+       "fp&a", "financial reporting"], "Muhasebe ve finans", True),
+    T("actuary", "Aktüerya", EXPERIENCE,
+      # İki yazım hatası ölçümle yakalandı:
+      #   "akter"   → "karakter" içinde geçiyor, 6 biyoloji öğretmeni ilanı tuttu
+      #   "akturya" → fold("aktüerya") = "aktuerya"; bu form HİÇBİR ŞEY tutmuyordu
+      # Doğrusu "aktuer": hem "aktüer" hem "aktüerya" bununla yakalanıyor.
+      # İngilizceleri de elendi: 3 ilanın üçü de aktüerlere SATIŞ yapan roldü.
+      #
+      # Korpusta şu an 0 eşleşme veriyor ve bu dürüst sonuç: Türkiye ATS
+      # panolarında aktüer ilanı yok. Token yine de duruyor, çünkü sorun
+      # eşleşme değil İFADE'ydi — aktüer profilini kurabilmeli.
+      ["aktuer"], "Muhasebe ve finans", True),
+    T("tax", "Vergi mevzuatı", EXPERIENCE,
+      # "transfer fiyatland" DEĞİL: ek zinciri "-irmasi"yı çözemiyor ve biçim
+      # hiçbir şey tutmuyordu. Tam gövde yazılınca "-si" eki normal çalışıyor.
+      ["vergi uzman", "vergi mevzuat", "vergi danisman",
+       "transfer fiyatlandirma", "kurumlar vergisi", "kdv iade"],
+      "Muhasebe ve finans", True),
+    T("cost_accounting", "Maliyet muhasebesi", EXPERIENCE,
+      ["maliyet muhasebe", "cost accounting", "maliyet analiz"],
+      "Muhasebe ve finans", True),
     T("payroll", "Bordro ve özlük", EXPERIENCE,
       ["bordro", "ozluk", "payroll", "sgk bildirim", "ise giris cikis"], "İnsan kaynakları", True),
     T("hr", "İnsan kaynakları", EXPERIENCE,
@@ -373,6 +443,40 @@ TERMS: tuple[Term, ...] = (
       ["elektrik muhendis", "elektronik muhendis", "enerji muhendis"], "Mühendislik", True),
     T("industrial_eng", "Endüstri mühendisliği", EXPERIENCE,
       ["endustri muhendis", "industrial engineer"], "Mühendislik", True),
+    # D-082 — kalan mühendislik dalları. Beyaz yaka testinde ölçüldü: aranan 15
+    # mühendislik dalının 10'unun katalogda karşılığı YOKTU. Kimya mühendisi
+    # kendini "makine mühendisi" seçmek zorunda kalıyordu; seçmezse profil hiç
+    # kurulmuyor ve eşleşme sorusu doğmuyordu.
+    #
+    # Yüzey biçimleri hep "<dal> muhendis" — çıplak dal adı ("kimya", "maden")
+    # BİLİNÇLİ OLARAK YOK: onlar sektör adıdır, ilanın mesleği değil. Ölçümde
+    # çıplak "kimya" bir kimya fabrikasının depo elemanı ilanına eşleşiyordu.
+    T("chem_eng", "Kimya mühendisliği", EXPERIENCE,
+      ["kimya muhendis", "chemical engineer", "proses muhendis"], "Mühendislik", True),
+    T("env_eng", "Çevre mühendisliği", EXPERIENCE,
+      ["cevre muhendis", "environmental engineer", "aritma tesis"],
+      "Mühendislik", True),
+    T("survey_eng", "Harita / geomatik mühendisliği", EXPERIENCE,
+      ["harita muhendis", "jeodezi", "geomatik", "topograf"], "Mühendislik", True),
+    T("geo_eng", "Jeoloji / jeofizik mühendisliği", EXPERIENCE,
+      ["jeoloji muhendis", "jeofizik muhendis", "zemin etud"], "Mühendislik", True),
+    T("metal_eng", "Metalurji ve malzeme mühendisliği", EXPERIENCE,
+      ["metalurji muhendis", "malzeme muhendis", "dokum muhendis"],
+      "Mühendislik", True),
+    # `software_dev`'den AYRI: ilan "bilgisayar mühendisi" derken çoğu zaman
+    # diploma şartını kastediyor, rolü değil. İkisini tek token yapmak,
+    # donanım/ağ ilanlarını yazılımcıya, yazılım ilanlarını da her bilgisayar
+    # mühendisine eşleştirirdi.
+    T("comp_eng", "Bilgisayar mühendisliği", EXPERIENCE,
+      ["bilgisayar muhendis", "computer engineer"], "Mühendislik", True),
+    T("mecha_eng", "Mekatronik mühendisliği", EXPERIENCE,
+      ["mekatronik muhendis", "mechatronics engineer"], "Mühendislik", True),
+    T("textile_eng", "Tekstil mühendisliği", EXPERIENCE,
+      ["tekstil muhendis"], "Mühendislik", True),
+    T("mining_eng", "Maden mühendisliği", EXPERIENCE,
+      ["maden muhendis", "mining engineer"], "Mühendislik", True),
+    T("agri_eng", "Ziraat / gıda tarım mühendisliği", EXPERIENCE,
+      ["ziraat muhendis", "agricultural engineer"], "Mühendislik", True),
 
     # ---- İNŞAAT VE ZANAAT ----
     # Bu küme D-067'de arayüzde tanımlıydı ama lexicon'da TEK TOKEN'I YOKTU;

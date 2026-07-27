@@ -420,3 +420,133 @@ def test_tek_basina_genel_kelimeler_token_yapilmadi():
     bulunan = {L.fold(f) for t in L.TERMS for f in t.forms} & tehlikeli
     assert bulunan == set(), \
         f"tek başına genel kelime token olmuş: {sorted(bulunan)}"
+
+
+# ---------------------------------------------------------------------------
+# D-082 — beyaz yaka ifade boslugu
+# ---------------------------------------------------------------------------
+# Olculdu (beyaz yaka persona testi, 33 meslek): 20'sinin katalogda karsiligi
+# YOKTU. Kimya muhendisi kendini "makine muhendisi" isaretlemek zorundaydi;
+# ekonomist, hazine uzmani, akter icin ise HICBIR karsilik yoktu -- finans
+# alaninin tamami eksikti. Karsiligi olmayan kullanici profil kuramaz ve
+# eslesme sorusu hic dogmaz; bu yuzden once IFADE, sonra eslesme.
+
+BEYAZ_YAKA_BOSLUKLARI = [
+    ("Kimya Mühendisi", "chem_eng"),
+    ("Çevre Mühendisi aranıyor", "env_eng"),
+    ("Harita Mühendisi / İzmir", "survey_eng"),
+    ("Jeoloji Mühendisi", "geo_eng"),
+    ("Metalurji Mühendisi, Makina Mühendisi", "metal_eng"),
+    ("Bilgisayar Mühendisi Arıyoruz", "comp_eng"),
+    ("Mekatronik Mühendisi", "mecha_eng"),
+    ("Tekstil Mühendisi", "textile_eng"),
+    ("Maden Mühendisi", "mining_eng"),
+    ("Ziraat Mühendisi", "agri_eng"),
+    ("Finans Uzmanı", "finance"),
+    ("Senior Financial Analyst", "finance"),
+    ("İktisat bölümünden mezun", "economics"),
+    ("Bankacılık sektöründe deneyimli", "banking"),
+    ("Investment Analyst", "investment"),
+    ("Risk Yönetimi Uzmanı", "risk_mgmt"),
+    ("Finans ve Hazine Uzmanı", "treasury"),
+    ("İÇ DENETİM PERSONELİ", "internal_audit"),
+    ("Internal Audit and SOX Compliance Manager", "internal_audit"),
+    ("Bütçeleme ve raporlama konularında deneyimli", "budget_report"),
+    ("Aktüer aranıyor", "actuary"),
+    ("Aktüerya bölümü mezunu", "actuary"),
+    ("Vergi mevzuatı bilgisi", "tax"),
+    ("Transfer fiyatlandırması", "tax"),
+    ("Maliyet Muhasebesi Uzman Yardımcısı", "cost_accounting"),
+]
+
+
+#: BILINEN ACIK -- kapatilmadi, cunku olculemedi.
+#:
+#: Turkce iyelik+yonelme eki ("-ina/-ine": mevzuat-i-n-a, sistem-i-n-e) `_TR_EK`
+#: listesinde YOK. Kaynastirma "n"si zinciri kiriyor:
+#:     "Vergi mevzuatı"   -> tax  (calisiyor)
+#:     "Vergi mevzuatına" -> yok  (calismiyor)
+#: Ilan metinlerinde cok yaygin bir kalip, yani gercek bir kayip.
+#:
+#: NEDEN SIMDI DUZELTILMEDI: `_TR_EK` butun token'larin ortak makinesi. Onu
+#: genisletmenin yan etkisi ancak TR korpusunda olculebilir; yerel cache'te
+#: TR ilanlari yok (Jooble anahtari yalnizca sunucuda, TR HTML kaynaklari bu
+#: kosuda donmedi). Olculemeyen bir genisletmeyi paylasilan makineye yazmak,
+#: D-074/D-076/D-077 boyunca tutulan "once olc" kuralini bozardi.
+EK_ACIGI = [("Vergi mevzuatına hâkim olan", "tax"),
+            ("Muhasebe sistemine hakim", "acc_software")]
+
+
+@pytest.mark.parametrize("metin,beklenen", EK_ACIGI)
+def test_iyelik_yonelme_eki_henuz_desteklenmiyor(metin, beklenen):
+    """Acigi TESTLE kayda gecirir: kapandiginda bu test kirilir ve haber verir.
+
+    xfail degil duz assert: "su an calismiyor" bir olgu, beklenen bir
+    basarisizlik degil. Duzeltildiginde testin kirilmasini istiyorum.
+    """
+    assert beklenen not in {h.term.key for h in L.scan(metin)}, (
+        f"'-ına/-ine' eki artık tutuyor: {metin!r} → {beklenen}. "
+        "Açık kapandıysa bu testi sil ve BEYAZ_YAKA_BOSLUKLARI'na taşı."
+    )
+
+
+@pytest.mark.parametrize("metin,anahtar", BEYAZ_YAKA_BOSLUKLARI)
+def test_beyaz_yaka_bosluklari_kapatildi(metin, anahtar):
+    assert anahtar in {h.term.key for h in L.scan(metin)}, \
+        f"beyaz yaka mesleği hâlâ ifade edilemiyor: {metin!r} → {anahtar}"
+
+
+#: D-082'de OLCUMLE elenen yuzey bicimleri. Her satir 17.858 ilanlik korpusta
+#: gercekten gorulmus bir yanlis eslesmedir -- parantez icindeki sayi kac ilan.
+#: Bu testler daraltmanin geri alinmasini engeller.
+BEYAZ_YAKA_TEHLIKELERI = [
+    # "banking" (985) -- sirket tanitimi, meslek degil.
+    ("Data Scientist at ING's global banking network", "banking"),
+    # "risk management" (313) -- proje yonetimi cumlesi.
+    ("Project Manager: budget control and risk management", "risk_mgmt"),
+    # "treasury" (138) -- global finans surec listesi.
+    ("Process lead for order-to-cash, record-to-report, tax, treasury", "treasury"),
+    # Ciplak "butce" -- her yonetici ilaninda butce sorumlulugu var.
+    ("Otel Müdürü — bütçe yönetiminden sorumlu", "budget_report"),
+    # "akter" -- "karakter" kelimesinin icinde geciyordu (6 ilan).
+    ("Biyoloji Öğretmeni — karakter olarak neşeli", "actuary"),
+    # "portfoy yonet" -- emlakta bambaska bir anlam.
+    ("Gayrimenkul satış, kiralama ve portföy yönetimi", "investment"),
+    # "denetim uzman" -- ISG/kalite denetcisini de tutardi.
+    ("İş Güvenliği Denetim Uzmanı", "internal_audit"),
+    # Ciplak dal adlari sektor bildirir, meslek degil.
+    ("Kimya fabrikasında depo elemanı", "chem_eng"),
+    ("Maden sahasında güvenlik görevlisi", "mining_eng"),
+]
+
+
+@pytest.mark.parametrize("metin,olmamali", BEYAZ_YAKA_TEHLIKELERI)
+def test_beyaz_yaka_daraltmalari_geri_alinmadi(metin, olmamali):
+    assert olmamali not in {h.term.key for h in L.scan(metin)}, \
+        f"ölçümde elenen yanlış eşleşme geri geldi: {metin!r} → {olmamali}"
+
+
+def test_muhendislik_dallari_birbirine_karismaz():
+    """Her dal AYRI token: "mühendis" tek token olsaydı ayırt ediciliği sıfırdı.
+
+    Bir kimya mühendisi ilanı makine mühendisine eşleşmemeli — ikisi de
+    "mühendis" diye tek kovaya girseydi tam olarak bu olurdu.
+    """
+    bulunan = {h.term.key for h in L.scan("Kimya Mühendisi aranıyor")}
+    assert "chem_eng" in bulunan
+    assert not (bulunan & {"mech_eng", "civil_eng", "elec_eng", "industrial_eng",
+                           "comp_eng", "mining_eng"}), \
+        f"dallar birbirine karışıyor: {bulunan}"
+
+
+def test_finans_kumesi_artik_ekonomi_alanini_kapsiyor():
+    """"Muhasebe ve finans" kümesi eskiden yalnızca MUHASEBE'ydi.
+
+    Ekonomist, hazine uzmanı, aktüer, risk analisti — hiçbirinin karşılığı
+    yoktu ve hepsi kendini "Muhasebe" işaretlemek zorunda kalıyordu.
+    """
+    kume = {t.key for t in L.TERMS if t.cluster == "Muhasebe ve finans"}
+    beklenen = {"finance", "economics", "banking", "investment", "risk_mgmt",
+                "treasury", "internal_audit", "budget_report", "actuary", "tax"}
+    eksik = beklenen - kume
+    assert not eksik, f"finans alanı hâlâ eksik: {eksik}"
