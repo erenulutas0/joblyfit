@@ -460,33 +460,46 @@ BEYAZ_YAKA_BOSLUKLARI = [
 ]
 
 
-#: BILINEN ACIK -- kapatilmadi, cunku olculemedi.
+#: BILINCLI SINIR -- OLCULDU ve kapatilmamasina karar verildi (D-086).
 #:
 #: Turkce iyelik+yonelme eki ("-ina/-ine": mevzuat-i-n-a, sistem-i-n-e) `_TR_EK`
 #: listesinde YOK. Kaynastirma "n"si zinciri kiriyor:
 #:     "Vergi mevzuatı"   -> tax  (calisiyor)
 #:     "Vergi mevzuatına" -> yok  (calismiyor)
-#: Ilan metinlerinde cok yaygin bir kalip, yani gercek bir kayip.
 #:
-#: NEDEN SIMDI DUZELTILMEDI: `_TR_EK` butun token'larin ortak makinesi. Onu
-#: genisletmenin yan etkisi ancak TR korpusunda olculebilir; yerel cache'te
-#: TR ilanlari yok (Jooble anahtari yalnizca sunucuda, TR HTML kaynaklari bu
-#: kosuda donmedi). Olculemeyen bir genisletmeyi paylasilan makineye yazmak,
-#: D-074/D-076/D-077 boyunca tutulan "once olc" kuralini bozardi.
+#: D-082'de bunu "gercek bir kayip, olculemedigi icin ertelendi" diye yazmistim.
+#: SONRA OLCTUM ve yanildigimi gordum. 200 gercek TR ilani (canli API'den
+#: ornekleme, 14.327 kelime):
+#:
+#:   en az bir token okunan ilan   153 -> 153   (+0)
+#:   yeni token eslesmesi                 1
+#:   token govdesi + "-ina/-ine" geciși     1   (14.327 kelimede)
+#:
+#: Tek eslesme de YANLIS: bir "Garson" ilanindaki "musteri hizmetlerine
+#: tutkuyla" ifadesi `call_center` tutuyordu.
+#:
+#: Neden kazanc sifir: tek kelimelik bicimler zaten govde uretme yoluyla
+#: (`_govdeler`) eslesiyor; ek toleransi yalnizca COK KELIMELI bicimleri
+#: etkiliyor ve o kaliplar ilanlarda bu ekle nadiren geciyor.
+#:
+#: Karar: `_TR_EK` butun token'larin ortak makinesi. %0 kazanc icin onu
+#: genisletmek, olculmus bir fayda olmadan olculmemis bir risk almak olurdu.
 EK_ACIGI = [("Vergi mevzuatına hâkim olan", "tax"),
             ("Muhasebe sistemine hakim", "acc_software")]
 
 
 @pytest.mark.parametrize("metin,beklenen", EK_ACIGI)
-def test_iyelik_yonelme_eki_henuz_desteklenmiyor(metin, beklenen):
-    """Acigi TESTLE kayda gecirir: kapandiginda bu test kirilir ve haber verir.
+def test_iyelik_yonelme_eki_bilincli_olarak_desteklenmiyor(metin, beklenen):
+    """Siniri TESTLE kayda gecirir: biri ek listesini genisletirse haber verir.
 
-    xfail degil duz assert: "su an calismiyor" bir olgu, beklenen bir
-    basarisizlik degil. Duzeltildiginde testin kirilmasini istiyorum.
+    xfail degil duz assert: bu beklenen bir basarisizlik degil, OLCULMUS bir
+    karar. Kural degisirse test kirilir ve degistiren kisi yukaridaki olcumu
+    gorur -- %0 kazanc icin ortak makineyi genisletmedigimizi.
     """
     assert beklenen not in {h.term.key for h in L.scan(metin)}, (
         f"'-ına/-ine' eki artık tutuyor: {metin!r} → {beklenen}. "
-        "Açık kapandıysa bu testi sil ve BEYAZ_YAKA_BOSLUKLARI'na taşı."
+        "Ek listesi genişletildiyse ÖLÇÜMÜ TEKRARLA (yukarıdaki not): "
+        "önceki ölçümde kazanç %0 ve tek eşleşme yanlıştı."
     )
 
 
