@@ -385,3 +385,48 @@ def test_partial_refresh_keeps_raws_of_skipped_source(tmp_path, monkeypatch):
     # Jooble ilanı KAYBOLMADI (eski ham kayıt korundu)
     idler = {p.job.job_id for p in ikinci["canonical_postings"].values()}
     assert any("j1" in i for i in idler), f"Jooble ilanı düştü: {idler}"
+
+
+def test_yeniden_cikarim_yapildiysa_stale_logic_bildirilmez(tmp_path, monkeypatch):
+    """Sozluk degistikten sonraki tazelemede bayrak False olmali (D-083).
+
+    CANLIDA GORULDU: D-082 dagitiminda yeni token'lar ilanlardan okunuyordu
+    (kimya muhendisi ilanlari esleiyordu) ama /api/health hala
+    `stale_logic: true` diyordu. Bayrak yalnizca onbellek OKUMASINDAN
+    hesaplaniyordu; oysa cikarim parmak izi tutmadigi icin islenmis kayitlar
+    ATILIP yeniden cikarim yapiliyor -- yani bellekteki korpus TAZE.
+
+    Operator icin yanlis bayrak, dogru bir dagitima guvenmemek ya da
+    gereksiz bir tazeleme daha tetiklemek demek.
+    """
+    from isuygun_ingest import cache, pipeline
+
+    sahte = [
+        pipeline.RawPosting(
+            source_id="src-fixture-001", source_posting_ref=f"r{i}",
+            url=f"https://e.invalid/is/{i}", title=f"Depo Görevlisi {i}",
+            employer="Test A.Ş.", city="İstanbul",
+            description="Aranan şartlar: forklift ehliyeti, vardiyalı çalışma.")
+        for i in range(3)
+    ]
+    monkeypatch.setattr(pipeline, "_fetch_all_boards", lambda b: (list(sahte), [], []))
+    monkeypatch.setattr(pipeline, "_fetch_api_sources", lambda only=None: ([], [], []))
+    monkeypatch.setattr(pipeline, "_cache_path", lambda: tmp_path / "c.json")
+
+    ilk = pipeline.run_live_ingest(force_refresh=True)
+    assert ilk["canonical"] == 3, "test ön koşulu"
+    assert ilk["stale_logic"] is False
+
+    # SÖZLÜK DEĞİŞTİ taklidi: yalnızca ÇIKARIM parmak izi tutmaz, çekim tutar.
+    monkeypatch.setattr(cache, "extraction_fingerprint", lambda: "yeni-sozluk")
+
+    # (a) AÇILIŞ yolu: işlenmiş kayıtlar yeniden kullanılır → bayrak True,
+    #     çünkü gerçekten eski mantıkla üretilmiş korpusu servis ediyoruz.
+    acilis = pipeline.run_live_ingest(stale_ok=True)
+    assert acilis["stale_logic"] is True,         "açılışta eski çıkarım kullanılıyor; bunu gizlemek yanlış olur"
+
+    # (b) TAZELEME yolu: işlenmiş kayıtlar atılır, yeniden çıkarım yapılır →
+    #     servis edilen korpus TAZE, bayrak False olmalı.
+    tazeleme = pipeline.run_live_ingest(stale_ok=False)
+    assert tazeleme["canonical"] == 3
+    assert tazeleme["stale_logic"] is False,         "yeniden çıkarım yapıldı ama korpus hâlâ 'bayat' raporlanıyor"

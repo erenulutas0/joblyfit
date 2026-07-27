@@ -856,7 +856,20 @@ def run_live_ingest(
         # Açılışta eski mantıkla işlenmiş önbellek kullanıldı mı (D-055).
         # Sessiz kalmaz: arayüz/health bunu gösterir, arka plan tazelemesi
         # bitince kendiliğinden False'a döner.
-        "stale_logic": stale_logic,
+        #
+        # `reused_extraction` ŞARTI (D-083). Bayrak yalnızca önbellek
+        # OKUMASINDAN hesaplanıyordu ve yanlış rapor veriyordu: sözlük
+        # değiştikten sonraki tazelemede parmak izi tutmaz (`stale_logic`
+        # True), ama tam da bu yüzden işlenmiş kayıtlar atılıp YENİDEN
+        # ÇIKARIM yapılır. Yani bellekteki korpus taze, bayrak "bayat" diyor.
+        #
+        # D-082 dağıtımında canlıda görüldü: yeni token'lar ilanlardan
+        # okunuyordu (kimya mühendisi ilanları eşleşiyordu) ama /api/health
+        # hâlâ `stale_logic: true` gösteriyordu. Operatör için bu, doğru bir
+        # dağıtıma güvenmemek ya da gereksiz bir tazeleme daha tetiklemek
+        # demek. Doğru soru "önbellek bayat mıydı" değil, "SERVİS ETTİĞİMİZ
+        # korpus bayat mantıkla mı üretildi".
+        "stale_logic": stale_logic and reused_extraction,
         "fetched": fetched_total,
         "stale_dropped": stale_dropped,
         "max_age_days": max_age_days,
