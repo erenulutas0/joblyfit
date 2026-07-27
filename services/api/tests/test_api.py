@@ -1090,6 +1090,57 @@ def test_belge_dogrulaninca_uyari_kaybolur(client):
     assert all(v["key"] != "license_ce" for v in (f.get("verify_unlocks") or []))
 
 
+def test_uyari_IKINCI_istekte_de_gelir(client):
+    """Önbellek isabet ettiğinde uyarı DÜŞMEMELİ (D-083).
+
+    CANLIDA ÖLÇÜLDÜ ve tam olarak şu görüldü:
+
+        ilk istek     → "Özel güvenlik görevlisi doğrularsan +29 ilan"
+        aynı istek 2. → uyarı YOK
+
+    Sebep: POST /api/feed'in önbellek İSABET yolu `FeedPageOut`u ayrı
+    kuruyordu ve D-080'de eklediğim `verify_unlocks` alanı orada YOKTU.
+    Yukarıdaki iki test bunu kaçırdı çünkü GET yolunu kullanıyorlar; önbellek
+    POST yolunda.
+
+    En kötü tarafı zamanlaması: uyarı, kullanıcı boş listeyi görüp sayfayı
+    yenilediğinde susuyordu — yani tam gerektiği anda. İkinci yüklemede
+    sessizleşen bir uyarı, hiç olmamasından farksızdır.
+    """
+    govde = {"profile": {"facts": [{"key": "license_ce", "verified": False}]},
+             "filters": {"q": "", "region": ""}, "limit": 5}
+
+    ilk = client.post("/api/feed", json=govde).json()
+    assert ilk.get("verify_unlocks"), "ilk istekte uyarı yok (ön koşul)"
+
+    # AYNI gövde: önbellek isabet eder.
+    ikinci = client.post("/api/feed", json=govde).json()
+    assert ikinci.get("verify_unlocks") == ilk["verify_unlocks"],         "önbellek isabetinde doğrulama uyarısı düşüyor"
+
+    # Sayfalama da aynı önbellek girdisini kullanır.
+    sayfa2 = client.post("/api/feed", json={**govde, "offset_evaluated": 5}).json()
+    assert sayfa2.get("verify_unlocks") == ilk["verify_unlocks"],         "sonraki sayfada doğrulama uyarısı düşüyor"
+
+
+def test_sayfa_yaniti_tek_yerden_kurulur():
+    """İki ayrı `FeedPageOut` inşası olmamalı — ayrışırlar.
+
+    D-083'teki hata alanı ikinci yere yazmayı unutmaktı. Alanı eklemek
+    yetmezdi: bir sonraki yeni alan aynı şekilde düşerdi. Bu test, iki yolun
+    tek fonksiyondan geçmeye devam ettiğini sabitler.
+    """
+    import inspect
+
+    from isuygun_api import main as m
+
+    kaynak = inspect.getsource(m.feed_stateless)
+    assert "FeedPageOut(" not in kaynak, (
+        "feed_stateless yanıtı doğrudan kuruyor; önbellek isabet eden ve "
+        "etmeyen yollar yine ayrışabilir. `_sayfa()` üzerinden geç."
+    )
+    assert kaynak.count("_sayfa(") == 2,         "her iki yol da ortak kurucuyu kullanmalı"
+
+
 def test_dogrulama_uyarisi_arayuzde_gosteriliyor(client):
     """Sunucu sayıyı üretse de arayüz göstermezse kullanıcı yine göremez."""
     html = client.get("/").text

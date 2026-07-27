@@ -1362,15 +1362,7 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     if cached is not None:
         _FILTERED_CACHE.move_to_end(fkey)
         ev, un, facets, breakdown = cached
-        lim = body.limit
-        return FeedPageOut(
-            evaluated=ev[body.offset_evaluated:body.offset_evaluated + lim],
-            unevaluated=un[body.offset_unevaluated:body.offset_unevaluated + lim],
-            evaluated_total=len(ev), unevaluated_total=len(un),
-            corpus_total=len(full.evaluated) + len(full.unevaluated),
-            profile_is_empty=full.profile_is_empty, ingest=full.ingest,
-            facets=facets, unevaluated_breakdown=breakdown,
-        )
+        return _sayfa(body, full, ev, un, facets, breakdown)
     hit = _qids(f.q)
     qids, title_ids = hit if hit is not None else (None, None)
 
@@ -1463,6 +1455,28 @@ def feed_stateless(body: FeedQueryIn) -> FeedPageOut:
     while len(_FILTERED_CACHE) > 16:
         _FILTERED_CACHE.popitem(last=False)
 
+    return _sayfa(body, full, ev, un, facets, breakdown)
+
+
+def _sayfa(body: "FeedQueryIn", full: FeedOut, ev: list, un: list,
+           facets: dict, breakdown: dict) -> "FeedPageOut":
+    """Sayfa yanıtını kuran **TEK** yer.
+
+    Neden tek yer: önbellek isabet eden ve etmeyen yollar ayrı ayrı
+    ``FeedPageOut`` kuruyordu ve D-080'de eklediğim ``verify_unlocks`` alanını
+    yalnızca ISKA yoluna yazmıştım. Sonuç canlıda ölçüldü:
+
+      ilk istek      → "Özel güvenlik görevlisi doğrularsan +29 ilan"
+      aynı istek 2.  → uyarı YOK (önbellek isabet etti, alan düştü)
+
+    Yani uyarı tam da en çok gerektiği anda kayboluyordu: kullanıcı boş
+    listeyi görüp sayfayı yenilediğinde. D-080'in varlık sebebi "boş listenin
+    nedenini söylemek"ti; ikinci yüklemede sessizleşen bir uyarı, hiç
+    olmamasından farksız.
+
+    Alanı ikinci yere de yazmak yetmezdi — bir sonraki yeni alan aynı şekilde
+    ayrışırdı. İki yol artık aynı fonksiyondan geçiyor.
+    """
     lim = body.limit
     return FeedPageOut(
         evaluated=ev[body.offset_evaluated:body.offset_evaluated + lim],
