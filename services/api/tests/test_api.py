@@ -1418,3 +1418,111 @@ def test_arayuz_cikis_yolunu_ve_yok_sayilani_gosterir(client):
     # sokaga susulu tabela asmaktan ibaret olurdu.
     assert "[data-clearf]" in html and "[data-gocity]" in html, \
         "çıkış yolu butonları bağlanmamış"
+
+
+def _arama_korpusu():
+    """Iki kelime de korpusta VAR ama HIC birlikte gecmiyor.
+
+    Canlida kirilan durum tam buydu: "ariyorum" 31 ilanda geciyordu (isveren
+    "eleman ariyorum" yazmis), yani "hicbir ilanda yok" degildi -- ama
+    "muhasebe" ile hic birlikte gecmiyordu. Ilk kuralim yalnizca SIFIR
+    gecisli kelimeyi dusuruyordu ve bu vakayi kaciriyordu.
+    """
+    from isuygun_core.domain import JobPosting, Requirement
+    from isuygun_ingest.pipeline import NormalizedPosting, fold
+
+    def ilan(i, baslik, metin, kume, anahtar, etiket):
+        # `occupation_id` ARAMA TORBASINA girer (bkz. search.haystack). İlk
+        # yazdığım hâlde hepsine "muhasebe" vermiştim ve garson ilanı da
+        # "muhasebe" aramasına tutuyordu — kurgu, taklit etmesi gereken canlı
+        # vakayı hiç üretmiyordu.
+        job = JobPosting(
+            job_id=f"s{i}", title=baslik, employer=f"Firma {i}", city="İstanbul",
+            occupation_id=kume, source="test",
+            requirements=(Requirement(key=anahtar, label=etiket,
+                                      kind="required", category="experience",
+                                      extraction_confidence=1.0),))
+        return NormalizedPosting(
+            job=job, employer_key=fold(f"Firma {i}"), title_key=fold(baslik),
+            city_key="istanbul", content_fingerprint=f"c{i}", job_text=metin,
+            url=f"https://e.invalid/{i}", posted_at="2026-07-01",
+            refreshed_at="2026-07-01", fetched_at="2026-07-01",
+            provenance={"source_id": "src-fixture-001", "source": "test",
+                        "url": f"https://e.invalid/{i}"})
+
+    kayit = {}
+    # 20 muhasebe ilani -- metinlerinde "ariyorum" GECMIYOR.
+    for i in range(20):
+        p = ilan(i, f"Muhasebe Elemanı {i:02d}",
+                 "Cari hesap takibi ve fatura kesimi yapacak personel.",
+                 "muhasebe", "accounting", "Muhasebe")
+        kayit[p.job.job_id] = p
+    # 3 alakasiz ilan -- metninde "ariyorum" GECIYOR, "muhasebe" GECMIYOR.
+    for i, ad in enumerate(("Garson", "Kurye", "Şoför")):
+        p = ilan(100 + i, ad, "Ekibimize katılacak arkadaş arıyorum. Detaylar "
+                              "görüşmede paylaşılacaktır.",
+                 "hizmet", "waiter", "Servis / garsonluk")
+        kayit[p.job.job_id] = p
+    return kayit
+
+
+@pytest.fixture()
+def arama_korpusu():
+    from isuygun_ingest import search as _s
+
+    from isuygun_api.store import STORE
+
+    eski_p, eski_i, eski_v = (dict(STORE.postings), dict(STORE.search_index),
+                              STORE.corpus_version)
+    kayit = _arama_korpusu()
+    STORE.postings = kayit
+    STORE.search_index = {jid: _s.haystack(p) for jid, p in kayit.items()}
+    STORE.corpus_version += 1
+    try:
+        yield STORE
+    finally:
+        STORE.postings, STORE.search_index = eski_p, eski_i
+        STORE.corpus_version = eski_v + 2
+
+
+def _ara(client, q, limit=5):
+    return client.post("/api/feed", json={
+        "profile": {"facts": []}, "filters": {"q": q, "region": ""},
+        "limit": limit}).json()
+
+
+def test_var_ama_birlikte_gecmeyen_kelime_dusurulur(client, arama_korpusu):
+    """Ilk kuralimin CANLIDA kacirdigi vaka (D-087).
+
+    "ariyorum" korpusta VAR (3 ilanda), ama "muhasebe" ile hic birlikte
+    gecmiyor. "Hicbir ilanda yok" olcutu bunu yakalamiyordu; dogru olcut
+    BASLIK SIKLIGI: meslegi tasiyan kelime baslikta gecer, kullanicinin
+    kendi fiili gecmez.
+    """
+    tek = _ara(client, "arıyorum")
+    assert tek["evaluated_total"] + tek["unevaluated_total"] > 0, \
+        "ön koşul: 'arıyorum' korpusta gerçekten geçmeli"
+
+    d = _ara(client, "muhasebe elemanı arıyorum")
+    assert d["evaluated_total"] + d["unevaluated_total"] > 0, \
+        "doğal cümle hâlâ sıfır sonuç veriyor"
+    assert "ariyorum" in d["ignored_terms"], \
+        f"düşen kelime bildirilmiyor: {d['ignored_terms']}"
+    # MESLEK kelimesi DUSMEMELI: dusen o olsaydi kullaniciya bambaska
+    # ilanlar gosterilirdi.
+    assert "muhasebe" not in d["ignored_terms"]
+    basliklar = [j["title"] for j in
+                 (d.get("evaluated") or []) + (d.get("unevaluated") or [])]
+    assert all("Muhasebe" in t for t in basliklar), \
+        f"yanlış kelime düşürülmüş, alakasız ilanlar geldi: {basliklar[:3]}"
+
+
+def test_dusurmek_ise_yaramazsa_yanlis_aciklama_verilmez(client, arama_korpusu):
+    """Kelime dusurup yine 0 sonuc kaliyorsa "yok saydim" DENMEZ.
+
+    Aksi halde kullaniciya sonucu degistirmeyen bir aciklama verirdik.
+    """
+    d = _ara(client, "zzzyokboyle bbbyokboyle cccyokboyle")
+    assert d["evaluated_total"] + d["unevaluated_total"] == 0
+    assert d["ignored_terms"] == [], \
+        "sonucu değiştirmeyen bir düşürme kullanıcıya bildiriliyor"

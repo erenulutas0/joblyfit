@@ -1407,36 +1407,57 @@ def _qids(q: str) -> tuple[set[str], set[str], set[str], tuple[str, ...]] | None
     ids, tids, xids = _tara(parsed)
     yok_sayilan: tuple[str, ...] = ()
 
-    # HİÇBİR İLANDA GEÇMEYEN KELİME SORGUYU SIFIRLAMAZ (D-087).
+    # DOLGU KELİMESİ SORGUYU SIFIRLAMAZ (D-087).
     #
-    # Terimler VE'leniyor, dolayısıyla korpusta hiç geçmeyen TEK kelime bütün
-    # sonucu siliyordu. Ölçüm:
-    #     "muhasebe elemanı"           106 sonuç
+    # Terimler VE'leniyor, dolayısıyla tek bir kelime bütün sonucu siliyordu:
+    #     "muhasebe elemanı"           108 sonuç
     #     "muhasebe elemanı arıyorum"    0 sonuç
-    #     "iş arıyorum muhasebe"         0 sonuç
     # Kullanıcı doğal cümle kurduğunda ürün tamamen sessizleşiyordu.
     #
-    # Yalnızca SIFIR sonuçta devreye girer: sonuç varsa kullanıcının yazdığı
-    # kısıt aynen uygulanır. Ve yok sayılan kelime YANITTA döner — sessizce
-    # gevşetmek "Berlin muhasebe" arayana 347 Türkiye ilanı gösterip Berlin
-    # ilanı sanmasına yol açardı.
+    # HANGİ KELİME DÜŞÜRÜLÜR — ölçülmüş ölçüt: BAŞLIK SIKLIĞI. Mesleği taşıyan
+    # kelime ilan başlığında geçer, kullanıcının kendi fiili geçmez. 4.089 TR
+    # başlığında sayıldı:
+    #     muhasebe 244 · elemani 325 · uzman 255    ← meslek
+    #     ariyorum   5 · arayan     0 · acil     5  ← dolgu
+    #
+    # İlk yazdığım kural "hiçbir ilanda geçmeyen kelimeyi düşür"dü ve CANLIDA
+    # ÇALIŞMADI: "arıyorum" 31 ilanda geçiyor (işverenler "eleman arıyorum"
+    # yazmış), yani sıfır değil — ama "muhasebe" ile hiç birlikte geçmiyor.
+    # Ölçüt "hiç geçmiyor" değil, "bu ilanların mesleğini anlatmıyor" olmalıydı.
+    #
+    # Yalnızca SIFIR sonuçta devreye girer ve düşen kelime YANITTA döner:
+    # sessizce gevşetmek, "Berlin muhasebe" arayana 347 Türkiye ilanı gösterip
+    # Berlin ilanı sanmasına yol açardı.
     if not ids and len(parsed.terms) > 1:
-        # Desen terim başına BİR kez derlenir. İlk yazdığım hâlde
-        # `search.parse(t)` `any(...)` gövdesindeydi ve 14 bin ilanın HER
-        # BİRİ için yeniden derleniyordu.
-        # İlk 6 terimle sınırlı: her terim korpusu bir kez tarar (ölçüm ~450 ms,
-        # yalnızca sıfır sonuçta ve sorgu başına önbellekli). Sınırsız bırakmak,
-        # 20 kelimelik bir yapıştırmada 20 tam tarama demekti.
-        tekil = [(t, search.parse(t)) for t in parsed.terms[:6]]
         belge = list(STORE.search_index.values())
-        tutan = [t for t, pq in tekil
-                 if any(search.matches(d, pq) for d in belge)]
-        # Sınır yüzünden bakılmayan terimler KORUNUR: bakmadığımız bir kelimeyi
-        # "hiçbir ilanda yok" diye düşürmek, ölçmediğimiz şeyi iddia etmek olurdu.
-        tutan += [t for t in parsed.terms[6:]]
-        if tutan and len(tutan) < len(parsed.terms):
-            yok_sayilan = tuple(t for t in parsed.terms if t not in tutan)
-            parsed = search.Query(tuple(tutan), parsed.phrases, parsed.excluded)
+        # İlk 6 terim sayılır; her biri korpusu bir kez tarar (ölçüm ~450 ms,
+        # yalnızca sıfır sonuçta ve sorgu başına önbellekli). Bakılmayan terime
+        # çok yüksek sıklık verilir — ölçmediğimiz kelimeyi düşürmek,
+        # ölçmediğimiz şeyi iddia etmek olurdu.
+        sayim: dict[str, int] = {}
+        for t in parsed.terms[:6]:
+            pq = search.parse(t)
+            sayim[t] = sum(1 for d in belge if search.title_matches(d, pq))
+
+        kalan = list(parsed.terms)
+        dusen: list[str] = []
+        # En fazla 2 kelime düşer: daha fazlası kullanıcının sorgusunu değil
+        # bizim tahminimizi aramak olurdu.
+        for _ in range(2):
+            if ids or len(kalan) <= 1:
+                break
+            zayif = min(kalan, key=lambda t: (sayim.get(t, 10 ** 9), -len(t)))
+            kalan.remove(zayif)
+            dusen.append(zayif)
+            ids, tids, xids = _tara(
+                search.Query(tuple(kalan), parsed.phrases, parsed.excluded))
+
+        if ids:
+            yok_sayilan = tuple(dusen)
+        else:
+            # Düşürmek işe yaramadı: sorguyu OLDUĞU GİBİ bırak. Yoksa "şu
+            # kelimeleri yok saydım" der, yine 0 sonuç gösterirdik — kullanıcıya
+            # yanlış bir açıklama vermiş olurduk.
             ids, tids, xids = _tara(parsed)
 
     _QIDS_CACHE[key] = (ids, tids, xids, yok_sayilan)
