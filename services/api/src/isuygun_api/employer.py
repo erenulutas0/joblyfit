@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import threading
 import uuid
@@ -168,6 +169,28 @@ def submit(*, employer: str, contact: str, title: str, city: str,
             "En az bir şart seçmelisin. Şartsız ilan, adayın kendini "
             "karşılaştırabileceği hiçbir şey sunmaz — bu panonun tek amacı o.")
 
+    # BAŞVURU YOLU ZORUNLU (D-083). Eskiden isteğe bağlıydı ve sonucu şuydu:
+    # `to_postings` boş URL yazıyordu, arayüz de `href=""` basıyordu — "ilana
+    # git" düğmesi sayfayı yeniden yüklüyordu. Aday ilanı görüyor ama BAŞVURAMIYOR.
+    # Smoke testi (`test_every_feed_item_has_a_usable_apply_link`) bunu yakaladı.
+    #
+    # Sorunun kaynağı bu alanın isteğe bağlı olmasıydı: `contact` alanını
+    # yayımlamayacağımızı işverene söz verdik, dolayısıyla bağlantı yoksa
+    # başvurunun HİÇBİR yolu kalmıyor. Uydurma bir URL üretmek de çözüm değil.
+    #
+    # `mailto:` bilinçli olarak kabul edilir: web sitesi olmayan küçük işveren
+    # de ilan verebilmeli. Zorunlu tutmanın maliyeti onları dışlamak olurdu.
+    apply_url = _kirp(apply_url, 500)
+    if not apply_url:
+        raise Reddedildi(
+            "Başvuru bağlantısı zorunlu. Adayın başvurabileceği bir adres "
+            "olmadan ilan görünür ama işe yaramaz. Web siteniz yoksa "
+            "e-posta yazabilirsiniz: mailto:ik@sirketiniz.com")
+    if not re.match(r"^(https?://\S+|mailto:[^@\s]+@[^@\s]+\.\S+)$", apply_url, re.I):
+        raise Reddedildi(
+            "Başvuru bağlantısı 'https://…' veya 'mailto:adres@alan.com' "
+            f"biçiminde olmalı. Gelen: {apply_url[:80]!r}")
+
     if deadline:
         try:
             date.fromisoformat(deadline)
@@ -187,7 +210,7 @@ def submit(*, employer: str, contact: str, title: str, city: str,
             " work_arrangement, employment_type, experience_level, fairness)"
             " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (pid, datetime.now(timezone.utc).isoformat(timespec="seconds"), "pending",
-             employer, contact, title, city, description, _kirp(apply_url, 500),
+             employer, contact, title, city, description, apply_url,
              json.dumps(temiz_req, ensure_ascii=False), _kirp(salary_text, 120),
              deadline, work_arrangement, employment_type, experience_level,
              json.dumps(yumusak, ensure_ascii=False)))

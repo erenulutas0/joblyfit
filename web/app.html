@@ -1952,8 +1952,13 @@ function detailBody(j){
       ${fair.some(f=>f.severity==='hard')?`<div style="margin-top:8px"><a href="https://www.tihek.gov.tr" target="_blank" rel="noopener">TİHEK'e başvurabilirsin ↗</a></div>`:''}</div>`:''}
     ${j.description?dh('ilan metni')+`<div class="desc" id="desc">${descHTML(j.description)}</div>
       <button class="btn-ghost" id="descToggle" style="padding:10px 0">tamamını göster ▾</button>`:''}
-    <div class="apply"><a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">ilana git ↗</a></div>
-    <p class="mut" style="font-size:12px">Başvuru ilanın kendi sayfasında yapılır. Biz aracı değiliz; başvurunu görmüyoruz.</p>
+    ${j.url?`<div class="apply"><a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">ilana git ↗</a></div>
+    <p class="mut" style="font-size:12px">Başvuru ilanın kendi sayfasında yapılır. Biz aracı değiliz; başvurunu görmüyoruz.</p>`
+    /* URL YOKSA DÜĞME BASILMAZ. href="" sayfayı yeniden yükler: kullanıcı
+       tıklar, hiçbir şey olmaz ve nedenini anlamaz. Başvuru bağlantısı artık
+       gönderimde zorunlu (D-083); bu dal eski kayıtlar için savunma. */
+    :`<p class="mut" style="font-size:12px">Bu ilanda başvuru bağlantısı yok —
+      başvuru bilgisi varsa yukarıdaki ilan metninde.</p>`}
     ${j.disclaimer?`<p class="mut" style="font-size:11.5px; margin-top:14px">${esc(j.disclaimer)}</p>`:''}`;
 }
 function descHTML(t){

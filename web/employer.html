@@ -171,9 +171,16 @@ b{color:var(--ink)}
           <option value="internship">staj</option>
         </select></div>
     </div>
-    <label for="apply_url">Başvuru bağlantısı (isteğe bağlı)</label>
-    <input id="apply_url" maxlength="500" placeholder="https://…">
-    <div class="hint">boş bırakırsan aday sana yukarıdaki iletişimden ulaşır</div>
+    <label for="apply_url">Başvuru bağlantısı <span style="color:var(--bad)">*</span></label>
+    <input id="apply_url" maxlength="500" placeholder="https://… veya mailto:ik@sirketiniz.com">
+    <!-- ESKIDEN ISTEGE BAGLIYDI ve sonucu su oldu: bos birakilinca arayuz
+         href="" basiyor, "ilana git" dugmesi sayfayi yeniden yukluyordu.
+         Aday ilani goruyor ama BASVURAMIYOR. Yukaridaki iletisim alanini
+         yayimlamayacagimiza soz verdigimiz icin baska yol da kalmiyordu. -->
+    <div class="hint">zorunlu — adayın başvuracağı adres. web siteniz yoksa
+      <b>mailto:ik@sirketiniz.com</b> yazabilirsiniz. yukarıdaki iletişim
+      bilgisi yayımlanmaz, bu yayımlanır.</div>
+    <div class="hint" id="linkHint"></div>
 
     <h2>// Şartlar</h2>
     <p class="lead" style="font-size:13.5px">Bu bölüm ilanın <b>kalbi</b>. Aday
@@ -233,6 +240,10 @@ async function boot(){
   /* Seçim değişince durum satırı ve gönder düğmesi tazelenir; kullanıcı
      "ekle"ye basmadan da hazır olduğunu görür. */
   sel.onchange = cizReq;
+  /* Başvuru bağlantısı yazılınca da tazelenmeli. Bu bağlama olmadan
+     geçerli bir URL girmek düğmeyi açmıyordu: `cizReq` yalnızca şart
+     seçimi değişince çağrılıyor. */
+  $("#apply_url").addEventListener("input", cizReq);
   cizReq();
 }
 
@@ -251,8 +262,19 @@ function cizReq(){
   }).join("");
   /* Hazır olup olmadığı GÖNDERMEDEN ÖNCE görünmeli. Sunucudan 422 almak,
      düzeltilebilir bir eksiği hatayla öğrenmektir. */
-  const hazir = SECILI.length > 0 || !!$("#pick").value;
-  $("#send").disabled = !hazir;
+  const sartVar = SECILI.length > 0 || !!$("#pick").value;
+  /* Başvuru bağlantısı da hazırlık koşulu (D-083): sunucu zorunlu tutuyor,
+     formun bunu ÖNCE söylemesi gerekir. Kalıp sunucudaki ile aynı — iki yerde
+     farklı olsalardı form "hazır" der, sunucu 422 verirdi. */
+  const linkOk = /^(https?:\/\/\S+|mailto:[^@\s]+@[^@\s]+\.\S+)$/i
+    .test(($("#apply_url").value || "").trim());
+  $("#send").disabled = !(sartVar && linkOk);
+  /* İKİ ayrı eksik var; hangisi olduğunu söylemeyen bir ipucu, kapalı bir
+     düğmenin karşısında kullanıcıyı tahmine bırakır. */
+  $("#linkHint").textContent = linkOk ? "" : ($("#apply_url").value.trim()
+    ? "bağlantı biçimi tutmuyor: «https://…» veya «mailto:ad@alan.com»"
+    : "başvuru bağlantısı gerekiyor");
+  $("#linkHint").style.color = linkOk ? "" : "var(--warn)";
   $("#reqHint").textContent = SECILI.length
     ? `${SECILI.length} şart seçildi — aday her birini tek tek karşılaştırılmış görecek`
     : ($("#pick").value

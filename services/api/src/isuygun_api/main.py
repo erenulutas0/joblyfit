@@ -1782,3 +1782,15 @@ if _WEB.is_dir():
         uğruna çapraz-origin izni açmak gereksiz bir yüzey olurdu.
         """
         return FileResponse(str(_WEB / "employer.html"))
+
+    @app.get("/moderasyon")
+    def moderasyon() -> FileResponse:
+        """Moderasyon paneli (D-083).
+
+        Sayfanın kendisi HERKESE AÇIK ve bu bilinçli: içinde sır yok, veri
+        yok, yalnızca boş bir form var. Yetki kapısı SUNUCUDA — panel her
+        isteği `X-Admin-Token` ile atar ve `_require_admin` doğrular. Sayfayı
+        gizlemeye çalışmak (tahmin edilmesi zor bir yol, `noindex`) güvenlik
+        değil belirsizlik olurdu; kapı uçlarda.
+        """
+        return FileResponse(str(_WEB / "moderation.html"))
